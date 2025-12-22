@@ -1,7 +1,7 @@
 import * as React from "react";
-import { format, addDays, addWeeks, startOfDay, setHours, setMinutes } from "date-fns";
+import { format, addDays, addWeeks, addMonths, startOfDay, setHours, setMinutes } from "date-fns";
 import { vi } from "date-fns/locale";
-import { CalendarIcon, Clock } from "lucide-react";
+import { CalendarIcon, Clock, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ interface DateTimePickerProps {
   className?: string;
 }
 
-export function DateTimePicker({ value, onChange, placeholder = "Chọn ngày giờ", className }: DateTimePickerProps) {
+export function DateTimePicker({ value, onChange, placeholder = "Chọn deadline", className }: DateTimePickerProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   
   const dateValue = value ? new Date(value) : undefined;
@@ -46,17 +46,23 @@ export function DateTimePicker({ value, onChange, placeholder = "Chọn ngày gi
     
     if (type === 'hours') {
       newDate = setHours(newDate, numVal);
+      newDate = setMinutes(newDate, minutes);
     } else {
+      newDate = setHours(newDate, hours);
       newDate = setMinutes(newDate, numVal);
-    }
-    
-    // If no date was selected, also set today's date
-    if (!dateValue) {
-      newDate = setMinutes(setHours(new Date(), numVal), type === 'minutes' ? numVal : minutes);
     }
     
     onChange(newDate.toISOString().slice(0, 16));
   };
+
+  const quickOptions = [
+    { label: 'Hôm nay', value: 'today' },
+    { label: 'Ngày mai', value: 'tomorrow' },
+    { label: '3 ngày', value: '3days' },
+    { label: '1 tuần', value: '1week' },
+    { label: '2 tuần', value: '2weeks' },
+    { label: '1 tháng', value: '1month' },
+  ];
 
   const handleQuickSelect = (option: string) => {
     const now = new Date();
@@ -78,11 +84,15 @@ export function DateTimePicker({ value, onChange, placeholder = "Chọn ngày gi
       case '2weeks':
         newDate = setMinutes(setHours(addWeeks(now, 2), 23), 59);
         break;
+      case '1month':
+        newDate = setMinutes(setHours(addMonths(now, 1), 23), 59);
+        break;
       default:
         return;
     }
 
     onChange(newDate.toISOString().slice(0, 16));
+    setIsOpen(false);
   };
 
   const generateHourOptions = () => {
@@ -93,9 +103,9 @@ export function DateTimePicker({ value, onChange, placeholder = "Chọn ngày gi
   };
 
   const generateMinuteOptions = () => {
-    return Array.from({ length: 12 }, (_, i) => ({
-      value: (i * 5).toString(),
-      label: (i * 5).toString().padStart(2, '0'),
+    return [0, 15, 30, 45, 59].map(m => ({
+      value: m.toString(),
+      label: m.toString().padStart(2, '0'),
     }));
   };
 
@@ -105,66 +115,50 @@ export function DateTimePicker({ value, onChange, placeholder = "Chọn ngày gi
         <Button
           variant="outline"
           className={cn(
-            "w-full justify-start text-left font-normal h-11",
+            "w-full justify-start text-left font-normal h-11 group",
             !value && "text-muted-foreground",
             className
           )}
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? (
-            format(new Date(value), "dd/MM/yyyy 'lúc' HH:mm", { locale: vi })
-          ) : (
-            <span>{placeholder}</span>
+          <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+          <span className="flex-1 truncate">
+            {value ? (
+              format(new Date(value), "dd/MM/yyyy 'lúc' HH:mm", { locale: vi })
+            ) : (
+              placeholder
+            )}
+          </span>
+          {value && (
+            <X 
+              className="h-4 w-4 opacity-50 hover:opacity-100 shrink-0" 
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange('');
+              }}
+            />
           )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0 bg-popover border shadow-lg" align="start">
-        <div className="p-3 border-b bg-muted/30">
-          <p className="text-sm font-medium mb-2">Chọn nhanh</p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickSelect('today')}
-              className="text-xs h-7"
-            >
-              Hôm nay
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickSelect('tomorrow')}
-              className="text-xs h-7"
-            >
-              Ngày mai
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickSelect('3days')}
-              className="text-xs h-7"
-            >
-              3 ngày
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickSelect('1week')}
-              className="text-xs h-7"
-            >
-              1 tuần
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickSelect('2weeks')}
-              className="text-xs h-7"
-            >
-              2 tuần
-            </Button>
+        {/* Quick Select */}
+        <div className="p-3 border-b">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Chọn nhanh</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {quickOptions.map((opt) => (
+              <Button
+                key={opt.value}
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickSelect(opt.value)}
+                className="text-xs h-7 px-2"
+              >
+                {opt.label}
+              </Button>
+            ))}
           </div>
         </div>
 
+        {/* Calendar */}
         <Calendar
           mode="single"
           selected={dateValue}
@@ -174,36 +168,37 @@ export function DateTimePicker({ value, onChange, placeholder = "Chọn ngày gi
           locale={vi}
         />
 
+        {/* Time Select */}
         <div className="p-3 border-t bg-muted/30">
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Giờ:</span>
+            <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-xs font-medium">Giờ:</span>
             <Select
               value={hours.toString()}
               onValueChange={(val) => handleTimeChange('hours', val)}
             >
-              <SelectTrigger className="w-16 h-8">
+              <SelectTrigger className="w-14 h-7 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="max-h-48 bg-popover">
                 {generateHourOptions().map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
                     {opt.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <span>:</span>
+            <span className="text-muted-foreground">:</span>
             <Select
-              value={(Math.floor(minutes / 5) * 5).toString()}
+              value={(Math.round(minutes / 15) * 15).toString()}
               onValueChange={(val) => handleTimeChange('minutes', val)}
             >
-              <SelectTrigger className="w-16 h-8">
+              <SelectTrigger className="w-14 h-7 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="max-h-48 bg-popover">
                 {generateMinuteOptions().map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
                     {opt.label}
                   </SelectItem>
                 ))}
@@ -212,20 +207,13 @@ export function DateTimePicker({ value, onChange, placeholder = "Chọn ngày gi
           </div>
         </div>
 
+        {/* Footer */}
         {value && (
-          <div className="p-2 border-t flex justify-between items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onChange('')}
-              className="text-xs text-muted-foreground"
-            >
-              Xóa
-            </Button>
+          <div className="p-2 border-t flex justify-end">
             <Button
               size="sm"
               onClick={() => setIsOpen(false)}
-              className="text-xs"
+              className="text-xs h-7"
             >
               Xong
             </Button>

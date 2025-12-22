@@ -39,7 +39,6 @@ import {
   Plus,
   MoreVertical,
   Calendar,
-  ExternalLink,
   Trash2,
   Edit,
   Loader2,
@@ -48,10 +47,10 @@ import {
   ChevronRight,
   Send,
   AlertTriangle,
-  Clock,
   CheckCircle2,
-  Eye,
   History,
+  Clock,
+  Target,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -63,12 +62,12 @@ import SubmissionHistoryPopup from './SubmissionHistoryPopup';
 // Stage color helper - returns a consistent color for each stage index
 const getStageColor = (index: number) => {
   const colors = [
-    { bg: 'bg-stage-1/10', text: 'text-stage-1', border: 'border-stage-1/30', dot: 'bg-stage-1' },
-    { bg: 'bg-stage-2/10', text: 'text-stage-2', border: 'border-stage-2/30', dot: 'bg-stage-2' },
-    { bg: 'bg-stage-3/10', text: 'text-stage-3', border: 'border-stage-3/30', dot: 'bg-stage-3' },
-    { bg: 'bg-stage-4/10', text: 'text-stage-4', border: 'border-stage-4/30', dot: 'bg-stage-4' },
-    { bg: 'bg-stage-5/10', text: 'text-stage-5', border: 'border-stage-5/30', dot: 'bg-stage-5' },
-    { bg: 'bg-stage-6/10', text: 'text-stage-6', border: 'border-stage-6/30', dot: 'bg-stage-6' },
+    { bg: 'bg-stage-1/10', text: 'text-stage-1', border: 'border-stage-1/30', dot: 'bg-stage-1', accent: 'bg-stage-1/20' },
+    { bg: 'bg-stage-2/10', text: 'text-stage-2', border: 'border-stage-2/30', dot: 'bg-stage-2', accent: 'bg-stage-2/20' },
+    { bg: 'bg-stage-3/10', text: 'text-stage-3', border: 'border-stage-3/30', dot: 'bg-stage-3', accent: 'bg-stage-3/20' },
+    { bg: 'bg-stage-4/10', text: 'text-stage-4', border: 'border-stage-4/30', dot: 'bg-stage-4', accent: 'bg-stage-4/20' },
+    { bg: 'bg-stage-5/10', text: 'text-stage-5', border: 'border-stage-5/30', dot: 'bg-stage-5', accent: 'bg-stage-5/20' },
+    { bg: 'bg-stage-6/10', text: 'text-stage-6', border: 'border-stage-6/30', dot: 'bg-stage-6', accent: 'bg-stage-6/20' },
   ];
   return colors[index % colors.length];
 };
@@ -80,7 +79,7 @@ const getStatusColor = (status: string, isOverdue: boolean) => {
   }
   switch (status) {
     case 'TODO':
-      return 'bg-muted text-muted-foreground';
+      return 'bg-muted text-muted-foreground border-muted';
     case 'IN_PROGRESS':
       return 'bg-warning/10 text-warning border-warning/30';
     case 'DONE':
@@ -94,17 +93,17 @@ const getStatusColor = (status: string, isOverdue: boolean) => {
 
 const getStatusLabel = (status: string, isOverdue: boolean) => {
   if (isOverdue && status !== 'DONE' && status !== 'VERIFIED') {
-    return 'Trễ deadline';
+    return 'Trễ';
   }
   switch (status) {
     case 'TODO':
-      return 'Chờ làm';
+      return 'Chờ';
     case 'IN_PROGRESS':
       return 'Đang làm';
     case 'DONE':
-      return 'Hoàn thành';
+      return 'Xong';
     case 'VERIFIED':
-      return 'Đã duyệt';
+      return 'Duyệt';
     default:
       return status;
   }
@@ -137,7 +136,6 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('vi-VN', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric',
   });
 };
 
@@ -146,10 +144,9 @@ const isOverdue = (deadline: string | null) => {
   return new Date(deadline) < new Date();
 };
 
-// TaskRow component
-interface TaskRowProps {
+// Compact TaskCard component
+interface TaskCardProps {
   task: Task;
-  stageName: string;
   stageColor: ReturnType<typeof getStageColor>;
   isLeaderInGroup: boolean;
   isAssignee: boolean;
@@ -158,188 +155,154 @@ interface TaskRowProps {
   setTaskToDelete: (task: Task) => void;
 }
 
-function TaskRow({
+function TaskCard({
   task,
-  stageName,
   stageColor,
   isLeaderInGroup,
   isAssignee,
   onEditTask,
   openSubmissionDialog,
   setTaskToDelete,
-}: TaskRowProps) {
-  const progress = getProgressPercent(task.status);
+}: TaskCardProps) {
   const overdueStatus = isOverdue(task.deadline);
   const taskIsOverdue = overdueStatus && task.status !== 'DONE' && task.status !== 'VERIFIED';
   const canSubmit = isLeaderInGroup || (isAssignee && !taskIsOverdue);
 
-  const handleTaskClick = () => {
-    if (isLeaderInGroup) {
-      onEditTask(task);
-    }
-  };
-
   return (
-    <div className={`group flex items-center gap-4 p-4 bg-card border rounded-xl transition-all hover:shadow-md ${
-      taskIsOverdue ? 'border-destructive/30 bg-destructive/5' : ''
-    }`}>
-      {/* Task Title */}
-      <div 
-        className={`flex-1 min-w-0 ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
-        onClick={handleTaskClick}
-      >
-        <div className="flex items-center gap-2">
-          <h4 className={`font-semibold text-sm truncate ${isLeaderInGroup ? 'group-hover:text-primary transition-colors' : ''}`}>
-            {task.title}
-          </h4>
-          {taskIsOverdue && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Task đã quá deadline</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
-        {task.description && (
-          <p className="text-xs text-muted-foreground truncate mt-0.5 max-w-xs">{task.description}</p>
-        )}
-      </div>
-
-      {/* Stage with color */}
-      <div className="w-32 flex-shrink-0 hidden md:block">
-        <Badge className={`${stageColor.bg} ${stageColor.text} ${stageColor.border} text-xs truncate max-w-full border`}>
-          <span className={`w-2 h-2 rounded-full ${stageColor.dot} mr-1.5`} />
-          {stageName}
-        </Badge>
-      </div>
-
-      {/* Assignees */}
-      <div className="w-28 flex-shrink-0 hidden lg:flex items-center gap-1">
-        {task.task_assignments && task.task_assignments.length > 0 ? (
-          <>
-            <div className="flex -space-x-2">
-              {task.task_assignments.slice(0, 2).map((assignment) => (
-                <Avatar key={assignment.id} className="w-6 h-6 border-2 border-background">
-                  <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                    {assignment.profiles ? getInitials(assignment.profiles.full_name) : '?'}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
-            </div>
-            <span className="text-xs text-muted-foreground truncate">
-              {task.task_assignments[0]?.profiles?.full_name?.split(' ').pop()}
-              {task.task_assignments.length > 1 && ` +${task.task_assignments.length - 1}`}
-            </span>
-          </>
-        ) : (
-          <span className="text-xs text-muted-foreground italic">Chưa giao</span>
-        )}
-      </div>
-
-      {/* Deadline */}
-      <div className="w-24 flex-shrink-0 hidden sm:block">
-        {task.deadline ? (
-          <div className={`flex items-center gap-1 text-xs ${taskIsOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-            <Calendar className="w-3 h-3" />
-            <span>{formatDate(task.deadline)}</span>
+    <div 
+      className={`group p-3 bg-card rounded-lg border transition-all hover:shadow-md hover:border-primary/30 ${
+        taskIsOverdue ? 'border-destructive/40 bg-destructive/5' : 'border-border'
+      }`}
+    >
+      {/* Row 1: Title + Status */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div 
+          className={`flex-1 min-w-0 ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
+          onClick={() => isLeaderInGroup && onEditTask(task)}
+        >
+          <div className="flex items-center gap-1.5">
+            {taskIsOverdue && (
+              <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+            )}
+            <h4 className={`font-medium text-sm leading-tight line-clamp-2 ${
+              isLeaderInGroup ? 'group-hover:text-primary transition-colors' : ''
+            }`}>
+              {task.title}
+            </h4>
           </div>
-        ) : (
-          <span className="text-xs text-muted-foreground italic">-</span>
-        )}
-      </div>
-
-      {/* Status */}
-      <div className="w-28 flex-shrink-0">
-        <Badge className={`${getStatusColor(task.status, taskIsOverdue)} text-xs border`}>
+        </div>
+        <Badge 
+          className={`${getStatusColor(task.status, taskIsOverdue)} text-[10px] px-1.5 py-0.5 border shrink-0`}
+        >
           {getStatusLabel(task.status, taskIsOverdue)}
         </Badge>
       </div>
-
-      {/* Progress */}
-      <div className="w-16 flex-shrink-0 hidden xl:block">
-        <div className="flex items-center gap-1">
-          <Progress value={progress} className="h-1.5 flex-1" />
-          <span className="text-[10px] text-muted-foreground">{progress}%</span>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-1 flex-shrink-0">
-        {/* History popup - compact button */}
-        <SubmissionHistoryPopup 
-          taskId={task.id} 
-          taskDeadline={task.deadline}
-          currentSubmissionLink={task.submission_link}
-        />
-
-        {/* Submit Button */}
-        {(isAssignee || isLeaderInGroup) && (
+      
+      {/* Row 2: Info chips */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+        {/* Deadline */}
+        {task.deadline && (
+          <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full ${
+            taskIsOverdue 
+              ? 'bg-destructive/10 text-destructive' 
+              : 'bg-muted text-muted-foreground'
+          }`}>
+            <Calendar className="w-2.5 h-2.5" />
+            {formatDate(task.deadline)}
+          </div>
+        )}
+        
+        {/* Assignees - compact */}
+        {task.task_assignments && task.task_assignments.length > 0 && (
           <TooltipProvider>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={task.submission_link ? "outline" : "default"}
-                  size="sm"
-                  className={`gap-1 h-8 text-xs ${!canSubmit ? 'opacity-50' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openSubmissionDialog(task);
-                  }}
-                >
-                  {task.submission_link ? (
-                    <>
-                      <CheckCircle2 className="w-3 h-3 text-success" />
-                      <span className="hidden sm:inline">Xem</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-3 h-3" />
-                      <span className="hidden sm:inline">Nộp</span>
-                    </>
+              <TooltipTrigger>
+                <div className="flex items-center gap-0.5">
+                  <div className="flex -space-x-1.5">
+                    {task.task_assignments.slice(0, 2).map((assignment) => (
+                      <Avatar key={assignment.id} className="w-5 h-5 border border-background">
+                        <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
+                          {assignment.profiles ? getInitials(assignment.profiles.full_name) : '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                  </div>
+                  {task.task_assignments.length > 2 && (
+                    <span className="text-[9px] text-muted-foreground ml-0.5">
+                      +{task.task_assignments.length - 2}
+                    </span>
                   )}
-                </Button>
+                </div>
               </TooltipTrigger>
               <TooltipContent>
-                {taskIsOverdue && !isLeaderInGroup 
-                  ? 'Đã quá deadline - Chỉ Leader được nộp thay'
-                  : task.submission_link 
-                    ? 'Xem/Cập nhật bài nộp' 
-                    : 'Nộp bài'}
+                <div className="text-xs">
+                  {task.task_assignments.map(a => a.profiles?.full_name).join(', ')}
+                </div>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
+      </div>
+      
+      {/* Row 3: Actions */}
+      <div className="flex items-center justify-between gap-1 pt-1 border-t border-dashed">
+        <div className="flex items-center gap-1">
+          {/* History popup - compact */}
+          <SubmissionHistoryPopup 
+            taskId={task.id} 
+            taskDeadline={task.deadline}
+            currentSubmissionLink={task.submission_link}
+          />
+        </div>
+        
+        <div className="flex items-center gap-1">
+          {/* Submit Button */}
+          {(isAssignee || isLeaderInGroup) && (
+            <Button
+              variant={task.submission_link ? "outline" : "default"}
+              size="sm"
+              className={`h-6 text-[10px] px-2 gap-1 ${!canSubmit ? 'opacity-50' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                openSubmissionDialog(task);
+              }}
+            >
+              {task.submission_link ? (
+                <>
+                  <CheckCircle2 className="w-3 h-3 text-success" />
+                  Xem
+                </>
+              ) : (
+                <>
+                  <Send className="w-3 h-3" />
+                  Nộp
+                </>
+              )}
+            </Button>
+          )}
 
-        {/* Leader actions */}
-        {isLeaderInGroup && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover">
-              <DropdownMenuItem onClick={() => onEditTask(task)}>
-                <Edit className="w-4 h-4 mr-2" />
-                Chỉnh sửa
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openSubmissionDialog(task)}>
-                <Send className="w-4 h-4 mr-2" />
-                {task.submission_link ? 'Xem bài nộp' : 'Nộp thay'}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive">
-                <Trash2 className="w-4 h-4 mr-2" />
-                Xóa task
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+          {/* Leader menu */}
+          {isLeaderInGroup && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6">
+                  <MoreVertical className="w-3.5 h-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover min-w-[140px]">
+                <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
+                  <Edit className="w-3.5 h-3.5 mr-2" />
+                  Chỉnh sửa
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
+                  <Trash2 className="w-3.5 h-3.5 mr-2" />
+                  Xóa
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -427,10 +390,11 @@ export default function TaskListView({
       });
       setTaskToDelete(null);
       onRefresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Không thể xóa task';
       toast({
         title: 'Lỗi',
-        description: error.message || 'Không thể xóa task',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -453,40 +417,37 @@ export default function TaskListView({
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.status === 'DONE' || t.status === 'VERIFIED').length;
   const overdueTasks = tasks.filter(t => isOverdue(t.deadline) && t.status !== 'DONE' && t.status !== 'VERIFIED').length;
+  const inProgressTasks = tasks.filter(t => t.status === 'IN_PROGRESS').length;
 
   return (
     <>
-      {/* Header with stats */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      {/* Header with stats - Compact */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10">
-            <Layers className="w-5 h-5 text-primary" />
+            <Target className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">Task & Giai đoạn</h2>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-              <span>{totalTasks} task</span>
-              <span>•</span>
-              <span className="text-success">{completedTasks} hoàn thành</span>
-              {overdueTasks > 0 && (
-                <>
-                  <span>•</span>
-                  <span className="text-destructive">{overdueTasks} trễ</span>
-                </>
-              )}
+            <h2 className="text-lg font-bold">Task & Giai đoạn</h2>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-medium">{totalTasks} task</span>
+              <span className="text-success">• {completedTasks} xong</span>
+              {inProgressTasks > 0 && <span className="text-warning">• {inProgressTasks} đang làm</span>}
+              {overdueTasks > 0 && <span className="text-destructive">• {overdueTasks} trễ</span>}
             </div>
           </div>
         </div>
+        
         <Select value={filterStage} onValueChange={setFilterStage}>
-          <SelectTrigger className="w-48 h-9 bg-background">
+          <SelectTrigger className="w-44 h-8 text-xs bg-background">
             <SelectValue placeholder="Lọc giai đoạn" />
           </SelectTrigger>
           <SelectContent className="bg-popover">
-            <SelectItem value="all">Tất cả giai đoạn</SelectItem>
+            <SelectItem value="all" className="text-xs">Tất cả giai đoạn</SelectItem>
             {stages.map((stage, index) => {
               const color = getStageColor(index);
               return (
-                <SelectItem key={stage.id} value={stage.id}>
+                <SelectItem key={stage.id} value={stage.id} className="text-xs">
                   <span className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${color.dot}`} />
                     {stage.name}
@@ -498,7 +459,7 @@ export default function TaskListView({
         </Select>
       </div>
 
-      {/* Stage Sections */}
+      {/* Stage Sections - Grid Layout */}
       <div className="space-y-4">
         {filteredStages.map((stage, stageIndex) => {
           const stageTasks = getTasksByStage(stage.id);
@@ -509,56 +470,59 @@ export default function TaskListView({
           const progressPercent = stageTasks.length > 0 ? (completedCount / stageTasks.length) * 100 : 0;
 
           return (
-            <Card key={stage.id} className={`overflow-hidden border-2 ${isExpanded ? stageColor.border : ''}`}>
+            <Card key={stage.id} className={`overflow-hidden border-l-4 ${stageColor.border} shadow-sm`}>
+              {/* Stage Header */}
               <CardHeader 
-                className={`py-3 px-4 cursor-pointer transition-colors ${stageColor.bg}`}
+                className={`py-2.5 px-4 cursor-pointer transition-colors ${stageColor.bg} hover:opacity-90`}
                 onClick={() => toggleStage(stage.id)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 p-0">
                       {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </Button>
-                    <div className={`w-3 h-3 rounded-full ${stageColor.dot} shrink-0`} />
+                    <div className={`w-2.5 h-2.5 rounded-full ${stageColor.dot} shrink-0`} />
                     <div className="flex-1 min-w-0">
-                      <CardTitle className={`text-base font-semibold flex items-center gap-2 ${stageColor.text}`}>
+                      <CardTitle className={`text-sm font-bold ${stageColor.text} truncate`}>
                         {stage.name}
-                        <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-normal">
-                          {stageTasks.length}
-                        </Badge>
-                        {overdueCount > 0 && (
-                          <Badge variant="destructive" className="text-[10px] px-1.5 h-5">
-                            {overdueCount} trễ
-                          </Badge>
-                        )}
                       </CardTitle>
-                      {stage.description && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{stage.description}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-medium">
+                        {completedCount}/{stageTasks.length}
+                      </Badge>
+                      {overdueCount > 0 && (
+                        <Badge variant="destructive" className="text-[10px] px-1.5 h-5">
+                          {overdueCount} trễ
+                        </Badge>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center gap-2 min-w-[100px]">
-                      <Progress value={progressPercent} className="h-2 flex-1" />
-                      <span className="text-xs text-muted-foreground w-10 text-right">
+                  
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Progress bar - compact */}
+                    <div className="hidden sm:flex items-center gap-1.5 w-24">
+                      <Progress value={progressPercent} className="h-1.5 flex-1" />
+                      <span className="text-[10px] text-muted-foreground w-7 text-right">
                         {Math.round(progressPercent)}%
                       </span>
                     </div>
+                    
                     {isLeaderInGroup && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <MoreVertical className="w-3.5 h-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-popover">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEditStage(stage); }}>
-                            <Edit className="w-4 h-4 mr-2" />
+                        <DropdownMenuContent align="end" className="bg-popover min-w-[120px]">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEditStage(stage); }} className="text-xs">
+                            <Edit className="w-3.5 h-3.5 mr-2" />
                             Đổi tên
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeleteStage(stage); }} className="text-destructive">
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Xóa giai đoạn
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeleteStage(stage); }} className="text-destructive text-xs">
+                            <Trash2 className="w-3.5 h-3.5 mr-2" />
+                            Xóa
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -567,21 +531,21 @@ export default function TaskListView({
                 </div>
               </CardHeader>
               
+              {/* Tasks Grid */}
               {isExpanded && (
-                <CardContent className="p-4 space-y-3">
+                <CardContent className="p-3">
                   {stageTasks.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-xl bg-muted/20">
-                      <Layers className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      Chưa có task nào trong giai đoạn này
+                    <div className="text-center py-6 text-muted-foreground text-xs border border-dashed rounded-lg bg-muted/10">
+                      <Layers className="w-6 h-6 mx-auto mb-1.5 opacity-30" />
+                      Chưa có task
                     </div>
                   ) : (
-                    <ScrollArea className="max-h-[400px]">
-                      <div className="space-y-3 pr-2">
+                    <ScrollArea className="max-h-[420px]">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 pr-2">
                         {stageTasks.map((task) => (
-                          <TaskRow
+                          <TaskCard
                             key={task.id}
                             task={task}
-                            stageName={stage.name}
                             stageColor={stageColor}
                             isLeaderInGroup={isLeaderInGroup}
                             isAssignee={isUserAssignee(task)}
@@ -598,11 +562,11 @@ export default function TaskListView({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full justify-start text-muted-foreground hover:text-foreground border-dashed border-2 mt-2"
+                      className="w-full justify-center text-muted-foreground hover:text-foreground border-dashed border mt-2.5 h-8 text-xs"
                       onClick={() => onCreateTask(stage.id)}
                     >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Thêm task mới
+                      <Plus className="w-3.5 h-3.5 mr-1.5" />
+                      Thêm task
                     </Button>
                   )}
                 </CardContent>
@@ -613,25 +577,24 @@ export default function TaskListView({
 
         {/* Unstaged Tasks */}
         {filterStage === 'all' && unstagedTasks.length > 0 && (
-          <Card className="overflow-hidden border-dashed border-2">
-            <CardHeader className="py-3 px-4 bg-muted/20">
-              <CardTitle className="text-base font-medium text-muted-foreground flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-muted-foreground/30" />
+          <Card className="overflow-hidden border-dashed border-l-4 border-l-muted-foreground/30">
+            <CardHeader className="py-2.5 px-4 bg-muted/20">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40" />
                 Chưa phân giai đoạn
-                <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-normal">
+                <Badge variant="secondary" className="text-[10px] px-1.5 h-5">
                   {unstagedTasks.length}
                 </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 space-y-3">
+            <CardContent className="p-3">
               <ScrollArea className="max-h-[300px]">
-                <div className="space-y-3 pr-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 pr-2">
                   {unstagedTasks.map((task) => (
-                    <TaskRow
+                    <TaskCard
                       key={task.id}
                       task={task}
-                      stageName="Chưa phân"
-                      stageColor={{ bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-muted', dot: 'bg-muted-foreground/50' }}
+                      stageColor={{ bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-muted', dot: 'bg-muted-foreground/50', accent: 'bg-muted/50' }}
                       isLeaderInGroup={isLeaderInGroup}
                       isAssignee={isUserAssignee(task)}
                       onEditTask={onEditTask}
@@ -647,23 +610,21 @@ export default function TaskListView({
 
         {/* Empty State */}
         {stages.length === 0 && unstagedTasks.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-xl bg-muted/10">
-            <Layers className="w-12 h-12 mx-auto mb-4 opacity-30" />
+          <div className="text-center py-12 text-muted-foreground border border-dashed rounded-xl bg-muted/10">
+            <Layers className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="font-medium mb-1">Chưa có giai đoạn nào</p>
-            <p className="text-sm">Tạo giai đoạn đầu tiên để bắt đầu quản lý task</p>
+            <p className="text-sm">Tạo giai đoạn đầu tiên để bắt đầu</p>
           </div>
         )}
       </div>
 
       {/* Delete Task Confirmation */}
       <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
-        <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Xác nhận xóa task</AlertDialogTitle>
-            <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa task <span className="font-semibold">"{taskToDelete?.title}"</span>?
-              <br />
-              Hành động này không thể hoàn tác.
+            <AlertDialogDescription className="break-words">
+              Bạn có chắc muốn xóa task <span className="font-semibold">"{taskToDelete?.title}"</span>?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -673,7 +634,7 @@ export default function TaskListView({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={isDeleting}
             >
-              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xóa task'}
+              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xóa'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
