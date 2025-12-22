@@ -89,6 +89,13 @@ export default function MemberManagementCard({
   const [selectedRole, setSelectedRole] = useState<'member' | 'leader'>('member');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Create new member dialog
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreatingMember, setIsCreatingMember] = useState(false);
+  const [newMemberFullName, setNewMemberFullName] = useState('');
+  const [newMemberStudentId, setNewMemberStudentId] = useState('');
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+
   // New role for change role dialog
   const [newRole, setNewRole] = useState<'member' | 'leader'>('member');
 
@@ -130,6 +137,12 @@ export default function MemberManagementCard({
     setSelectedUserId('');
     setSelectedRole('member');
     setSearchQuery('');
+  };
+
+  const resetCreateForm = () => {
+    setNewMemberFullName('');
+    setNewMemberStudentId('');
+    setNewMemberEmail('');
   };
 
   // Filter available profiles that are not already in the group
@@ -198,6 +211,81 @@ export default function MemberManagementCard({
       toast({ title: 'Lỗi', description: error.message, variant: 'destructive' });
     } finally {
       setIsAddingMember(false);
+    }
+  };
+
+  // Create new member and add to project
+  const handleCreateMember = async () => {
+    if (!newMemberFullName.trim() || !newMemberStudentId.trim() || !newMemberEmail.trim()) {
+      toast({ title: 'Lỗi', description: 'Vui lòng điền đầy đủ thông tin', variant: 'destructive' });
+      return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newMemberEmail.trim())) {
+      toast({ title: 'Lỗi', description: 'Email không hợp lệ', variant: 'destructive' });
+      return;
+    }
+
+    setIsCreatingMember(true);
+
+    try {
+      // Step 1: Create user in system via edge function
+      const { data: createResult, error: createError } = await supabase.functions.invoke('manage-users', {
+        body: {
+          action: 'create_member',
+          email: newMemberEmail.trim(),
+          student_id: newMemberStudentId.trim(),
+          full_name: newMemberFullName.trim(),
+        }
+      });
+
+      if (createError) throw new Error(createError.message);
+      if (createResult?.error) throw new Error(createResult.error);
+
+      const newUserId = createResult?.user?.id;
+      if (!newUserId) throw new Error('Không thể tạo tài khoản');
+
+      // Step 2: Add to project with role = 'member'
+      const { error: addError } = await supabase.from('group_members').insert({
+        group_id: groupId,
+        user_id: newUserId,
+        role: 'member',
+      });
+
+      if (addError) {
+        if (addError.code === '23505') throw new Error('Thành viên này đã có trong project');
+        throw addError;
+      }
+
+      // Log activity
+      await supabase.from('activity_logs').insert({
+        user_id: user!.id,
+        user_name: profile?.full_name || user?.email || 'Unknown',
+        action: 'CREATE_AND_ADD_MEMBER',
+        action_type: 'member',
+        description: `Tạo tài khoản và thêm ${newMemberFullName.trim()} vào project với vai trò Thành viên`,
+        group_id: groupId,
+        metadata: { 
+          created_user_id: newUserId, 
+          created_user_name: newMemberFullName.trim(),
+          created_user_email: newMemberEmail.trim(),
+          role: 'member'
+        }
+      });
+
+      toast({ 
+        title: 'Thành công', 
+        description: `Đã tạo tài khoản và thêm ${newMemberFullName.trim()} vào project. Mật khẩu mặc định: 123456` 
+      });
+      setIsCreateDialogOpen(false);
+      resetCreateForm();
+      onRefresh();
+    } catch (error: any) {
+      toast({ title: 'Lỗi', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsCreatingMember(false);
     }
   };
 
@@ -294,10 +382,16 @@ export default function MemberManagementCard({
               Thành viên Project ({members.length})
             </CardTitle>
             {isLeaderInGroup && (
-              <Button onClick={() => setIsAddDialogOpen(true)} size="sm" className="gap-2">
-                <UserPlus className="w-4 h-4" />
-                Thêm từ hệ thống
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" variant="outline" className="gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  Tạo mới
+                </Button>
+                <Button onClick={() => setIsAddDialogOpen(true)} size="sm" className="gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  Thêm từ hệ thống
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -601,6 +695,102 @@ export default function MemberManagementCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Create New Member Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={(open) => { setIsCreateDialogOpen(open); if (!open) resetCreateForm(); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-primary" />
+              Tạo thành viên mới
+            </DialogTitle>
+            <DialogDescription>
+              Tạo tài khoản mới và thêm vào project. Thành viên sẽ được gán mật khẩu mặc định là <strong>123456</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            {/* Full Name */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Họ và tên <span className="text-destructive">*</span></Label>
+              <Input
+                placeholder="Nguyễn Văn A"
+                value={newMemberFullName}
+                onChange={(e) => setNewMemberFullName(e.target.value)}
+                className="h-11"
+              />
+            </div>
+
+            {/* Student ID */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Mã số sinh viên (MSSV) <span className="text-destructive">*</span></Label>
+              <Input
+                placeholder="31241234567"
+                value={newMemberStudentId}
+                onChange={(e) => setNewMemberStudentId(e.target.value)}
+                className="h-11"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Email <span className="text-destructive">*</span></Label>
+              <Input
+                type="email"
+                placeholder="example@gmail.com"
+                value={newMemberEmail}
+                onChange={(e) => setNewMemberEmail(e.target.value)}
+                className="h-11"
+              />
+            </div>
+
+            {/* Role info - fixed for Phó nhóm */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-muted-foreground">Vai trò trong Project</Label>
+              <div className="h-11 flex items-center px-3 bg-muted/50 rounded-md border border-border">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <UserCheck className="w-4 h-4" />
+                  Thành viên
+                </div>
+              </div>
+              {!isGroupCreator && (
+                <p className="text-xs text-muted-foreground italic">
+                  Vai trò mặc định: Member (Phó nhóm không có quyền thay đổi)
+                </p>
+              )}
+            </div>
+
+            {/* Info box */}
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
+              <p className="text-amber-800 dark:text-amber-200">
+                ⚠️ Thành viên mới sẽ cần đổi mật khẩu khi đăng nhập lần đầu.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button 
+              onClick={handleCreateMember} 
+              disabled={!newMemberFullName.trim() || !newMemberStudentId.trim() || !newMemberEmail.trim() || isCreatingMember} 
+              className="min-w-28"
+            >
+              {isCreatingMember ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Đang tạo...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Tạo & Thêm vào Project
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
