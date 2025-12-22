@@ -45,6 +45,7 @@ export default function GroupDetail() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLeaderInGroup, setIsLeaderInGroup] = useState(false);
+  const [isGroupCreator, setIsGroupCreator] = useState(false);
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -88,6 +89,8 @@ export default function GroupDetail() {
         setMembers(membersData.map(m => ({ ...m, profiles: profilesMap.get(m.user_id) })) as GroupMember[]);
         const myMembership = membersData.find(m => m.user_id === user?.id);
         setIsLeaderInGroup(myMembership?.role === 'leader' || myMembership?.role === 'admin' || isAdmin);
+        // Check if current user is the group creator (Trưởng nhóm)
+        setIsGroupCreator(groupData?.created_by === user?.id || isAdmin);
       }
 
       const { data: tasksData } = await supabase.from('tasks').select('*').eq('group_id', groupId).order('created_at', { ascending: false });
@@ -411,7 +414,7 @@ export default function GroupDetail() {
           </TabsContent>
 
           <TabsContent value="members" className="mt-6">
-            <MemberManagementCard members={members} availableProfiles={availableProfiles} isLeaderInGroup={isLeaderInGroup} groupId={groupId!} currentUserId={user?.id || ''} groupCreatorId={group.created_by} onRefresh={fetchGroupData} />
+            <MemberManagementCard members={members} availableProfiles={availableProfiles} isLeaderInGroup={isLeaderInGroup} isGroupCreator={isGroupCreator} groupId={groupId!} currentUserId={user?.id || ''} groupCreatorId={group.created_by} onRefresh={fetchGroupData} />
           </TabsContent>
 
           <TabsContent value="logs" className="mt-6">
