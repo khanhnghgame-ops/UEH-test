@@ -506,6 +506,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ensure_admin_exists: { Args: never; Returns: undefined }
       get_email_by_student_id: {
         Args: { _student_id: string }
         Returns: string
