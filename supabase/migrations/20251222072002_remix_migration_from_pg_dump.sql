@@ -4,6 +4,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
 CREATE EXTENSION IF NOT EXISTS "plpgsql" WITH SCHEMA "pg_catalog";
 CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
+BEGIN;
+
 --
 -- PostgreSQL database dump
 --
@@ -83,18 +85,26 @@ BEGIN
       email = NEW.email
     WHERE id = NEW.id;
 
-    -- Cấp quyền admin và leader
+    -- Chỉ cấp quyền admin (không cần leader vì admin đã bao gồm quyền cao nhất)
     INSERT INTO public.user_roles (user_id, role)
     VALUES (NEW.id, 'admin')
-    ON CONFLICT DO NOTHING;
-
-    INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'leader')
     ON CONFLICT DO NOTHING;
   END IF;
 
   RETURN NEW;
 END;
+$$;
+
+
+--
+-- Name: get_email_by_student_id(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.get_email_by_student_id(_student_id text) RETURNS text
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT email FROM public.profiles WHERE student_id = _student_id LIMIT 1;
 $$;
 
 
@@ -181,6 +191,21 @@ CREATE FUNCTION public.is_group_member(_user_id uuid, _group_id uuid) RETURNS bo
   SELECT EXISTS (
     SELECT 1 FROM public.group_members
     WHERE user_id = _user_id AND group_id = _group_id
+  )
+$$;
+
+
+--
+-- Name: is_leader(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.is_leader(_user_id uuid) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND role = 'leader'
   )
 $$;
 
@@ -1133,3 +1158,6 @@ ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 --
 
 
+
+
+COMMIT;
