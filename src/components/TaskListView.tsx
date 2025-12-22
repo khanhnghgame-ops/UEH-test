@@ -133,10 +133,39 @@ const getInitials = (name: string) => {
 };
 
 const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-  });
+  const date = new Date(dateStr);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${day}/${month}/${year} – ${hours}:${minutes}`;
+};
+
+// Get main assignee name (first assignee)
+const getMainAssignee = (task: Task) => {
+  if (!task.task_assignments || task.task_assignments.length === 0) return null;
+  return task.task_assignments[0].profiles?.full_name || null;
+};
+
+// Calculate task code: [stage_order].[task_order_within_stage]
+const getTaskCode = (task: Task, allTasks: Task[], stages: Stage[]) => {
+  if (!task.stage_id) return null;
+  
+  // Find stage order (1-indexed, based on created order)
+  const sortedStages = [...stages].sort((a, b) => 
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  const stageOrder = sortedStages.findIndex(s => s.id === task.stage_id) + 1;
+  if (stageOrder === 0) return null;
+  
+  // Find task order within stage (1-indexed, based on created order)
+  const stageTasks = allTasks
+    .filter(t => t.stage_id === task.stage_id)
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const taskOrder = stageTasks.findIndex(t => t.id === task.id) + 1;
+  
+  return `${stageOrder}.${taskOrder}`;
 };
 
 const isOverdue = (deadline: string | null) => {
@@ -147,6 +176,7 @@ const isOverdue = (deadline: string | null) => {
 // Horizontal TaskRow component
 interface TaskRowProps {
   task: Task;
+  taskCode: string | null;
   stageColor: ReturnType<typeof getStageColor>;
   isLeaderInGroup: boolean;
   isAssignee: boolean;
@@ -157,6 +187,7 @@ interface TaskRowProps {
 
 function TaskRow({
   task,
+  taskCode,
   stageColor,
   isLeaderInGroup,
   isAssignee,
@@ -167,10 +198,11 @@ function TaskRow({
   const overdueStatus = isOverdue(task.deadline);
   const taskIsOverdue = overdueStatus && task.status !== 'DONE' && task.status !== 'VERIFIED';
   const canSubmit = isLeaderInGroup || (isAssignee && !taskIsOverdue);
+  const mainAssignee = getMainAssignee(task);
 
   return (
     <div 
-      className={`group flex items-center gap-3 p-3 bg-card rounded-lg border transition-all hover:shadow-sm hover:border-primary/30 ${
+      className={`group flex items-center gap-2 p-3 bg-card rounded-lg border transition-all hover:shadow-sm hover:border-primary/30 ${
         taskIsOverdue ? 'border-destructive/40 bg-destructive/5' : 'border-border'
       }`}
     >
@@ -182,7 +214,14 @@ function TaskRow({
         task.status === 'IN_PROGRESS' ? 'bg-warning' : 'bg-muted-foreground/30'
       }`} />
       
-      {/* Title */}
+      {/* Task Code */}
+      {taskCode && (
+        <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0.5 font-mono font-semibold bg-primary/5 border-primary/20 text-primary">
+          {taskCode}
+        </Badge>
+      )}
+      
+      {/* Title & Main Assignee */}
       <div 
         className={`flex-1 min-w-0 ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
         onClick={() => isLeaderInGroup && onEditTask(task)}
@@ -197,6 +236,12 @@ function TaskRow({
             {task.title}
           </h4>
         </div>
+        {/* Main assignee name */}
+        {mainAssignee && (
+          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+            → {mainAssignee}
+          </p>
+        )}
       </div>
       
       {/* Deadline */}
@@ -546,6 +591,7 @@ export default function TaskListView({
                           <TaskRow
                             key={task.id}
                             task={task}
+                            taskCode={getTaskCode(task, tasks, stages)}
                             stageColor={stageColor}
                             isLeaderInGroup={isLeaderInGroup}
                             isAssignee={isUserAssignee(task)}
@@ -593,6 +639,7 @@ export default function TaskListView({
                     <TaskRow
                       key={task.id}
                       task={task}
+                      taskCode={null}
                       stageColor={{ bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-muted', dot: 'bg-muted-foreground/50', accent: 'bg-muted/50' }}
                       isLeaderInGroup={isLeaderInGroup}
                       isAssignee={isUserAssignee(task)}

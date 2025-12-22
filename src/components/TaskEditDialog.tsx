@@ -28,6 +28,7 @@ import { Loader2, Lock, AlertTriangle, Eye, Calendar, Users, FileText, Layers } 
 import type { Task, Stage, GroupMember, TaskStatus } from '@/types/database';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { DateTimePicker } from './DateTimePicker';
 
 interface TaskEditDialogProps {
   task: Task | null;
@@ -324,18 +325,17 @@ export default function TaskEditDialog({
                 Deadline
               </Label>
               {canEditDetails ? (
-                <Input
-                  type="datetime-local"
+                <DateTimePicker
                   value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  className="h-11"
+                  onChange={setDeadline}
+                  placeholder="Chọn deadline..."
                 />
               ) : (
                 <div className={`p-3 rounded-lg border h-11 flex items-center gap-2 ${isOverdue ? 'bg-destructive/10 border-destructive/30' : 'bg-muted/50'}`}>
                   {task?.deadline ? (
                     <>
                       <span className={`text-sm ${isOverdue ? 'text-destructive font-medium' : ''}`}>
-                        {format(new Date(task.deadline), "dd/MM/yyyy 'lúc' HH:mm", { locale: vi })}
+                        {format(new Date(task.deadline), "dd/MM/yyyy – HH:mm", { locale: vi })}
                       </span>
                       {isOverdue && (
                         <Badge variant="destructive" className="text-xs">Quá hạn</Badge>

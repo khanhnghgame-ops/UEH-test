@@ -103,9 +103,9 @@ export function DateTimePicker({ value, onChange, placeholder = "Chọn deadline
   };
 
   const generateMinuteOptions = () => {
-    return [0, 15, 30, 45, 59].map(m => ({
-      value: m.toString(),
-      label: m.toString().padStart(2, '0'),
+    return Array.from({ length: 60 }, (_, i) => ({
+      value: i.toString(),
+      label: i.toString().padStart(2, '0'),
     }));
   };
 
@@ -190,7 +190,7 @@ export function DateTimePicker({ value, onChange, placeholder = "Chọn deadline
             </Select>
             <span className="text-muted-foreground">:</span>
             <Select
-              value={(Math.round(minutes / 15) * 15).toString()}
+              value={minutes.toString()}
               onValueChange={(val) => handleTimeChange('minutes', val)}
             >
               <SelectTrigger className="w-14 h-7 text-xs">
