@@ -58,6 +58,7 @@ interface MemberManagementCardProps {
   members: GroupMember[];
   availableProfiles: Profile[];
   isLeaderInGroup: boolean;
+  isGroupCreator: boolean; // true if current user is group creator or admin
   groupId: string;
   currentUserId: string;
   groupCreatorId: string;
@@ -68,6 +69,7 @@ export default function MemberManagementCard({
   members,
   availableProfiles,
   isLeaderInGroup,
+  isGroupCreator,
   groupId,
   currentUserId,
   groupCreatorId,
@@ -110,17 +112,18 @@ export default function MemberManagementCard({
     }
   };
 
-  const isGroupCreator = (memberId: string) => memberId === groupCreatorId;
+  const isMemberGroupCreator = (memberId: string) => memberId === groupCreatorId;
 
   const canDeleteMember = (member: GroupMember) => {
     if (member.user_id === currentUserId) return false;
-    if (isGroupCreator(member.user_id)) return false;
+    if (isMemberGroupCreator(member.user_id)) return false;
     return isLeaderInGroup;
   };
 
   const canChangeRole = (member: GroupMember) => {
-    if (isGroupCreator(member.user_id)) return false;
-    return isLeaderInGroup;
+    if (isMemberGroupCreator(member.user_id)) return false;
+    // Only group creator (Trưởng nhóm) can change roles, not Phó nhóm
+    return isGroupCreator;
   };
 
   const resetAddForm = () => {
@@ -154,11 +157,14 @@ export default function MemberManagementCard({
     }
     setIsAddingMember(true);
 
+    // Phó nhóm can only add as 'member', Group Creator can choose role
+    const finalRole = isGroupCreator ? selectedRole : 'member';
+
     try {
       const { error } = await supabase.from('group_members').insert({
         group_id: groupId,
         user_id: selectedUserId,
-        role: selectedRole,
+        role: finalRole,
       });
 
       if (error) {
@@ -175,12 +181,12 @@ export default function MemberManagementCard({
         user_name: profile?.full_name || user?.email || 'Unknown',
         action: 'ADD_MEMBER_TO_PROJECT',
         action_type: 'member',
-        description: `Thêm ${selectedProfile?.full_name || 'thành viên'} vào project với vai trò ${selectedRole === 'leader' ? 'Phó nhóm' : 'Thành viên'}`,
+        description: `Thêm ${selectedProfile?.full_name || 'thành viên'} vào project với vai trò ${finalRole === 'leader' ? 'Phó nhóm' : 'Thành viên'}`,
         group_id: groupId,
         metadata: { 
           added_user_id: selectedUserId, 
           added_user_name: selectedProfile?.full_name,
-          role: selectedRole 
+          role: finalRole 
         }
       });
 
@@ -307,7 +313,7 @@ export default function MemberManagementCard({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold truncate">{member.profiles?.full_name}</p>
-                    {isGroupCreator(member.user_id) && (
+                    {isMemberGroupCreator(member.user_id) && (
                       <span title="Trưởng nhóm"><Crown className="w-4 h-4 text-warning" /></span>
                     )}
                   </div>
@@ -434,29 +440,44 @@ export default function MemberManagementCard({
               </ScrollArea>
             </div>
 
-            {/* Role Selection */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Vai trò trong Project <span className="text-destructive">*</span></Label>
-              <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as 'member' | 'leader')}>
-                <SelectTrigger className="h-11">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">
-                    <div className="flex items-center gap-2">
-                      <UserCheck className="w-4 h-4" />
-                      Thành viên - Được giao task và nộp bài
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="leader">
-                    <div className="flex items-center gap-2">
-                      <Crown className="w-4 h-4 text-warning" />
-                      Phó nhóm - Quản lý task, thành viên và giai đoạn
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Role Selection - Only for Group Creator */}
+            {isGroupCreator ? (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Vai trò trong Project <span className="text-destructive">*</span></Label>
+                <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as 'member' | 'leader')}>
+                  <SelectTrigger className="h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="member">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="w-4 h-4" />
+                        Thành viên - Được giao task và nộp bài
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="leader">
+                      <div className="flex items-center gap-2">
+                        <Crown className="w-4 h-4 text-warning" />
+                        Phó nhóm - Quản lý task, thành viên và giai đoạn
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">Vai trò trong Project</Label>
+                <div className="h-11 flex items-center px-3 bg-muted/50 rounded-md border border-border">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <UserCheck className="w-4 h-4" />
+                    Thành viên
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground italic">
+                  Vai trò mặc định: Member (Phó nhóm không có quyền thay đổi)
+                </p>
+              </div>
+            )}
 
             {/* Info box */}
             <div className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
