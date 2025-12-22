@@ -23,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Users, Loader2, ArrowLeft, Layers, LayoutDashboard, Trash2, Settings, Activity } from 'lucide-react';
 import type { Group, GroupMember, Task, Profile, Stage } from '@/types/database';
+import { DateTimePicker } from '@/components/DateTimePicker';
 
 interface ExtendedGroup extends Group {
   class_code: string | null;
@@ -301,11 +302,10 @@ export default function GroupDetail() {
                                   )}
                                   <div className="space-y-2">
                                     <Label className="text-sm font-medium">Deadline</Label>
-                                    <Input 
-                                      type="datetime-local" 
-                                      value={newTaskDeadline} 
-                                      onChange={e => setNewTaskDeadline(e.target.value)}
-                                      className="h-11"
+                                    <DateTimePicker
+                                      value={newTaskDeadline}
+                                      onChange={setNewTaskDeadline}
+                                      placeholder="Chọn deadline..."
                                     />
                                   </div>
                                 </div>

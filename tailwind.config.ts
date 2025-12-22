@@ -59,6 +59,14 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        stage: {
+          1: "hsl(var(--stage-1))",
+          2: "hsl(var(--stage-2))",
+          3: "hsl(var(--stage-3))",
+          4: "hsl(var(--stage-4))",
+          5: "hsl(var(--stage-5))",
+          6: "hsl(var(--stage-6))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

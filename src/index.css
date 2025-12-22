@@ -46,6 +46,14 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
+    /* Stage colors for visual distinction */
+    --stage-1: 183 100% 30%;
+    --stage-2: 200 80% 45%;
+    --stage-3: 260 70% 55%;
+    --stage-4: 320 70% 50%;
+    --stage-5: 18 85% 55%;
+    --stage-6: 140 60% 40%;
+
     --info: 183 100% 21%;
     --info-foreground: 0 0% 100%;
 
@@ -107,6 +115,14 @@
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
+
+    /* Stage colors for dark mode */
+    --stage-1: 183 80% 50%;
+    --stage-2: 200 70% 55%;
+    --stage-3: 260 60% 65%;
+    --stage-4: 320 60% 60%;
+    --stage-5: 18 80% 60%;
+    --stage-6: 140 50% 50%;
 
     --border: 220 20% 20%;
     --input: 220 20% 20%;
