@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -30,14 +29,11 @@ import {
   Trash2, 
   ExternalLink, 
   Lock, 
-  AlertTriangle, 
   Send,
   Clock,
   User,
   FileText,
-  History,
   CheckCircle2,
-  XCircle,
   AlertCircle,
   Calendar,
   Target,
@@ -55,15 +51,6 @@ interface SubmissionLink {
   id?: string;
   title: string;
   url: string;
-}
-
-interface SubmissionHistoryEntry {
-  id: string;
-  user_id: string;
-  user_name?: string;
-  submission_link: string;
-  note: string | null;
-  submitted_at: string;
 }
 
 interface TaskSubmissionDialogProps {
@@ -86,12 +73,10 @@ export default function TaskSubmissionDialog({
   const { toast } = useToast();
   const { user, profile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   
   const [status, setStatus] = useState<TaskStatus>('TODO');
   const [submissionLinks, setSubmissionLinks] = useState<SubmissionLink[]>([]);
   const [note, setNote] = useState('');
-  const [submissionHistory, setSubmissionHistory] = useState<SubmissionHistoryEntry[]>([]);
   const [taskAssignees, setTaskAssignees] = useState<string[]>([]);
 
   // Check if task is overdue
@@ -119,46 +104,8 @@ export default function TaskSubmissionDialog({
         const names = task.task_assignments.map((a: any) => a.profiles?.full_name || 'Unknown');
         setTaskAssignees(names);
       }
-      
-      fetchSubmissionHistory();
     }
   }, [task, isOpen]);
-
-  const fetchSubmissionHistory = async () => {
-    if (!task) return;
-    setIsLoadingHistory(true);
-    
-    try {
-      const { data: historyData, error } = await supabase
-        .from('submission_history')
-        .select('*')
-        .eq('task_id', task.id)
-        .order('submitted_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      if (historyData && historyData.length > 0) {
-        const userIds = [...new Set(historyData.map(h => h.user_id))];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', userIds);
-        
-        const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
-        
-        setSubmissionHistory(historyData.map(h => ({
-          ...h,
-          user_name: profileMap.get(h.user_id) || 'Unknown'
-        })));
-      } else {
-        setSubmissionHistory([]);
-      }
-    } catch (error) {
-      console.error('Error fetching submission history:', error);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  };
 
   const addSubmissionLink = () => {
     setSubmissionLinks([...submissionLinks, { title: '', url: '' }]);
@@ -303,31 +250,31 @@ export default function TaskSubmissionDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-[98vw] max-h-[95vh] p-0 overflow-hidden flex flex-col">
-        {/* Header */}
-        <DialogHeader className="px-6 py-4 border-b bg-muted/30">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4 flex-1 min-w-0">
-              <div className="p-3 rounded-xl bg-primary/10 shrink-0">
-                <Send className="w-6 h-6 text-primary" />
+      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] p-0 overflow-hidden flex flex-col">
+        {/* Header - Compact */}
+        <DialogHeader className="px-5 py-4 border-b bg-muted/30 shrink-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div className="p-2.5 rounded-xl bg-primary/10 shrink-0">
+                <Send className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <DialogTitle className="text-xl font-bold line-clamp-2">
+                <DialogTitle className="text-lg font-bold break-words">
                   {task?.title}
                 </DialogTitle>
               </div>
             </div>
-            <div className="flex flex-col items-end gap-2 shrink-0">
-              <Badge className={`${statusConfig.color} gap-1.5 border text-sm px-3 py-1`}>
-                <StatusIcon className="w-4 h-4" />
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              <Badge className={`${statusConfig.color} gap-1 border text-xs px-2 py-0.5`}>
+                <StatusIcon className="w-3 h-3" />
                 {statusConfig.label}
               </Badge>
               {timeStatus && (
                 <Badge 
                   variant={timeStatus.isOverdue ? "destructive" : "secondary"}
-                  className="gap-1 text-xs"
+                  className="gap-1 text-[10px] px-1.5 py-0"
                 >
-                  <Clock className="w-3 h-3" />
+                  <Clock className="w-2.5 h-2.5" />
                   {timeStatus.text}
                 </Badge>
               )}
@@ -336,16 +283,16 @@ export default function TaskSubmissionDialog({
           
           {/* Alert badges */}
           {(isOverdue || isSubmittingOnBehalf) && (
-            <div className="flex flex-wrap gap-2 mt-3">
+            <div className="flex flex-wrap gap-2 mt-2">
               {isOverdue && !isLeaderInGroup && (
-                <Badge variant="outline" className="gap-1.5 border-destructive text-destructive">
-                  <Lock className="w-3.5 h-3.5" />
+                <Badge variant="outline" className="gap-1 border-destructive text-destructive text-xs">
+                  <Lock className="w-3 h-3" />
                   Đã quá deadline - Chỉ Leader được nộp thay
                 </Badge>
               )}
               {isSubmittingOnBehalf && (
-                <Badge variant="secondary" className="gap-1.5">
-                  <User className="w-3.5 h-3.5" />
+                <Badge variant="secondary" className="gap-1 text-xs">
+                  <User className="w-3 h-3" />
                   Bạn đang nộp thay cho thành viên
                 </Badge>
               )}
@@ -353,31 +300,31 @@ export default function TaskSubmissionDialog({
           )}
         </DialogHeader>
         
-        <ScrollArea className="flex-1">
-          <div className="p-6">
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="p-5 space-y-4">
             {/* Task Description Section - Expandable */}
             {task?.description && (
-              <Card className="border-2 border-primary/20 mb-6">
-                <CardHeader className="pb-2">
+              <Card className="border border-primary/20">
+                <CardHeader className="py-2 px-4">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Info className="w-4 h-4 text-primary" />
+                    <CardTitle className="text-sm flex items-center gap-1.5">
+                      <Info className="w-3.5 h-3.5 text-primary" />
                       Mô tả công việc
                     </CardTitle>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                      className="gap-1.5 text-xs"
+                      className="gap-1 text-xs h-7 px-2"
                     >
-                      {isDescriptionExpanded ? 'Thu gọn' : 'Xem đầy đủ'}
-                      <ChevronDown className={`w-4 h-4 transition-transform ${isDescriptionExpanded ? 'rotate-180' : ''}`} />
+                      {isDescriptionExpanded ? 'Thu gọn' : 'Xem thêm'}
+                      <ChevronDown className={`w-3 h-3 transition-transform ${isDescriptionExpanded ? 'rotate-180' : ''}`} />
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className={`text-sm text-muted-foreground whitespace-pre-wrap ${
-                    isDescriptionExpanded ? '' : 'line-clamp-3'
+                <CardContent className="py-2 px-4">
+                  <div className={`text-sm text-muted-foreground whitespace-pre-wrap break-words ${
+                    isDescriptionExpanded ? '' : 'line-clamp-2'
                   }`}>
                     {task.description}
                   </div>
@@ -385,322 +332,190 @@ export default function TaskSubmissionDialog({
               </Card>
             )}
 
-            <div className="grid lg:grid-cols-3 gap-6">
-              {/* Left Column - Task Info & Submission */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Task Info Cards */}
-                <div className="grid sm:grid-cols-3 gap-4">
-                  {/* Deadline Card */}
-                  <Card className="border-2">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${isOverdue ? 'bg-destructive/10' : 'bg-primary/10'}`}>
-                          <Calendar className={`w-5 h-5 ${isOverdue ? 'text-destructive' : 'text-primary'}`} />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground font-medium uppercase">Deadline</p>
-                          {task?.deadline ? (
-                            <p className={`text-sm font-semibold ${isOverdue ? 'text-destructive' : ''}`}>
-                              {format(new Date(task.deadline), "dd/MM/yyyy", { locale: vi })}
-                              <span className="block text-xs font-normal">
-                                {format(new Date(task.deadline), "HH:mm", { locale: vi })}
-                              </span>
-                            </p>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">Không có</p>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Assignees Card */}
-                  <Card className="border-2">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-accent/50">
-                          <Users className="w-5 h-5 text-accent-foreground" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs text-muted-foreground font-medium uppercase">Người thực hiện</p>
-                          {taskAssignees.length > 0 ? (
-                            <p className="text-sm font-semibold truncate" title={taskAssignees.join(', ')}>
-                              {taskAssignees.length > 2 
-                                ? `${taskAssignees[0]} +${taskAssignees.length - 1}`
-                                : taskAssignees.join(', ')}
-                            </p>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">Chưa giao</p>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Submissions Count */}
-                  <Card className="border-2">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-success/10">
-                          <History className="w-5 h-5 text-success" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground font-medium uppercase">Lần nộp</p>
-                          <p className="text-sm font-semibold">
-                            {submissionHistory.length} lần
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+            {/* Task Info - Compact Row */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Deadline */}
+              <div className={`flex items-center gap-2 p-3 rounded-lg border ${isOverdue ? 'bg-destructive/5 border-destructive/30' : 'bg-muted/50'}`}>
+                <Calendar className={`w-4 h-4 ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] text-muted-foreground uppercase font-medium">Deadline</p>
+                  {task?.deadline ? (
+                    <p className={`text-sm font-medium truncate ${isOverdue ? 'text-destructive' : ''}`}>
+                      {format(new Date(task.deadline), "dd/MM/yyyy HH:mm", { locale: vi })}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Không có</p>
+                  )}
                 </div>
+              </div>
 
-                {/* Status Select */}
+              {/* Assignees */}
+              <div className="flex items-center gap-2 p-3 rounded-lg border bg-muted/50">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] text-muted-foreground uppercase font-medium">Thực hiện</p>
+                  {taskAssignees.length > 0 ? (
+                    <p className="text-sm font-medium truncate" title={taskAssignees.join(', ')}>
+                      {taskAssignees.length > 1 
+                        ? `${taskAssignees[0]} +${taskAssignees.length - 1}`
+                        : taskAssignees[0]}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Chưa giao</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Status Select */}
+            {canSubmit && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5 text-primary" />
+                  Trạng thái
+                </Label>
+                <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODO">
+                      <span className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                        Chờ làm
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="IN_PROGRESS">
+                      <span className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-warning" />
+                        Đang làm
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="DONE">
+                      <span className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-primary" />
+                        Hoàn thành
+                      </span>
+                    </SelectItem>
+                    {isLeaderInGroup && (
+                      <SelectItem value="VERIFIED">
+                        <span className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-success" />
+                          Đã duyệt
+                        </span>
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Submission Links */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium flex items-center gap-1.5">
+                  <LinkIcon className="w-3.5 h-3.5 text-primary" />
+                  Liên kết nộp bài
+                </Label>
                 {canSubmit && (
-                  <Card className="border-2 border-primary/20">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Target className="w-4 h-4 text-primary" />
-                        Cập nhật trạng thái
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
-                        <SelectTrigger className="h-12">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="TODO">
-                            <span className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground" />
-                              Chờ làm
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="IN_PROGRESS">
-                            <span className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 rounded-full bg-warning" />
-                              Đang làm
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="DONE">
-                            <span className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 rounded-full bg-primary" />
-                              Hoàn thành
-                            </span>
-                          </SelectItem>
-                          {isLeaderInGroup && (
-                            <SelectItem value="VERIFIED">
-                              <span className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-success" />
-                                Đã duyệt
-                              </span>
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </CardContent>
-                  </Card>
+                  <Button type="button" variant="outline" size="sm" onClick={addSubmissionLink} className="gap-1 h-7 text-xs">
+                    <Plus className="w-3 h-3" />
+                    Thêm
+                  </Button>
                 )}
-
-                {/* Submission Links */}
-                <Card className="border-2">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <LinkIcon className="w-4 h-4 text-primary" />
-                        Liên kết nộp bài
-                      </CardTitle>
-                      {canSubmit && (
-                        <Button type="button" variant="outline" size="sm" onClick={addSubmissionLink} className="gap-1.5">
-                          <Plus className="w-4 h-4" />
-                          Thêm link
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {submissionLinks.length === 0 ? (
-                      <div className="text-center py-8 border-2 border-dashed rounded-xl bg-muted/30">
-                        <FileText className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
-                        <p className="text-sm text-muted-foreground font-medium">Chưa có liên kết nộp bài</p>
+              </div>
+              
+              {submissionLinks.length === 0 ? (
+                <div className="text-center py-6 border border-dashed rounded-lg bg-muted/30">
+                  <FileText className="w-8 h-8 mx-auto mb-2 text-muted-foreground/40" />
+                  <p className="text-xs text-muted-foreground">Chưa có liên kết</p>
+                  {canSubmit && (
+                    <Button variant="link" size="sm" onClick={addSubmissionLink} className="mt-1 text-xs h-6">
+                      Thêm liên kết
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {submissionLinks.map((link, index) => (
+                    <div key={index} className="flex items-center gap-2 p-3 rounded-lg border bg-muted/30">
+                      <LinkIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 grid grid-cols-2 gap-2 min-w-0">
+                        <Input
+                          placeholder="Tiêu đề"
+                          value={link.title}
+                          onChange={(e) => updateSubmissionLink(index, 'title', e.target.value)}
+                          disabled={!canSubmit}
+                          className="h-8 text-sm"
+                        />
+                        <Input
+                          placeholder="URL"
+                          value={link.url}
+                          onChange={(e) => updateSubmissionLink(index, 'url', e.target.value)}
+                          disabled={!canSubmit}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {link.url && (
+                          <a href={link.url} target="_blank" rel="noopener noreferrer">
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7">
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </Button>
+                          </a>
+                        )}
                         {canSubmit && (
-                          <Button variant="link" size="sm" onClick={addSubmissionLink} className="mt-2">
-                            Thêm liên kết đầu tiên
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => removeSubmissionLink(index)}
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         )}
                       </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {submissionLinks.map((link, index) => (
-                          <div key={index} className="flex items-start gap-3 p-4 rounded-xl border-2 bg-muted/30">
-                            <div className="p-2 rounded-lg bg-background border">
-                              <LinkIcon className="w-4 h-4 text-muted-foreground" />
-                            </div>
-                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div>
-                                <Label className="text-xs text-muted-foreground mb-1 block">Tiêu đề</Label>
-                                <Input
-                                  placeholder="VD: File Word, Slide..."
-                                  value={link.title}
-                                  onChange={(e) => updateSubmissionLink(index, 'title', e.target.value)}
-                                  disabled={!canSubmit}
-                                  className="h-10"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground mb-1 block">URL</Label>
-                                <Input
-                                  placeholder="https://drive.google.com/..."
-                                  value={link.url}
-                                  onChange={(e) => updateSubmissionLink(index, 'url', e.target.value)}
-                                  disabled={!canSubmit}
-                                  className="h-10"
-                                />
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              {link.url && (
-                                <a href={link.url} target="_blank" rel="noopener noreferrer">
-                                  <Button type="button" variant="ghost" size="icon" className="h-10 w-10">
-                                    <ExternalLink className="w-4 h-4" />
-                                  </Button>
-                                </a>
-                              )}
-                              {canSubmit && (
-                                <Button 
-                                  type="button" 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => removeSubmissionLink(index)}
-                                  className="h-10 w-10 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Note */}
-                {canSubmit && (
-                  <Card className="border-2">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-primary" />
-                        Ghi chú
-                        <Badge variant="secondary" className="text-[10px] font-normal">Tùy chọn</Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Textarea
-                        placeholder="Thêm ghi chú cho lần nộp bài này..."
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        rows={3}
-                        className="resize-none"
-                      />
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              {/* Right Column - History */}
-              <div className="lg:col-span-1">
-                <Card className="border-2 h-full">
-                  <CardHeader className="pb-3 border-b">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <History className="w-4 h-4 text-primary" />
-                      Lịch sử nộp bài
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <ScrollArea className="h-[400px]">
-                      <div className="p-4">
-                        {isLoadingHistory ? (
-                          <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                          </div>
-                        ) : submissionHistory.length === 0 ? (
-                          <div className="text-center py-12">
-                            <History className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-                            <p className="text-sm text-muted-foreground">Chưa có lịch sử nộp bài</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {submissionHistory.map((entry, index) => {
-                              const isLate = task?.deadline && new Date(entry.submitted_at) > new Date(task.deadline);
-                              
-                              return (
-                                <div 
-                                  key={entry.id} 
-                                  className={`p-4 rounded-xl border-2 ${
-                                    index === 0 
-                                      ? 'border-primary/30 bg-primary/5' 
-                                      : 'bg-muted/30'
-                                  }`}
-                                >
-                                  <div className="flex items-start justify-between gap-2 mb-2">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                        <User className="w-4 h-4 text-primary" />
-                                      </div>
-                                      <div>
-                                        <span className="text-sm font-semibold block">{entry.user_name}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                          {format(new Date(entry.submitted_at), "dd/MM/yyyy HH:mm", { locale: vi })}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-1">
-                                      {isLate && (
-                                        <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                          Trễ
-                                        </Badge>
-                                      )}
-                                      {index === 0 && (
-                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                                          Mới nhất
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {entry.note && (
-                                    <p className="text-xs text-muted-foreground bg-background/50 p-2 rounded-lg mt-2">
-                                      "{entry.note}"
-                                    </p>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Note */}
+            {canSubmit && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-primary" />
+                  Ghi chú
+                  <span className="text-[10px] text-muted-foreground font-normal">(tùy chọn)</span>
+                </Label>
+                <Textarea
+                  placeholder="Thêm ghi chú cho lần nộp bài này..."
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={2}
+                  className="resize-none text-sm"
+                />
+              </div>
+            )}
           </div>
         </ScrollArea>
 
-        <DialogFooter className="px-6 py-4 border-t bg-muted/30 gap-2">
-          <Button variant="outline" onClick={onClose} className="min-w-24">
+        <DialogFooter className="px-5 py-3 border-t bg-muted/30 gap-2 shrink-0">
+          <Button variant="outline" onClick={onClose} size="sm">
             Đóng
           </Button>
           {canSubmit && (
-            <Button onClick={handleSubmit} disabled={isLoading} className="min-w-36 gap-2">
+            <Button onClick={handleSubmit} disabled={isLoading} size="sm" className="gap-1.5">
               {isLoading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   Đang nộp...
                 </>
               ) : (
                 <>
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3.5 h-3.5" />
                   {isSubmittingOnBehalf ? 'Nộp thay' : 'Nộp bài'}
                 </>
               )}
