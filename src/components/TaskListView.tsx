@@ -197,7 +197,8 @@ function TaskRow({
 }: TaskRowProps) {
   const overdueStatus = isOverdue(task.deadline);
   const taskIsOverdue = overdueStatus && task.status !== 'DONE' && task.status !== 'VERIFIED';
-  const canSubmit = isLeaderInGroup || (isAssignee && !taskIsOverdue);
+  // Assignee can always submit (even if overdue), leader can also submit
+  const canSubmit = isAssignee || isLeaderInGroup;
   const mainAssignee = getMainAssignee(task);
 
   return (
@@ -308,7 +309,7 @@ function TaskRow({
           <Button
             variant={task.submission_link ? "outline" : "default"}
             size="sm"
-            className={`h-7 text-xs px-2 gap-1 ${!canSubmit ? 'opacity-50' : ''}`}
+            className="h-7 text-xs px-2 gap-1"
             onClick={(e) => {
               e.stopPropagation();
               openSubmissionDialog(task);

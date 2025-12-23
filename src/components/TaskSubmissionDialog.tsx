@@ -82,9 +82,11 @@ export default function TaskSubmissionDialog({
   // Check if task is overdue
   const isOverdue = task?.deadline ? new Date(task.deadline) < new Date() : false;
   
-  // Permission logic
-  const canSubmit = isLeaderInGroup || (isAssignee && !isOverdue);
-  const isSubmittingOnBehalf = isLeaderInGroup && !isAssignee && isOverdue;
+  // Permission logic - assignee can always submit (even if overdue), leader can submit on behalf
+  // isAssignee: người được gán task - luôn có thể nộp bài
+  // isLeaderInGroup: Leader có thể nộp thay cho thành viên
+  const canSubmit = isAssignee || isLeaderInGroup;
+  const isSubmittingOnBehalf = isLeaderInGroup && !isAssignee;
 
   useEffect(() => {
     if (task && isOpen) {
@@ -284,10 +286,10 @@ export default function TaskSubmissionDialog({
           {/* Alert badges */}
           {(isOverdue || isSubmittingOnBehalf) && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {isOverdue && !isLeaderInGroup && (
-                <Badge variant="outline" className="gap-1 border-destructive text-destructive text-xs">
-                  <Lock className="w-3 h-3" />
-                  Đã quá deadline - Chỉ Leader được nộp thay
+              {isOverdue && !isSubmittingOnBehalf && (
+                <Badge variant="outline" className="gap-1 border-warning text-warning text-xs">
+                  <Clock className="w-3 h-3" />
+                  Nộp bài trễ deadline
                 </Badge>
               )}
               {isSubmittingOnBehalf && (
