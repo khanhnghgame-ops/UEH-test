@@ -166,8 +166,8 @@ export default function TaskEditDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="space-y-3 pb-4 border-b">
+      <DialogContent className="max-w-4xl w-[95vw] aspect-video max-h-[90vh] p-0 overflow-hidden flex flex-col">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${canEditDetails ? 'bg-primary/10' : 'bg-muted'}`}>
@@ -181,190 +181,189 @@ export default function TaskEditDialog({
                 {canEditDetails ? 'Chỉnh sửa task' : 'Chi tiết task'}
               </DialogTitle>
             </div>
-            <Badge className={`${statusConfig.color} border`}>
-              {statusConfig.label}
-            </Badge>
-          </div>
-          
-          {/* Permission indicators */}
-          <div className="flex flex-wrap gap-2">
-            {!isLeaderOrAdmin && (
-              <Badge variant="secondary" className="gap-1">
-                <Eye className="w-3 h-3" />
-                Chế độ xem
+            <div className="flex items-center gap-2">
+              {!isLeaderOrAdmin && (
+                <Badge variant="secondary" className="gap-1">
+                  <Eye className="w-3 h-3" />
+                  Chế độ xem
+                </Badge>
+              )}
+              {isOverdue && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Quá deadline
+                </Badge>
+              )}
+              <Badge className={`${statusConfig.color} border`}>
+                {statusConfig.label}
               </Badge>
-            )}
-            {isOverdue && (
-              <Badge variant="destructive" className="gap-1">
-                <AlertTriangle className="w-3 h-3" />
-                Quá deadline
-              </Badge>
-            )}
+            </div>
           </div>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 pr-4">
-          <div className="space-y-6 py-4">
-            {/* Task Title */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                Tên task {canEditDetails && <span className="text-destructive">*</span>}
-              </Label>
-              {canEditDetails ? (
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Nhập tên task..."
-                  className="h-11"
-                />
-              ) : (
-                <div className="p-3 rounded-lg bg-muted/50 border">
-                  <p className="font-medium">{task?.title}</p>
-                </div>
-              )}
-            </div>
-            
-            {/* Description */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Mô tả</Label>
-              {canEditDetails ? (
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Mô tả chi tiết task..."
-                  rows={3}
-                  className="resize-none"
-                />
-              ) : (
-                <div className="p-3 rounded-lg bg-muted/50 border min-h-[80px]">
-                  <p className="text-sm text-muted-foreground">
-                    {task?.description || 'Không có mô tả'}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Stage & Status Row */}
-            <div className="grid grid-cols-2 gap-4">
+        <div className="flex-1 overflow-auto p-6">
+          <div className="grid grid-cols-2 gap-6 h-full">
+            {/* Left Column */}
+            <div className="space-y-4">
+              {/* Task Title */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-muted-foreground" />
-                  Giai đoạn
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  Tên task {canEditDetails && <span className="text-destructive">*</span>}
                 </Label>
                 {canEditDetails ? (
-                  <Select value={stageId} onValueChange={setStageId}>
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Chọn giai đoạn..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stages.map((stage) => (
-                        <SelectItem key={stage.id} value={stage.id}>
-                          {stage.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Nhập tên task..."
+                    className="h-10"
+                  />
                 ) : (
-                  <div className="p-3 rounded-lg bg-muted/50 border h-11 flex items-center">
-                    <span className="text-sm">
-                      {stages.find(s => s.id === task?.stage_id)?.name || 'Chưa phân giai đoạn'}
-                    </span>
+                  <div className="p-3 rounded-lg bg-muted/50 border">
+                    <p className="font-medium">{task?.title}</p>
                   </div>
                 )}
               </div>
-
+              
+              {/* Description */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Trạng thái</Label>
+                <Label className="text-sm font-medium">Mô tả</Label>
                 {canEditDetails ? (
-                  <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
-                    <SelectTrigger className="h-11">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="TODO">
-                        <span className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                          Chờ làm
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="IN_PROGRESS">
-                        <span className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-warning" />
-                          Đang làm
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="DONE">
-                        <span className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-primary" />
-                          Hoàn thành
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="VERIFIED">
-                        <span className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-success" />
-                          Đã duyệt
-                        </span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Mô tả chi tiết task..."
+                    rows={3}
+                    className="resize-none"
+                  />
                 ) : (
-                  <div className="p-3 rounded-lg bg-muted/50 border h-11 flex items-center">
-                    <Badge className={`${statusConfig.color} border`}>
-                      {statusConfig.label}
-                    </Badge>
+                  <div className="p-3 rounded-lg bg-muted/50 border min-h-[80px]">
+                    <p className="text-sm text-muted-foreground">
+                      {task?.description || 'Không có mô tả'}
+                    </p>
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Deadline */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                Deadline
-              </Label>
-              {canEditDetails ? (
-                <DateTimePickerSeparate
-                  value={deadline}
-                  onChange={setDeadline}
-                  placeholder="Chọn ngày..."
-                  defaultHour={22}
-                  defaultMinute={0}
-                />
-              ) : (
-                <div className={`p-3 rounded-lg border h-11 flex items-center gap-2 ${isOverdue ? 'bg-destructive/10 border-destructive/30' : 'bg-muted/50'}`}>
-                  {task?.deadline ? (
-                    <>
-                      <span className={`text-sm ${isOverdue ? 'text-destructive font-medium' : ''}`}>
-                        {format(new Date(task.deadline), "dd/MM/yyyy – HH:mm", { locale: vi })}
-                      </span>
-                      {isOverdue && (
-                        <Badge variant="destructive" className="text-xs">Quá hạn</Badge>
-                      )}
-                    </>
+              {/* Stage & Status Row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-muted-foreground" />
+                    Giai đoạn
+                  </Label>
+                  {canEditDetails ? (
+                    <Select value={stageId} onValueChange={setStageId}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Chọn giai đoạn..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stages.map((stage) => (
+                          <SelectItem key={stage.id} value={stage.id}>
+                            {stage.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : (
-                    <span className="text-sm text-muted-foreground">Không có deadline</span>
+                    <div className="p-2.5 rounded-lg bg-muted/50 border flex items-center">
+                      <span className="text-sm">
+                        {stages.find(s => s.id === task?.stage_id)?.name || 'Chưa phân giai đoạn'}
+                      </span>
+                    </div>
                   )}
                 </div>
-              )}
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Trạng thái</Label>
+                  {canEditDetails ? (
+                    <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="TODO">
+                          <span className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                            Chờ làm
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="IN_PROGRESS">
+                          <span className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-warning" />
+                            Đang làm
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="DONE">
+                          <span className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-primary" />
+                            Hoàn thành
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="VERIFIED">
+                          <span className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-success" />
+                            Đã duyệt
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="p-2.5 rounded-lg bg-muted/50 border flex items-center">
+                      <Badge className={`${statusConfig.color} border`}>
+                        {statusConfig.label}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Deadline */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  Deadline
+                </Label>
+                {canEditDetails ? (
+                  <DateTimePickerSeparate
+                    value={deadline}
+                    onChange={setDeadline}
+                    placeholder="Chọn ngày..."
+                    defaultHour={22}
+                    defaultMinute={0}
+                  />
+                ) : (
+                  <div className={`p-2.5 rounded-lg border flex items-center gap-2 ${isOverdue ? 'bg-destructive/10 border-destructive/30' : 'bg-muted/50'}`}>
+                    {task?.deadline ? (
+                      <>
+                        <span className={`text-sm ${isOverdue ? 'text-destructive font-medium' : ''}`}>
+                          {format(new Date(task.deadline), "dd/MM/yyyy – HH:mm", { locale: vi })}
+                        </span>
+                        {isOverdue && (
+                          <Badge variant="destructive" className="text-xs">Quá hạn</Badge>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Không có deadline</span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <Separator />
-
-            {/* Assignees */}
-            <div className="space-y-3">
+            {/* Right Column - Assignees */}
+            <div className="space-y-2 flex flex-col">
               <Label className="text-sm font-medium flex items-center gap-2">
                 <Users className="w-4 h-4 text-muted-foreground" />
                 Người phụ trách
               </Label>
               
               {canEditDetails ? (
-                <div className="border rounded-lg p-4 max-h-48 overflow-y-auto bg-muted/20">
+                <div className="border rounded-lg p-4 flex-1 overflow-y-auto bg-muted/20">
                   {members.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">Chưa có thành viên nào</p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-2">
                       {members.map((member) => (
                         <div key={member.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
                           <Checkbox
@@ -391,7 +390,7 @@ export default function TaskEditDialog({
                   )}
                 </div>
               ) : (
-                <div className="border rounded-lg p-4 bg-muted/20">
+                <div className="border rounded-lg p-4 flex-1 bg-muted/20">
                   {task?.task_assignments && task.task_assignments.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {task.task_assignments.map((assignment) => (
@@ -410,9 +409,9 @@ export default function TaskEditDialog({
               )}
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="pt-4 border-t gap-2">
+        <DialogFooter className="px-6 py-4 border-t gap-2 shrink-0">
           <Button variant="outline" onClick={onClose}>
             {canEditDetails ? 'Hủy' : 'Đóng'}
           </Button>
