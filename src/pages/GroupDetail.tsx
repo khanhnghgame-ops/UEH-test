@@ -320,6 +320,7 @@ export default function GroupDetail() {
                             {/* Right Column - Assignees */}
                             <div className="space-y-5">
                               <div className="p-4 rounded-xl border-2 bg-card h-full">
+                                <Label className="text-sm font-medium mb-2 block">Người phụ trách</Label>
                                 <h3 className="text-sm font-semibold text-accent-foreground flex items-center gap-2 mb-4">
                                   <div className="w-2 h-2 rounded-full bg-accent" />
                                   Giao việc cho thành viên

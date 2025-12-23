@@ -28,7 +28,7 @@ import { Loader2, Lock, AlertTriangle, Eye, Calendar, Users, FileText, Layers } 
 import type { Task, Stage, GroupMember, TaskStatus } from '@/types/database';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { DateTimePicker } from './DateTimePicker';
+import { DateTimePickerSeparate } from './DateTimePickerSeparate';
 
 interface TaskEditDialogProps {
   task: Task | null;
@@ -325,10 +325,12 @@ export default function TaskEditDialog({
                 Deadline
               </Label>
               {canEditDetails ? (
-                <DateTimePicker
+                <DateTimePickerSeparate
                   value={deadline}
                   onChange={setDeadline}
-                  placeholder="Chọn deadline..."
+                  placeholder="Chọn ngày..."
+                  defaultHour={22}
+                  defaultMinute={0}
                 />
               ) : (
                 <div className={`p-3 rounded-lg border h-11 flex items-center gap-2 ${isOverdue ? 'bg-destructive/10 border-destructive/30' : 'bg-muted/50'}`}>

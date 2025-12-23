@@ -330,16 +330,18 @@ export default function KanbanBoard({
 
                 {/* Submission Link */}
                 {task.submission_link && (
-                  <a
-                    href={task.submission_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs text-primary hover:underline"
-                    onClick={(e) => e.stopPropagation()}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 text-xs h-8"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(task.submission_link!, '_blank', 'noopener,noreferrer');
+                    }}
                   >
                     <ExternalLink className="w-3 h-3" />
-                    Xem bài nộp
-                  </a>
+                    Mở link bài nộp
+                  </Button>
                 )}
               </CardContent>
             </Card>
