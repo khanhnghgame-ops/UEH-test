@@ -51,6 +51,7 @@ import {
   History,
   Clock,
   Target,
+  ExternalLink,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -303,6 +304,43 @@ function TaskRow({
           taskDeadline={task.deadline}
           currentSubmissionLink={task.submission_link}
         />
+
+        {/* Quick open link button */}
+        {task.submission_link && (() => {
+          try {
+            const links = JSON.parse(task.submission_link);
+            const firstLink = Array.isArray(links) && links.length > 0 ? links[0].url : task.submission_link;
+            return (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(firstLink, '_blank', 'noopener,noreferrer');
+                }}
+                title="Mở link bài nộp"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-primary" />
+              </Button>
+            );
+          } catch {
+            return (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(task.submission_link!, '_blank', 'noopener,noreferrer');
+                }}
+                title="Mở link bài nộp"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-primary" />
+              </Button>
+            );
+          }
+        })()}
         
         {/* Submit Button */}
         {(isAssignee || isLeaderInGroup) && (
@@ -317,8 +355,8 @@ function TaskRow({
           >
             {task.submission_link ? (
               <>
-                <CheckCircle2 className="w-3 h-3 text-success" />
-                Xem
+                <Edit className="w-3 h-3" />
+                Chỉnh sửa
               </>
             ) : (
               <>

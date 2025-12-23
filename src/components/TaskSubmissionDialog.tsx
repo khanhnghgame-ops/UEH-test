@@ -6,6 +6,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,7 +51,8 @@ import {
   Link as LinkIcon,
   MessageSquare,
   Info,
-  ChevronDown
+  ChevronDown,
+  AlertTriangle
 } from 'lucide-react';
 import type { Task, TaskStatus } from '@/types/database';
 import { format } from 'date-fns';
@@ -78,9 +89,13 @@ export default function TaskSubmissionDialog({
   const [submissionLinks, setSubmissionLinks] = useState<SubmissionLink[]>([]);
   const [note, setNote] = useState('');
   const [taskAssignees, setTaskAssignees] = useState<string[]>([]);
+  const [showLateWarning, setShowLateWarning] = useState(false);
 
   // Check if task is overdue
   const isOverdue = task?.deadline ? new Date(task.deadline) < new Date() : false;
+  
+  // Check if this is a resubmission (has existing submission link)
+  const hasExistingSubmission = !!task?.submission_link;
   
   // Permission logic - assignee can always submit (even if overdue), leader can submit on behalf
   // isAssignee: người được gán task - luôn có thể nộp bài
@@ -138,7 +153,7 @@ export default function TaskSubmissionDialog({
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmitClick = () => {
     if (!task || !canSubmit) return;
     
     const validLinks = submissionLinks.filter(l => l.url.trim());
@@ -148,6 +163,28 @@ export default function TaskSubmissionDialog({
         description: 'Vui lòng thêm ít nhất 1 liên kết nộp bài',
         variant: 'destructive',
       });
+      return;
+    }
+
+    // Check if resubmitting after deadline
+    const now = new Date();
+    const isLateSubmission = task.deadline && now > new Date(task.deadline);
+    
+    if (hasExistingSubmission && isLateSubmission) {
+      // Show late warning dialog
+      setShowLateWarning(true);
+      return;
+    }
+
+    // Proceed with submission
+    handleSubmit();
+  };
+
+  const handleSubmit = async () => {
+    if (!task || !canSubmit) return;
+    
+    const validLinks = submissionLinks.filter(l => l.url.trim());
+    if (validLinks.length === 0) {
       return;
     }
 
@@ -509,7 +546,7 @@ export default function TaskSubmissionDialog({
             Đóng
           </Button>
           {canSubmit && (
-            <Button onClick={handleSubmit} disabled={isLoading} size="sm" className="gap-1.5">
+            <Button onClick={handleSubmitClick} disabled={isLoading} size="sm" className="gap-1.5">
               {isLoading ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -525,6 +562,35 @@ export default function TaskSubmissionDialog({
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Late Submission Warning Dialog */}
+      <AlertDialog open={showLateWarning} onOpenChange={setShowLateWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-warning">
+              <AlertTriangle className="w-5 h-5" />
+              Cảnh báo nộp bài trễ
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn đang nộp lại bài sau deadline. Bài nộp trễ có thể bị trừ điểm theo quy định.
+              <br /><br />
+              Bạn có chắc chắn muốn tiếp tục?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowLateWarning(false);
+                handleSubmit();
+              }}
+              className="bg-warning text-warning-foreground hover:bg-warning/90"
+            >
+              Tiếp tục nộp
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
