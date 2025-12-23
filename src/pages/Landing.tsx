@@ -79,16 +79,13 @@ export default function Landing() {
                 {/* Stats */}
                 <div className="flex gap-8 pt-8 border-t border-border/50">
                   <div>
-                    <p className="text-3xl font-heading font-bold text-primary">📚</p>
-                    <p className="text-sm text-muted-foreground">Đồ án Sinh viên</p>
+                    <p className="text-sm font-medium text-foreground">Đồ án Sinh viên</p>
                   </div>
                   <div>
-                    <p className="text-3xl font-heading font-bold text-accent">🎓</p>
-                    <p className="text-sm text-muted-foreground">Mục đích Học tập</p>
+                    <p className="text-sm font-medium text-foreground">Mục đích Học tập</p>
                   </div>
                   <div>
-                    <p className="text-3xl font-heading font-bold text-success">💚</p>
-                    <p className="text-sm text-muted-foreground">Phi thương mại</p>
+                    <p className="text-sm font-medium text-foreground">Phi thương mại</p>
                   </div>
                 </div>
               </div>
