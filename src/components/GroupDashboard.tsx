@@ -78,68 +78,9 @@ export default function GroupDashboard({ tasks, members, stages }: GroupDashboar
 
   return (
     <div className="space-y-6">
-      {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-primary/5 to-transparent">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <ListTodo className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold">{totalTasks}</p>
-                <p className="text-sm text-muted-foreground">Tổng task</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
-                <Clock className="w-6 h-6 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold">{todoTasks}</p>
-                <p className="text-sm text-muted-foreground">Chưa làm</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-warning" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold">{inProgressTasks}</p>
-                <p className="text-sm text-muted-foreground">Đang làm</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-success" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold">{completedTasks}</p>
-                <p className="text-sm text-muted-foreground">Hoàn thành</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Progress and Alerts */}
+      {/* Progress and Alerts - Combined with stats */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Overall Progress */}
+        {/* Overall Progress with Stats */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold">Tiến độ dự án</CardTitle>
@@ -159,26 +100,27 @@ export default function GroupDashboard({ tasks, members, stages }: GroupDashboar
             </div>
             <Progress value={progressPercent} className="h-3" />
             
+            {/* Combined stats grid */}
             <div className="grid grid-cols-4 gap-2 pt-2">
-              <div className="text-center p-2 rounded-lg bg-muted/50">
+              <div className="text-center p-3 rounded-lg bg-muted/50">
                 <div className="w-3 h-3 rounded-full bg-muted-foreground mx-auto mb-1" />
                 <p className="text-xs text-muted-foreground">Chờ</p>
-                <p className="font-semibold">{todoTasks}</p>
+                <p className="text-lg font-bold">{todoTasks}</p>
               </div>
-              <div className="text-center p-2 rounded-lg bg-warning/10">
+              <div className="text-center p-3 rounded-lg bg-warning/10">
                 <div className="w-3 h-3 rounded-full bg-warning mx-auto mb-1" />
                 <p className="text-xs text-muted-foreground">Đang làm</p>
-                <p className="font-semibold">{inProgressTasks}</p>
+                <p className="text-lg font-bold">{inProgressTasks}</p>
               </div>
-              <div className="text-center p-2 rounded-lg bg-primary/10">
+              <div className="text-center p-3 rounded-lg bg-primary/10">
                 <div className="w-3 h-3 rounded-full bg-primary mx-auto mb-1" />
                 <p className="text-xs text-muted-foreground">Xong</p>
-                <p className="font-semibold">{doneTasks}</p>
+                <p className="text-lg font-bold">{doneTasks}</p>
               </div>
-              <div className="text-center p-2 rounded-lg bg-success/10">
+              <div className="text-center p-3 rounded-lg bg-success/10">
                 <div className="w-3 h-3 rounded-full bg-success mx-auto mb-1" />
                 <p className="text-xs text-muted-foreground">Duyệt</p>
-                <p className="font-semibold">{verifiedTasks}</p>
+                <p className="text-lg font-bold">{verifiedTasks}</p>
               </div>
             </div>
           </CardContent>
@@ -268,33 +210,6 @@ export default function GroupDashboard({ tasks, members, stages }: GroupDashboar
           </CardContent>
         </Card>
       )}
-
-      {/* Members */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary" />
-            Thành viên ({members.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {members.map((member) => (
-              <div key={member.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="text-sm bg-primary/10 text-primary">
-                    {member.profiles ? getInitials(member.profiles.full_name) : '?'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{member.profiles?.full_name}</p>
-                  {getRoleBadge(member.role)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
