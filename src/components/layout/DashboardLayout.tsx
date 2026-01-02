@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,7 +48,8 @@ const navigation: NavItem[] = [
   { name: 'Sao lưu & Khôi phục', href: '/admin/backup', icon: FolderArchive, requiresAdmin: true },
 ];
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+const DashboardLayout = React.forwardRef<HTMLDivElement, DashboardLayoutProps>(
+  ({ children }, ref) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, isAdmin, isLeader, signOut } = useAuth();
@@ -75,7 +77,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div ref={ref} className="min-h-screen bg-background flex flex-col">
       {/* Fixed Top Navigation Bar */}
       <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-primary shadow-lg">
         <div className="h-full max-w-[1600px] mx-auto px-4 flex items-center justify-between">
@@ -170,7 +172,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Mobile Navigation Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-16 left-0 right-0 bg-primary border-t border-white/10 shadow-lg">
+          <div className="md:hidden absolute top-16 left-0 right-0 bg-primary border-t border-white/10 shadow-lg animate-in slide-in-from-top-2 duration-200">
             <nav className="p-4 space-y-2">
               {navigation
                 .filter(item => !item.requiresAdmin || isAdmin)
@@ -199,7 +201,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Main Content - with top padding for fixed header */}
       <main className="flex-1 pt-16">
-        <div className="max-w-[1600px] mx-auto p-6">
+        <div className="max-w-[1600px] mx-auto p-6 animate-in fade-in duration-300">
           {children}
         </div>
       </main>
@@ -211,4 +213,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       />
     </div>
   );
-}
+});
+DashboardLayout.displayName = "DashboardLayout";
+
+export default DashboardLayout;

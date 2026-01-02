@@ -211,6 +211,76 @@
   75% { transform: rotate(-10deg); }
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Smooth page transitions */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+/* Button loading state */
+.btn-loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Card hover effects */
+.card-interactive {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Skeleton shimmer effect */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.1) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Toast animations */
+.toast-enter {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Dialog animations */
+[data-state="open"] {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Smooth list animations */
+.list-item-enter {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Focus ring improvement */
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -229,4 +299,32 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Disable pointer events when loading overlay is active */
+.loading-overlay {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Smooth transition for all interactive elements */
+button, a, input, select, textarea {
+  transition: all 0.15s ease;
+}
+
+/* Empty state styling */
+.empty-state {
+  @apply flex flex-col items-center justify-center py-12 text-center;
+}
+
+.empty-state-icon {
+  @apply w-16 h-16 text-muted-foreground/50 mb-4;
+}
+
+.empty-state-title {
+  @apply text-lg font-medium mb-1;
+}
+
+.empty-state-description {
+  @apply text-sm text-muted-foreground;
 }
