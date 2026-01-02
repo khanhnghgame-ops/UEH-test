@@ -258,9 +258,12 @@ export default function Groups() {
           </Card>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {groups.map((group) => (
+            {groups.map((group, index) => (
               <Link key={group.id} to={`/groups/${group.id}`}>
-                <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+                <Card 
+                  className="h-full hover:shadow-lg transition-all duration-200 cursor-pointer hover:border-primary/30 animate-in fade-in slide-in-from-bottom-2"
+                  style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' }}
+                >
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -279,7 +282,7 @@ export default function Groups() {
                         <Users className="w-4 h-4" />
                         <span>{group.memberCount} thành viên</span>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
                   </CardContent>
                 </Card>
