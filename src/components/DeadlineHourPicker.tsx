@@ -60,10 +60,16 @@ export function DeadlineHourPicker({
 
   const handleHourChange = (val: string) => {
     const numVal = parseInt(val, 10);
-    let newDate = dateValue || startOfDay(new Date());
-    newDate = setHours(newDate, numVal);
-    newDate = setMinutes(newDate, 0);
-    onChange(newDate.toISOString().slice(0, 16));
+    // Create a new date object to avoid mutating the existing one
+    let baseDate = dateValue ? new Date(dateValue) : startOfDay(new Date());
+    const newDate = setMinutes(setHours(baseDate, numVal), 0);
+    // Format as ISO string for datetime-local input format
+    const year = newDate.getFullYear();
+    const month = String(newDate.getMonth() + 1).padStart(2, '0');
+    const day = String(newDate.getDate()).padStart(2, '0');
+    const hours = String(newDate.getHours()).padStart(2, '0');
+    const minutes = String(newDate.getMinutes()).padStart(2, '0');
+    onChange(`${year}-${month}-${day}T${hours}:${minutes}`);
   };
 
   const clearValue = (e: React.MouseEvent) => {

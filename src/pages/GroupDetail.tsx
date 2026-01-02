@@ -239,7 +239,16 @@ export default function GroupDetail() {
                         <DialogFooter><Button variant="outline" onClick={() => setIsStageDialogOpen(false)}>Hủy</Button><Button onClick={handleCreateStage} disabled={isCreatingStage}>{isCreatingStage ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Tạo'}</Button></DialogFooter>
                       </DialogContent>
                     </Dialog>
-                    <Dialog open={isTaskDialogOpen} onOpenChange={(open) => { setIsTaskDialogOpen(open); if (open && stages.length > 0) setNewTaskStageId(stages[0].id); }}>
+                    <Dialog open={isTaskDialogOpen} onOpenChange={(open) => { 
+                      setIsTaskDialogOpen(open); 
+                      // Auto-select the latest (most recently created) stage
+                      if (open && stages.length > 0) {
+                        const latestStage = [...stages].sort((a, b) => 
+                          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                        )[0];
+                        setNewTaskStageId(latestStage.id);
+                      }
+                    }}>
                       <DialogTrigger asChild><Button size="sm"><Plus className="w-4 h-4 mr-2" />Tạo task</Button></DialogTrigger>
                       <DialogContent className="max-w-[95vw] w-[1400px] h-[85vh] max-h-[800px] p-0 overflow-hidden flex flex-col">
                         {/* Header */}
