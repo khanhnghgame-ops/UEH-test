@@ -256,6 +256,57 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          group_id: string | null
+          id: string
+          is_read: boolean
+          message: string | null
+          task_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          task_id?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          task_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_approvals: {
         Row: {
           created_at: string
@@ -574,6 +625,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_notifications: { Args: never; Returns: undefined }
       ensure_admin_exists: { Args: never; Returns: undefined }
       get_email_by_student_id: {
         Args: { _student_id: string }
