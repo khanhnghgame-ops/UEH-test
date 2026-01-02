@@ -168,8 +168,12 @@ export type Database = {
           id: string
           instructor_email: string | null
           instructor_name: string | null
+          is_public: boolean
           leader_id: string | null
           name: string
+          share_token: string | null
+          show_activity_public: boolean
+          show_members_public: boolean
           updated_at: string
           zalo_link: string | null
         }
@@ -182,8 +186,12 @@ export type Database = {
           id?: string
           instructor_email?: string | null
           instructor_name?: string | null
+          is_public?: boolean
           leader_id?: string | null
           name: string
+          share_token?: string | null
+          show_activity_public?: boolean
+          show_members_public?: boolean
           updated_at?: string
           zalo_link?: string | null
         }
@@ -196,8 +204,12 @@ export type Database = {
           id?: string
           instructor_email?: string | null
           instructor_name?: string | null
+          is_public?: boolean
           leader_id?: string | null
           name?: string
+          share_token?: string | null
+          show_activity_public?: boolean
+          show_members_public?: boolean
           updated_at?: string
           zalo_link?: string | null
         }
@@ -627,6 +639,7 @@ export type Database = {
     Functions: {
       cleanup_old_notifications: { Args: never; Returns: undefined }
       ensure_admin_exists: { Args: never; Returns: undefined }
+      generate_share_token: { Args: never; Returns: string }
       get_email_by_student_id: {
         Args: { _student_id: string }
         Returns: string

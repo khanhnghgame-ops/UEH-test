@@ -9,6 +9,7 @@ import MemberManagementCard from '@/components/MemberManagementCard';
 import TaskEditDialog from '@/components/TaskEditDialog';
 import StageEditDialog from '@/components/StageEditDialog';
 import ProjectActivityLog from '@/components/ProjectActivityLog';
+import ShareSettingsCard from '@/components/ShareSettingsCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,10 @@ interface ExtendedGroup extends Group {
   instructor_email: string | null;
   zalo_link: string | null;
   additional_info: string | null;
+  is_public: boolean;
+  share_token: string | null;
+  show_members_public: boolean;
+  show_activity_public: boolean;
 }
 
 export default function GroupDetail() {
@@ -438,7 +443,15 @@ export default function GroupDetail() {
           </TabsContent>
 
           {isLeaderInGroup && group.created_by === user?.id && (
-            <TabsContent value="settings" className="mt-6">
+            <TabsContent value="settings" className="mt-6 space-y-6">
+              <ShareSettingsCard
+                groupId={groupId!}
+                isPublic={group.is_public || false}
+                shareToken={group.share_token || null}
+                showMembersPublic={group.show_members_public ?? true}
+                showActivityPublic={group.show_activity_public ?? true}
+                onUpdate={fetchGroupData}
+              />
               <Card>
                 <CardHeader><CardTitle className="text-destructive flex items-center gap-2"><Trash2 className="w-5 h-5" />Xóa project</CardTitle><CardDescription>Hành động này không thể hoàn tác.</CardDescription></CardHeader>
                 <CardContent><Button variant="destructive" onClick={() => setIsDeleteGroupDialogOpen(true)}><Trash2 className="w-4 h-4 mr-2" />Xóa project này</Button></CardContent>
