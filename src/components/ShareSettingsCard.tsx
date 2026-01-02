@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Share2, Copy, ExternalLink, Users, Activity, Loader2, Lock, Unlock, Eye } from 'lucide-react';
+import { Share2, Copy, ExternalLink, Users, Activity, Loader2, Lock, Unlock, Eye, RefreshCw } from 'lucide-react';
 
 interface ShareSettingsCardProps {
   groupId: string;
@@ -15,6 +15,13 @@ interface ShareSettingsCardProps {
   showMembersPublic: boolean;
   showActivityPublic: boolean;
   onUpdate: () => void;
+}
+
+// Generate a random token client-side
+function generateToken(): string {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export default function ShareSettingsCard({
@@ -28,45 +35,73 @@ export default function ShareSettingsCard({
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
   const [localIsPublic, setLocalIsPublic] = useState(isPublic);
+  const [localShareToken, setLocalShareToken] = useState(shareToken);
   const [localShowMembers, setLocalShowMembers] = useState(showMembersPublic);
   const [localShowActivity, setLocalShowActivity] = useState(showActivityPublic);
 
   useEffect(() => {
     setLocalIsPublic(isPublic);
+    setLocalShareToken(shareToken);
     setLocalShowMembers(showMembersPublic);
     setLocalShowActivity(showActivityPublic);
-  }, [isPublic, showMembersPublic, showActivityPublic]);
+  }, [isPublic, shareToken, showMembersPublic, showActivityPublic]);
 
-  const publicLink = shareToken 
-    ? `${window.location.origin}/public/project/${shareToken}` 
+  const publicLink = localShareToken 
+    ? `${window.location.origin}/public/project/${localShareToken}` 
     : null;
 
   const handleToggleShare = async (enabled: boolean) => {
     setIsUpdating(true);
     try {
-      let newToken = shareToken;
+      let newToken = localShareToken;
       
-      if (enabled && !shareToken) {
-        // Generate new token
-        const { data: tokenData } = await supabase.rpc('generate_share_token');
-        newToken = tokenData;
+      // Always generate a new token when enabling if there's no token
+      if (enabled && !newToken) {
+        newToken = generateToken();
       }
 
-      await supabase
+      const { error } = await supabase
         .from('groups')
         .update({
           is_public: enabled,
-          share_token: enabled ? newToken : shareToken,
+          share_token: newToken,
         })
         .eq('id', groupId);
 
+      if (error) throw error;
+
       setLocalIsPublic(enabled);
+      setLocalShareToken(newToken);
+      
       toast({
         title: enabled ? 'Đã bật chia sẻ' : 'Đã tắt chia sẻ',
         description: enabled 
           ? 'Link xem project đã được tạo' 
           : 'Link xem project đã bị vô hiệu hóa',
       });
+      onUpdate();
+    } catch (error: any) {
+      console.error('Toggle share error:', error);
+      toast({ title: 'Lỗi', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleRegenerateToken = async () => {
+    setIsUpdating(true);
+    try {
+      const newToken = generateToken();
+
+      const { error } = await supabase
+        .from('groups')
+        .update({ share_token: newToken })
+        .eq('id', groupId);
+
+      if (error) throw error;
+
+      setLocalShareToken(newToken);
+      toast({ title: 'Đã tạo link mới', description: 'Link cũ sẽ không còn hoạt động' });
       onUpdate();
     } catch (error: any) {
       toast({ title: 'Lỗi', description: error.message, variant: 'destructive' });
@@ -77,10 +112,12 @@ export default function ShareSettingsCard({
 
   const handleUpdateVisibility = async (field: 'show_members_public' | 'show_activity_public', value: boolean) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from('groups')
         .update({ [field]: value })
         .eq('id', groupId);
+
+      if (error) throw error;
 
       if (field === 'show_members_public') {
         setLocalShowMembers(value);
@@ -155,24 +192,48 @@ export default function ShareSettingsCard({
           />
         </div>
 
-        {/* Share Link */}
-        {localIsPublic && publicLink && (
+        {/* Share Link - Always show when public is enabled */}
+        {localIsPublic && (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Link chia sẻ</Label>
+              <Label className="text-sm font-medium">Link chia sẻ công khai</Label>
               <div className="flex gap-2">
                 <Input
-                  value={publicLink}
+                  value={publicLink || 'Đang tạo link...'}
                   readOnly
                   className="flex-1 bg-muted/50 font-mono text-sm"
                 />
-                <Button variant="outline" size="icon" onClick={copyLink} title="Sao chép link">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={copyLink} 
+                  title="Sao chép link"
+                  disabled={!publicLink}
+                >
                   <Copy className="w-4 h-4" />
                 </Button>
-                <Button variant="outline" size="icon" onClick={openLink} title="Mở trong tab mới">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={openLink} 
+                  title="Mở trong tab mới"
+                  disabled={!publicLink}
+                >
                   <ExternalLink className="w-4 h-4" />
                 </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={handleRegenerateToken} 
+                  title="Tạo link mới"
+                  disabled={isUpdating}
+                >
+                  <RefreshCw className={`w-4 h-4 ${isUpdating ? 'animate-spin' : ''}`} />
+                </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Người có link này có thể xem tiến độ project mà không cần đăng nhập
+              </p>
             </div>
 
             {/* Visibility Options */}
