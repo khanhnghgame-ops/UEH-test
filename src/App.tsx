@@ -14,6 +14,7 @@ import Feedback from "./pages/Feedback";
 import NotFound from "./pages/NotFound";
 import AdminActivity from "./pages/AdminActivity";
 import AdminBackup from "./pages/AdminBackup";
+import PublicProjectView from "./pages/PublicProjectView";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/public/project/:shareToken" element={<PublicProjectView />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/auth/member" element={<Navigate to="/auth" replace />} />
       <Route path="/auth/admin" element={<Navigate to="/auth" replace />} />
