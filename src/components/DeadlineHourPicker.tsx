@@ -53,7 +53,13 @@ export function DeadlineHourPicker({
       // Validate hour is in allowed list, otherwise default to 22
       const validHour = ALLOWED_HOURS.some(h => parseInt(h.value) === existingHour) ? existingHour : 22;
       const newDate = setMinutes(setHours(date, validHour), 0);
-      onChange(newDate.toISOString().slice(0, 16));
+      // Format manually to avoid timezone conversion issues (don't use toISOString which converts to UTC)
+      const year = newDate.getFullYear();
+      const month = String(newDate.getMonth() + 1).padStart(2, '0');
+      const day = String(newDate.getDate()).padStart(2, '0');
+      const hours = String(newDate.getHours()).padStart(2, '0');
+      const minutes = String(newDate.getMinutes()).padStart(2, '0');
+      onChange(`${year}-${month}-${day}T${hours}:${minutes}`);
       setIsDateOpen(false);
     }
   };
