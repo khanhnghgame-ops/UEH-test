@@ -13,6 +13,7 @@ import MemberManagement from "./pages/MemberManagement";
 import Feedback from "./pages/Feedback";
 import NotFound from "./pages/NotFound";
 import AdminActivity from "./pages/AdminActivity";
+import AdminBackup from "./pages/AdminBackup";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ function AppRoutes() {
       <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
       <Route path="/members" element={<ProtectedRoute><MemberManagement /></ProtectedRoute>} />
       <Route path="/admin/activity" element={<ProtectedRoute><AdminActivity /></ProtectedRoute>} />
+      <Route path="/admin/backup" element={<ProtectedRoute><AdminBackup /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

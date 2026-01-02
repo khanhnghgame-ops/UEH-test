@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
-import AdminBackupRestore from '@/components/AdminBackupRestore';
 import {
   FolderKanban,
   ArrowRight,
@@ -138,9 +137,6 @@ export default function Dashboard() {
             </CardContent>
         </Card>
         </div>
-
-        {/* Admin Backup & Restore Section */}
-        {isAdmin && <AdminBackupRestore />}
 
         {/* My Projects */}
         <Card>
