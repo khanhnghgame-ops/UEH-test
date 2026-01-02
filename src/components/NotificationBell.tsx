@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, Trash2, Check, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { Bell, Trash2, Check, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -153,13 +153,10 @@ export default function NotificationBell() {
     }
   };
 
-  // Delete all notifications with confirmation
-  const [isDeletingAll, setIsDeletingAll] = useState(false);
-  
+  // Delete all notifications
   const deleteAllNotifications = async () => {
     if (!user) return;
     
-    setIsDeletingAll(true);
     try {
       await supabase
         .from('notifications')
@@ -172,8 +169,6 @@ export default function NotificationBell() {
     } catch (error) {
       console.error('Error deleting all notifications:', error);
       toast.error('Không thể xóa thông báo');
-    } finally {
-      setIsDeletingAll(false);
     }
   };
 
@@ -267,14 +262,9 @@ export default function NotificationBell() {
                 variant="ghost"
                 size="sm"
                 onClick={deleteAllNotifications}
-                disabled={isDeletingAll}
                 className="text-xs h-7 text-destructive hover:text-destructive"
               >
-                {isDeletingAll ? (
-                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                ) : (
-                  <Trash2 className="w-3 h-3 mr-1" />
-                )}
+                <Trash2 className="w-3 h-3 mr-1" />
                 Xóa tất cả
               </Button>
             )}

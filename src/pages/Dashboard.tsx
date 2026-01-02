@@ -161,12 +161,11 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {groups.map((group, index) => (
+                {groups.map((group) => (
                   <Link
                     key={group.id}
                     to={`/groups/${group.id}`}
-                    className="group flex flex-col p-5 rounded-xl border bg-card hover:shadow-lg hover:border-primary/30 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
-                    style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' }}
+                    className="group flex flex-col p-5 rounded-xl border bg-card hover:shadow-lg hover:border-primary/30 transition-all"
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">

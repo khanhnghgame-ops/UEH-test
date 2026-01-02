@@ -240,13 +240,6 @@ export default function AdminBackupRestore() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.name.endsWith('.zip')) {
-      toast({ title: 'Lỗi', description: 'Vui lòng chọn file .zip', variant: 'destructive' });
-      event.target.value = '';
-      return;
-    }
-
     setIsImporting(true);
     setImportProgress('Đang đọc file...');
 
