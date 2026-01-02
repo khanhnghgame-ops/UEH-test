@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { formatDeadlineVN } from '@/lib/datetime';
 import { ArrowLeft, Loader2, ExternalLink, Calendar, Clock, Save } from 'lucide-react';
 import type { Task, TaskAssignment, Profile, TaskStatus } from '@/types/database';
 
@@ -119,7 +120,7 @@ export default function TaskDetail() {
             {task.deadline && (
               <div className="flex items-center gap-2 text-sm">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span>Deadline: {new Date(task.deadline).toLocaleString('vi-VN')}</span>
+                <span>Deadline: {formatDeadlineVN(task.deadline)}</span>
               </div>
             )}
 

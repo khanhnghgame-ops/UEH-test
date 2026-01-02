@@ -57,6 +57,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Task, Stage, GroupMember } from '@/types/database';
+import { formatDeadlineVN, isDeadlineOverdue } from '@/lib/datetime';
 import TaskSubmissionDialog from './TaskSubmissionDialog';
 import SubmissionHistoryPopup from './SubmissionHistoryPopup';
 
@@ -134,13 +135,7 @@ const getInitials = (name: string) => {
 };
 
 const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr);
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const year = date.getFullYear();
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${day}/${month}/${year} – ${hours}:${minutes}`;
+  return formatDeadlineVN(dateStr);
 };
 
 // Get main assignee name (first assignee)
@@ -169,10 +164,7 @@ const getTaskCode = (task: Task, allTasks: Task[], stages: Stage[]) => {
   return `${stageOrder}.${taskOrder}`;
 };
 
-const isOverdue = (deadline: string | null) => {
-  if (!deadline) return false;
-  return new Date(deadline) < new Date();
-};
+const isOverdue = (deadline: string | null) => isDeadlineOverdue(deadline);
 
 // Horizontal TaskRow component
 interface TaskRowProps {

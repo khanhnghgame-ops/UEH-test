@@ -54,6 +54,7 @@ import {
 import type { Task, TaskStatus } from '@/types/database';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { parseLocalDateTime } from '@/lib/datetime';
 
 interface SubmissionLink {
   id?: string;
@@ -88,9 +89,10 @@ export default function TaskSubmissionDialog({
   const [taskAssignees, setTaskAssignees] = useState<string[]>([]);
   const [showLateWarning, setShowLateWarning] = useState(false);
 
+  const deadlineDate = task?.deadline ? parseLocalDateTime(task.deadline) : null;
+
   // Check if task is overdue
-  const isOverdue = task?.deadline ? new Date(task.deadline) < new Date() : false;
-  
+  const isOverdue = !!deadlineDate && deadlineDate.getTime() < Date.now();
   // Check if this is a resubmission (has existing submission link)
   const hasExistingSubmission = !!task?.submission_link;
   
@@ -160,7 +162,7 @@ export default function TaskSubmissionDialog({
     }
 
     const now = new Date();
-    const isLateSubmission = task.deadline && now > new Date(task.deadline);
+    const isLateSubmission = !!deadlineDate && now > deadlineDate;
     
     if (hasExistingSubmission && isLateSubmission) {
       setShowLateWarning(true);
@@ -181,7 +183,7 @@ export default function TaskSubmissionDialog({
     try {
       const submissionLinkJson = JSON.stringify(validLinks);
       const now = new Date();
-      const isLateSubmission = task.deadline && now > new Date(task.deadline);
+      const isLateSubmission = !!deadlineDate && now > deadlineDate;
 
       const { error: taskError } = await supabase
         .from('tasks')
@@ -205,8 +207,8 @@ export default function TaskSubmissionDialog({
       if (historyError) throw historyError;
 
       const actionType = isLateSubmission ? 'LATE_SUBMISSION' : 'SUBMISSION';
-      const lateHours = isLateSubmission 
-        ? Math.round((now.getTime() - new Date(task.deadline!).getTime()) / (1000 * 60 * 60))
+      const lateHours = isLateSubmission && deadlineDate
+        ? Math.round((now.getTime() - deadlineDate.getTime()) / (1000 * 60 * 60))
         : 0;
 
       await supabase.from('activity_logs').insert({
@@ -252,9 +254,9 @@ export default function TaskSubmissionDialog({
   const StatusIcon = statusConfig.icon;
 
   const getTimeStatus = () => {
-    if (!task?.deadline) return null;
+    if (!deadlineDate) return null;
     const now = new Date();
-    const deadline = new Date(task.deadline);
+    const deadline = deadlineDate;
     const diff = deadline.getTime() - now.getTime();
     
     if (diff < 0) {
@@ -351,13 +353,13 @@ export default function TaskSubmissionDialog({
                   <div className="flex items-center gap-3">
                     <Calendar className={`w-8 h-8 ${isOverdue ? 'text-destructive' : 'text-warning'}`} />
                     <div>
-                      {task?.deadline ? (
+                      {deadlineDate ? (
                         <>
                           <p className={`font-semibold ${isOverdue ? 'text-destructive' : ''}`}>
-                            {format(new Date(task.deadline), "dd/MM/yyyy", { locale: vi })}
+                            {format(deadlineDate, "dd/MM/yyyy", { locale: vi })}
                           </p>
                           <p className={`text-sm ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
-                            {format(new Date(task.deadline), "HH:mm", { locale: vi })}
+                            {format(deadlineDate, "HH:mm", { locale: vi })}
                           </p>
                         </>
                       ) : (
