@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { CountdownTimer } from '@/components/CountdownTimer';
 import { FileText, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import type { Task, TaskAssignment, Profile } from '@/types/database';
+import { isDeadlineOverdue } from '@/lib/datetime';
 
 interface TaskCardProps {
   task: Task & { task_assignments?: (TaskAssignment & { profiles?: Profile })[] };
@@ -14,7 +15,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, groupId, showLink = true }: TaskCardProps) {
-  const isOverdue = task.deadline ? new Date(task.deadline) < new Date() : false;
+  const isOverdue = isDeadlineOverdue(task.deadline);
   const taskIsOverdue = isOverdue && task.status !== 'DONE' && task.status !== 'VERIFIED';
 
   const getStatusConfig = (status: string) => {

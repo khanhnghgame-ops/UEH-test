@@ -25,8 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, AlertTriangle, Eye, Calendar, Users, FileText, Layers, Edit } from 'lucide-react';
 import type { Task, Stage, GroupMember, TaskStatus } from '@/types/database';
-import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
+import { formatDeadlineVN, isDeadlineOverdue } from '@/lib/datetime';
 import { DeadlineHourPicker } from './DeadlineHourPicker';
 
 interface TaskEditDialogProps {
@@ -60,7 +59,7 @@ export default function TaskEditDialog({
   const [assignees, setAssignees] = useState<string[]>([]);
 
   // Check if task is overdue
-  const isOverdue = task?.deadline ? new Date(task.deadline) < new Date() : false;
+  const isOverdue = isDeadlineOverdue(task?.deadline);
   const isLeaderOrAdmin = isLeader || isAdmin;
   
   // Only leader can edit task details (title, description, deadline, stage, assignees)
@@ -337,7 +336,7 @@ export default function TaskEditDialog({
                       <div className={`p-2.5 rounded-lg border text-sm ${isOverdue ? 'bg-destructive/10 border-destructive/30' : 'bg-background/50'}`}>
                         {task?.deadline ? (
                           <span className={isOverdue ? 'text-destructive font-medium' : ''}>
-                            {format(new Date(task.deadline), "dd/MM/yyyy – HH:mm", { locale: vi })}
+                            {formatDeadlineVN(task.deadline)}
                           </span>
                         ) : (
                           <span className="text-muted-foreground">Không có</span>

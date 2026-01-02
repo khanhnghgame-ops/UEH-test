@@ -35,6 +35,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Task, Stage, GroupMember, Profile } from '@/types/database';
+import { formatDateVN, isDeadlineOverdue } from '@/lib/datetime';
 
 interface KanbanBoardProps {
   stages: Stage[];
@@ -125,15 +126,11 @@ export default function KanbanBoard({
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-    });
+    return formatDateVN(dateStr);
   };
 
   const isOverdue = (deadline: string | null) => {
-    if (!deadline) return false;
-    return new Date(deadline) < new Date();
+    return isDeadlineOverdue(deadline);
   };
 
   const handleDragEnd = async (result: DropResult) => {

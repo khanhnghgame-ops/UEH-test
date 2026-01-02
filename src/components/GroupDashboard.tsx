@@ -13,6 +13,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import type { Task, GroupMember, Stage } from '@/types/database';
+import { formatDeadlineShortVN, isDeadlineOverdue, parseLocalDateTime } from '@/lib/datetime';
 
 interface GroupDashboardProps {
   tasks: Task[];
@@ -35,13 +36,14 @@ export default function GroupDashboard({ tasks, members, stages }: GroupDashboar
   // Get overdue tasks
   const overdueTasks = tasks.filter(t => {
     if (!t.deadline || t.status === 'DONE' || t.status === 'VERIFIED') return false;
-    return new Date(t.deadline) < new Date();
+    return isDeadlineOverdue(t.deadline);
   });
 
   // Get upcoming deadlines (within 3 days)
   const upcomingTasks = tasks.filter(t => {
     if (!t.deadline || t.status === 'DONE' || t.status === 'VERIFIED') return false;
-    const deadline = new Date(t.deadline);
+    const deadline = parseLocalDateTime(t.deadline);
+    if (!deadline) return false;
     const now = new Date();
     const threeDays = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
     return deadline >= now && deadline <= threeDays;
@@ -68,12 +70,7 @@ export default function GroupDashboard({ tasks, members, stages }: GroupDashboar
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatDeadlineShortVN(dateStr);
   };
 
   return (

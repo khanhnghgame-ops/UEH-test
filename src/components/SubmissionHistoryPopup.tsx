@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { parseLocalDateTime } from '@/lib/datetime';
 
 interface SubmissionHistoryEntry {
   id: string;
@@ -49,6 +50,8 @@ export default function SubmissionHistoryPopup({
   const [isLoading, setIsLoading] = useState(false);
   const [history, setHistory] = useState<SubmissionHistoryEntry[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const taskDeadlineDate = parseLocalDateTime(taskDeadline);
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -150,7 +153,7 @@ export default function SubmissionHistoryPopup({
               {/* History Grid */}
               <div className="flex-1 grid gap-3">
                 {paginatedHistory.map((entry, index) => {
-                  const isLate = taskDeadline && new Date(entry.submitted_at) > new Date(taskDeadline);
+                  const isLate = !!taskDeadlineDate && new Date(entry.submitted_at) > taskDeadlineDate;
                   const links = parseLinks(entry.submission_link);
                   const isLatest = currentPage === 1 && index === 0;
 

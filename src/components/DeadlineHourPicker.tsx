@@ -4,6 +4,7 @@ import { vi } from "date-fns/locale";
 import { CalendarIcon, Clock, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { parseLocalDateTime } from "@/lib/datetime";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -43,7 +44,7 @@ export function DeadlineHourPicker({
 }: DeadlineHourPickerProps) {
   const [isDateOpen, setIsDateOpen] = React.useState(false);
   
-  const dateValue = value ? new Date(value) : undefined;
+  const dateValue = parseLocalDateTime(value) || undefined;
   const hours = dateValue ? dateValue.getHours() : 22;
 
   const handleDateSelect = (date: Date | undefined) => {

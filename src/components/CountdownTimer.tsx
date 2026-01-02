@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Clock, AlertTriangle, CheckCircle } from 'lucide-react';
+import { getDeadlineTimeMs } from '@/lib/datetime';
 
 interface CountdownTimerProps {
   deadline: string;
@@ -19,8 +20,13 @@ export function CountdownTimer({ deadline, showIcon = true, className = '' }: Co
 
   useEffect(() => {
     const calculateTimeLeft = () => {
-      const now = new Date().getTime();
-      const deadlineTime = new Date(deadline).getTime();
+      const now = Date.now();
+      const deadlineTime = getDeadlineTimeMs(deadline);
+
+      if (!deadlineTime) {
+        return { days: 0, hours: 0, minutes: 0, seconds: 0, isOverdue: false, isPastDeadline: true };
+      }
+
       const difference = deadlineTime - now;
 
       if (difference <= 0) {
