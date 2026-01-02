@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import uehLogo from '@/assets/ueh-logo-new.png';
 import UserChangePasswordDialog from '@/components/UserChangePasswordDialog';
+import NotificationBell from '@/components/NotificationBell';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -106,8 +107,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               })}
           </nav>
 
-          {/* Right: User Info */}
-          <div className="flex items-center gap-3">
+          {/* Right: Notification Bell & User Info */}
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
