@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -22,7 +23,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, AlertTriangle, Eye, Calendar, Users, FileText, Layers } from 'lucide-react';
+import { Loader2, AlertTriangle, Eye, Calendar, Users, FileText, Layers, Edit } from 'lucide-react';
 import type { Task, Stage, GroupMember, TaskStatus } from '@/types/database';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -165,20 +166,25 @@ export default function TaskEditDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] w-[1400px] h-[85vh] max-h-[800px] p-0 overflow-hidden flex flex-col">
-        {/* Header */}
-        <DialogHeader className="px-6 py-3 border-b shrink-0 bg-muted/30">
+        {/* Header - Match Create Task style */}
+        <DialogHeader className="px-6 py-3 border-b bg-gradient-to-r from-primary/10 to-transparent shrink-0">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${canEditDetails ? 'bg-primary/10' : 'bg-muted'}`}>
+              <div className="p-2.5 rounded-xl bg-primary/20 border border-primary/30">
                 {canEditDetails ? (
-                  <FileText className="w-5 h-5 text-primary" />
+                  <Edit className="w-5 h-5 text-primary" />
                 ) : (
-                  <Eye className="w-5 h-5 text-muted-foreground" />
+                  <Eye className="w-5 h-5 text-primary" />
                 )}
               </div>
-              <DialogTitle className="text-lg font-bold">
-                {canEditDetails ? 'Chỉnh sửa task' : 'Chi tiết task'}
-              </DialogTitle>
+              <div>
+                <DialogTitle className="text-lg font-bold">
+                  {canEditDetails ? 'Chỉnh sửa task' : 'Chi tiết task'}
+                </DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">
+                  {canEditDetails ? 'Cập nhật thông tin task' : 'Xem thông tin chi tiết task'}
+                </DialogDescription>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {!isLeaderOrAdmin && (
@@ -200,222 +206,258 @@ export default function TaskEditDialog({
           </div>
         </DialogHeader>
         
-        {/* Content - Grid layout no scroll */}
+        {/* Content - Match Create Task layout */}
         <div className="flex-1 p-5 overflow-hidden">
           <div className="grid grid-cols-3 gap-5 h-full">
-            {/* Left Column - Basic Info */}
-            <div className="col-span-2 space-y-4">
-              {/* Task Title */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium flex items-center gap-2">
-                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                  Tên task {canEditDetails && <span className="text-destructive">*</span>}
-                </Label>
-                {canEditDetails ? (
-                  <Input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Nhập tên task..."
-                    className="h-9"
-                  />
-                ) : (
-                  <div className="p-2.5 rounded-lg bg-muted/50 border">
-                    <p className="font-medium text-sm">{task?.title}</p>
+            {/* Left Column - Basic Info (2/3 width) */}
+            <div className="col-span-2 flex flex-col gap-4">
+              {/* Task Title & Description Card */}
+              <div className="p-5 rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent flex-1 flex flex-col">
+                <h3 className="text-sm font-bold text-primary flex items-center gap-2 mb-4 uppercase tracking-wide">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                  Thông tin cơ bản
+                </h3>
+                <div className="space-y-4 flex-1 flex flex-col">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Tên task {canEditDetails && <span className="text-destructive">*</span>}</Label>
+                    {canEditDetails ? (
+                      <Input
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="VD: Hoàn thành báo cáo chương 1"
+                        className="h-10"
+                      />
+                    ) : (
+                      <div className="p-2.5 rounded-lg bg-background/50 border">
+                        <p className="font-medium">{task?.title}</p>
+                      </div>
+                    )}
                   </div>
-                )}
+                  <div className="space-y-2 flex-1 flex flex-col">
+                    <Label className="text-sm font-medium">Mô tả chi tiết</Label>
+                    {canEditDetails ? (
+                      <Textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Mô tả công việc cần thực hiện, yêu cầu cụ thể, tài liệu tham khảo..."
+                        className="resize-none flex-1 min-h-[120px]"
+                      />
+                    ) : (
+                      <div className="p-2.5 rounded-lg bg-background/50 border flex-1 min-h-[120px]">
+                        <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+                          {task?.description || 'Không có mô tả'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               
-              {/* Description */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Mô tả</Label>
-                {canEditDetails ? (
-                  <Textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Mô tả chi tiết task..."
-                    rows={3}
-                    className="resize-none text-sm"
-                  />
-                ) : (
-                  <div className="p-2.5 rounded-lg bg-muted/50 border min-h-[70px]">
-                    <p className="text-sm text-muted-foreground">
-                      {task?.description || 'Không có mô tả'}
-                    </p>
+              {/* Stage & Deadline Card */}
+              <div className="p-5 rounded-xl border-2 border-warning/20 bg-gradient-to-br from-warning/5 to-transparent">
+                <h3 className="text-sm font-bold text-warning flex items-center gap-2 mb-4 uppercase tracking-wide">
+                  <div className="w-2 h-2 rounded-full bg-warning" />
+                  Thời gian & Giai đoạn
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Giai đoạn</Label>
+                    {canEditDetails ? (
+                      <Select value={stageId} onValueChange={setStageId}>
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Chọn giai đoạn" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {stages.map((stage) => (
+                            <SelectItem key={stage.id} value={stage.id}>
+                              {stage.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="p-2.5 rounded-lg bg-background/50 border text-sm">
+                        {stages.find(s => s.id === task?.stage_id)?.name || 'Chưa phân'}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Stage, Status, Deadline Row */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-muted-foreground" />
-                    Giai đoạn
-                  </Label>
-                  {canEditDetails ? (
-                    <Select value={stageId} onValueChange={setStageId}>
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="Chọn..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {stages.map((stage) => (
-                          <SelectItem key={stage.id} value={stage.id}>
-                            {stage.name}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Trạng thái</Label>
+                    {canEditDetails ? (
+                      <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
+                        <SelectTrigger className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TODO">
+                            <span className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                              Chờ làm
+                            </span>
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="p-2 rounded-lg bg-muted/50 border text-sm">
-                      {stages.find(s => s.id === task?.stage_id)?.name || 'Chưa phân'}
-                    </div>
-                  )}
-                </div>
+                          <SelectItem value="IN_PROGRESS">
+                            <span className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-warning" />
+                              Đang làm
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="DONE">
+                            <span className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-primary" />
+                              Hoàn thành
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="VERIFIED">
+                            <span className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-success" />
+                              Đã duyệt
+                            </span>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="p-2.5 rounded-lg bg-background/50 border">
+                        <Badge className={`${statusConfig.color} border text-xs`}>
+                          {statusConfig.label}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Trạng thái</Label>
-                  {canEditDetails ? (
-                    <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="TODO">
-                          <span className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                            Chờ làm
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Deadline</Label>
+                    {canEditDetails ? (
+                      <DeadlineHourPicker
+                        value={deadline}
+                        onChange={setDeadline}
+                        placeholder="Chọn ngày..."
+                      />
+                    ) : (
+                      <div className={`p-2.5 rounded-lg border text-sm ${isOverdue ? 'bg-destructive/10 border-destructive/30' : 'bg-background/50'}`}>
+                        {task?.deadline ? (
+                          <span className={isOverdue ? 'text-destructive font-medium' : ''}>
+                            {format(new Date(task.deadline), "dd/MM/yyyy – HH:mm", { locale: vi })}
                           </span>
-                        </SelectItem>
-                        <SelectItem value="IN_PROGRESS">
-                          <span className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-warning" />
-                            Đang làm
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="DONE">
-                          <span className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-primary" />
-                            Hoàn thành
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="VERIFIED">
-                          <span className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-success" />
-                            Đã duyệt
-                          </span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="p-2 rounded-lg bg-muted/50 border">
-                      <Badge className={`${statusConfig.color} border text-xs`}>
-                        {statusConfig.label}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                    Deadline
-                  </Label>
-                  {canEditDetails ? (
-                    <DeadlineHourPicker
-                      value={deadline}
-                      onChange={setDeadline}
-                      placeholder="Chọn ngày..."
-                    />
-                  ) : (
-                    <div className={`p-2 rounded-lg border text-sm ${isOverdue ? 'bg-destructive/10 border-destructive/30' : 'bg-muted/50'}`}>
-                      {task?.deadline ? (
-                        <span className={isOverdue ? 'text-destructive font-medium' : ''}>
-                          {format(new Date(task.deadline), "dd/MM/yyyy – HH:mm", { locale: vi })}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">Không có</span>
-                      )}
-                    </div>
-                  )}
+                        ) : (
+                          <span className="text-muted-foreground">Không có</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-
-            {/* Right Column - Assignees */}
-            <div className="space-y-1.5 flex flex-col h-full">
-              <Label className="text-xs font-medium flex items-center gap-2">
-                <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                Người phụ trách
-              </Label>
-              
-              {canEditDetails ? (
-                <div className="border rounded-lg p-3 flex-1 overflow-y-auto bg-muted/20">
-                  {members.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-4">Chưa có thành viên</p>
-                  ) : (
-                    <div className="space-y-1">
-                      {members.map((member) => (
-                        <div key={member.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50">
-                          <Checkbox
-                            id={`assignee-${member.user_id}`}
-                            checked={assignees.includes(member.user_id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setAssignees([...assignees, member.user_id]);
-                              } else {
-                                setAssignees(assignees.filter((id) => id !== member.user_id));
-                              }
-                            }}
-                            className="h-4 w-4"
-                          />
-                          <label
-                            htmlFor={`assignee-${member.user_id}`}
-                            className="text-xs cursor-pointer flex-1"
-                          >
-                            <span className="font-medium">{member.profiles?.full_name}</span>
-                            <span className="text-muted-foreground ml-1 text-[10px]">({member.profiles?.student_id})</span>
-                          </label>
+            
+            {/* Right Column - Assignees (1/3 width) */}
+            <div className="col-span-1">
+              <div className="p-5 rounded-xl border-2 border-success/20 bg-gradient-to-br from-success/5 to-transparent h-full flex flex-col">
+                <h3 className="text-sm font-bold text-success flex items-center gap-2 mb-4 uppercase tracking-wide">
+                  <div className="w-2 h-2 rounded-full bg-success" />
+                  Người phụ trách
+                </h3>
+                
+                {canEditDetails ? (
+                  <>
+                    <div className="border rounded-xl bg-background/50 p-2 flex-1 overflow-y-auto">
+                      {members.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground text-sm">
+                          Chưa có thành viên trong project
                         </div>
-                      ))}
+                      ) : (
+                        <div className="space-y-1">
+                          {members.map((member) => (
+                            <div 
+                              key={member.id} 
+                              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                                assignees.includes(member.user_id) 
+                                  ? 'bg-success/10 border-2 border-success/40 shadow-sm' 
+                                  : 'hover:bg-muted/50 border-2 border-transparent'
+                              }`}
+                              onClick={() => {
+                                if (assignees.includes(member.user_id)) {
+                                  setAssignees(assignees.filter(id => id !== member.user_id));
+                                } else {
+                                  setAssignees([...assignees, member.user_id]);
+                                }
+                              }}
+                            >
+                              <Checkbox
+                                id={`assignee-${member.user_id}`}
+                                checked={assignees.includes(member.user_id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setAssignees([...assignees, member.user_id]);
+                                  } else {
+                                    setAssignees(assignees.filter((id) => id !== member.user_id));
+                                  }
+                                }}
+                                className="h-5 w-5"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <label htmlFor={`assignee-${member.user_id}`} className="text-sm font-medium cursor-pointer block truncate">
+                                  {member.profiles?.full_name}
+                                </label>
+                                <p className="text-xs text-muted-foreground">{member.profiles?.student_id}</p>
+                              </div>
+                              {member.role === 'leader' && (
+                                <span className="text-xs px-2 py-1 rounded-full bg-warning/20 text-warning font-medium shrink-0">
+                                  Leader
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className="border rounded-lg p-3 flex-1 bg-muted/20 overflow-y-auto">
-                  {task?.task_assignments && task.task_assignments.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {task.task_assignments.map((assignment) => (
-                        <Badge key={assignment.id} variant="secondary" className="gap-1 px-2 py-1 text-xs">
-                          <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center text-[8px] font-bold text-primary">
-                            {assignment.profiles?.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    {assignees.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-3 text-center">
+                        Đã chọn <span className="font-bold text-success">{assignees.length}</span> thành viên
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="border rounded-xl bg-background/50 p-3 flex-1 overflow-y-auto">
+                    {task?.task_assignments && task.task_assignments.length > 0 ? (
+                      <div className="space-y-2">
+                        {task.task_assignments.map((assignment) => (
+                          <div key={assignment.id} className="flex items-center gap-3 p-2 rounded-lg bg-success/5 border border-success/20">
+                            <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center text-xs font-bold text-success">
+                              {assignment.profiles?.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            </div>
+                            <span className="text-sm font-medium">{assignment.profiles?.full_name}</span>
                           </div>
-                          {assignment.profiles?.full_name}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground text-center py-2">Chưa có người được giao</p>
-                  )}
-                </div>
-              )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        Chưa có người được giao
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <DialogFooter className="px-5 py-3 border-t gap-2 shrink-0 bg-muted/30">
-          <Button variant="outline" onClick={onClose} className="h-9">
+        {/* Footer - Match Create Task style */}
+        <DialogFooter className="px-5 py-3 border-t bg-muted/30 gap-2 shrink-0">
+          <Button variant="outline" onClick={onClose} className="h-10 min-w-24">
             {canEditDetails ? 'Hủy' : 'Đóng'}
           </Button>
           {canEditDetails && (
-            <Button onClick={handleSave} disabled={isLoading} className="h-9 min-w-24">
+            <Button onClick={handleSave} disabled={isLoading} className="h-10 min-w-32 gap-2">
               {isLoading ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Đang lưu...
                 </>
               ) : (
-                'Lưu thay đổi'
+                <>
+                  <Edit className="w-4 h-4" />
+                  Lưu thay đổi
+                </>
               )}
             </Button>
           )}
