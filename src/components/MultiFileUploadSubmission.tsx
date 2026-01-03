@@ -105,10 +105,11 @@ export default function MultiFileUploadSubmission({
       newFilesTotalSize += files[i].size;
     }
 
+    // Chỉ kiểm tra dung lượng, không kiểm tra loại file
     if (currentTotalSize + newFilesTotalSize > MAX_TOTAL_SIZE) {
       toast({
         title: 'Tổng dung lượng vượt 10MB',
-        description: `Đã dùng: ${formatFileSize(currentTotalSize)}, File mới: ${formatFileSize(newFilesTotalSize)}`,
+        description: `Đã dùng: ${formatFileSize(currentTotalSize)}, File mới: ${formatFileSize(newFilesTotalSize)}. Còn lại: ${formatFileSize(remainingSize)}`,
         variant: 'destructive',
       });
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -116,7 +117,7 @@ export default function MultiFileUploadSubmission({
     }
 
     setIsUploading(true);
-    setUploadProgress(0);
+    setUploadProgress(5); // Bắt đầu từ 5% để người dùng thấy progress ngay
 
     const newUploadedFiles: UploadedFile[] = [];
     const totalFiles = files.length;
@@ -129,18 +130,54 @@ export default function MultiFileUploadSubmission({
         const storageName = generateSafeStorageName(file.name);
         const filePath = `${userId}/${taskId}/${storageName}`;
 
-        const progressBase = Math.round((i / totalFiles) * 100);
-        setUploadProgress(progressBase);
+        // Tính progress: mỗi file chiếm phần đều nhau từ 5% đến 100%
+        const progressPerFile = 95 / totalFiles;
+        const baseProgress = 5 + (i * progressPerFile);
+        
+        // Hiển thị progress đang upload file này
+        setUploadProgress(Math.round(baseProgress + progressPerFile * 0.3));
 
+        // Thực hiện upload - không giới hạn loại file
         const { data, error } = await supabase.storage
           .from('task-submissions')
           .upload(filePath, file, {
             cacheControl: '3600',
-            upsert: false
+            upsert: true // Cho phép ghi đè nếu trùng tên
           });
 
         if (error) {
-          throw new Error(`Lỗi tải file "${file.name}": ${error.message}`);
+          // Log chi tiết lỗi để debug
+          console.error('Upload error details:', {
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            error: error
+          });
+          
+          // Phân loại lỗi rõ ràng hơn
+          let errorMessage = `Không thể tải "${file.name}"`;
+          if (error.message.includes('duplicate') || error.message.includes('already exists')) {
+            errorMessage = `File "${file.name}" đã tồn tại, đang thử ghi đè...`;
+            // Thử upload lại với upsert
+            const retryResult = await supabase.storage
+              .from('task-submissions')
+              .upload(filePath, file, { cacheControl: '3600', upsert: true });
+            
+            if (retryResult.error) {
+              throw new Error(`Lỗi hệ thống khi tải "${file.name}". Vui lòng thử lại.`);
+            }
+            
+            newUploadedFiles.push({
+              file_path: retryResult.data.path,
+              file_name: file.name,
+              file_size: file.size,
+              storage_name: storageName
+            });
+            setUploadProgress(Math.round(baseProgress + progressPerFile));
+            continue;
+          }
+          
+          throw new Error(errorMessage);
         }
 
         newUploadedFiles.push({
@@ -150,9 +187,13 @@ export default function MultiFileUploadSubmission({
           storage_name: storageName
         });
 
-        setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
+        // Cập nhật progress hoàn thành file này
+        setUploadProgress(Math.round(baseProgress + progressPerFile));
       }
 
+      // Hoàn thành 100%
+      setUploadProgress(100);
+      
       const allFiles = [...uploadedFiles, ...newUploadedFiles];
       onFilesChanged(allFiles);
 
@@ -163,15 +204,18 @@ export default function MultiFileUploadSubmission({
     } catch (error: any) {
       console.error('Upload error:', error);
       
+      // Rollback: xóa các file đã upload thành công trong batch này
       for (const uploadedFile of newUploadedFiles) {
         try {
           await supabase.storage.from('task-submissions').remove([uploadedFile.file_path]);
-        } catch (e) {}
+        } catch (e) {
+          console.error('Rollback error:', e);
+        }
       }
 
       toast({
         title: 'Lỗi tải file',
-        description: error.message || 'Không thể tải file lên',
+        description: error.message || 'Lỗi hệ thống, vui lòng thử lại',
         variant: 'destructive',
       });
     } finally {
