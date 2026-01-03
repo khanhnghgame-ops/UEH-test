@@ -34,9 +34,8 @@ interface MultiFileUploadSubmissionProps {
   taskId: string;
   disabled?: boolean;
   compact?: boolean;
+  maxTotalSize?: number; // in bytes, default 10MB
 }
-
-const MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10MB total per task
 
 const getFileIcon = (fileName: string) => {
   const ext = fileName.split('.').pop()?.toLowerCase();
@@ -76,13 +75,16 @@ const generateSafeStorageName = (originalName: string): string => {
   return `${uuid}.${ext}`;
 };
 
+const DEFAULT_MAX_SIZE = 10 * 1024 * 1024; // 10MB default
+
 export default function MultiFileUploadSubmission({
   onFilesChanged,
   uploadedFiles,
   userId,
   taskId,
   disabled = false,
-  compact = false
+  compact = false,
+  maxTotalSize = DEFAULT_MAX_SIZE
 }: MultiFileUploadSubmissionProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -94,7 +96,7 @@ export default function MultiFileUploadSubmission({
   const [editingName, setEditingName] = useState('');
 
   const currentTotalSize = uploadedFiles.reduce((sum, f) => sum + f.file_size, 0);
-  const remainingSize = MAX_TOTAL_SIZE - currentTotalSize;
+  const remainingSize = maxTotalSize - currentTotalSize;
 
   const handleFilesSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -106,9 +108,10 @@ export default function MultiFileUploadSubmission({
     }
 
     // Chỉ kiểm tra dung lượng, không kiểm tra loại file
-    if (currentTotalSize + newFilesTotalSize > MAX_TOTAL_SIZE) {
+    if (currentTotalSize + newFilesTotalSize > maxTotalSize) {
+      const maxMB = Math.round(maxTotalSize / (1024 * 1024));
       toast({
-        title: 'Tổng dung lượng vượt 10MB',
+        title: `Tổng dung lượng vượt ${maxMB}MB`,
         description: `Đã dùng: ${formatFileSize(currentTotalSize)}, File mới: ${formatFileSize(newFilesTotalSize)}. Còn lại: ${formatFileSize(remainingSize)}`,
         variant: 'destructive',
       });
@@ -313,9 +316,9 @@ export default function MultiFileUploadSubmission({
 
       <div className="flex items-center justify-between text-[10px] px-0.5">
         <span className="text-muted-foreground">
-          {formatFileSize(currentTotalSize)} / 10MB
+          {formatFileSize(currentTotalSize)} / {formatFileSize(maxTotalSize)}
         </span>
-        {remainingSize < 2 * 1024 * 1024 && remainingSize > 0 && (
+        {remainingSize < maxTotalSize * 0.2 && remainingSize > 0 && (
           <span className="text-warning flex items-center gap-1">
             <AlertCircle className="w-3 h-3" />
             Sắp hết

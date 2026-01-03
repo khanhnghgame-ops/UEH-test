@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigation } from '@/contexts/NavigationContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import TaskListView from '@/components/TaskListView';
 import GroupDashboard from '@/components/GroupDashboard';
@@ -10,6 +11,7 @@ import TaskEditDialog from '@/components/TaskEditDialog';
 import StageEditDialog from '@/components/StageEditDialog';
 import ProjectActivityLog from '@/components/ProjectActivityLog';
 import ShareSettingsCard from '@/components/ShareSettingsCard';
+import FileSizeLimitSelector, { formatFileSizeMB } from '@/components/FileSizeLimitSelector';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +24,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Loader2, ArrowLeft, Layers, LayoutDashboard, Trash2, Settings, Activity } from 'lucide-react';
+import { Plus, Users, Loader2, ArrowLeft, Layers, LayoutDashboard, Trash2, Settings, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Group, GroupMember, Task, Profile, Stage } from '@/types/database';
 import { DeadlineHourPicker } from '@/components/DeadlineHourPicker';
 
@@ -43,6 +45,7 @@ export default function GroupDetail() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
+  const { currentTab, setCurrentTab, goBack, goNext, canGoBack, canGoNext, isFirstTab, isLastTab } = useNavigation();
 
   const [group, setGroup] = useState<ExtendedGroup | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -52,7 +55,37 @@ export default function GroupDetail() {
   const [isLeaderInGroup, setIsLeaderInGroup] = useState(false);
   const [isGroupCreator, setIsGroupCreator] = useState(false);
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
-  const [activeTab, setActiveTab] = useState('overview');
+  
+  // Compute available tabs based on permissions
+  const availableTabs = [
+    'overview',
+    'tasks',
+    'members',
+    'logs',
+    ...(isLeaderInGroup && group?.created_by === user?.id ? ['settings'] : [])
+  ];
+  
+  // Sync local tab state with navigation context
+  const activeTab = currentTab && availableTabs.includes(currentTab) ? currentTab : 'overview';
+  
+  const handleTabChange = (tabId: string) => {
+    setCurrentTab(tabId);
+  };
+  
+  // Initialize tab on mount
+  useEffect(() => {
+    if (!currentTab || !availableTabs.includes(currentTab)) {
+      setCurrentTab('overview');
+    }
+  }, [currentTab, availableTabs, setCurrentTab]);
+  
+  const handleGoBack = () => {
+    goBack(availableTabs);
+  };
+  
+  const handleGoNext = () => {
+    goNext(availableTabs);
+  };
 
   // Dialogs
   const [isStageDialogOpen, setIsStageDialogOpen] = useState(false);
@@ -67,6 +100,7 @@ export default function GroupDetail() {
   const [newTaskDeadline, setNewTaskDeadline] = useState('');
   const [newTaskAssignees, setNewTaskAssignees] = useState<string[]>([]);
   const [newTaskStageId, setNewTaskStageId] = useState<string>('');
+  const [newTaskMaxFileSize, setNewTaskMaxFileSize] = useState<number>(10 * 1024 * 1024); // 10MB default
 
   const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false);
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
@@ -141,7 +175,15 @@ export default function GroupDetail() {
     if (!newTaskTitle.trim() || (stages.length > 0 && !newTaskStageId)) return;
     setIsCreatingTask(true);
     try {
-      const { data: newTask } = await supabase.from('tasks').insert({ group_id: groupId, title: newTaskTitle.trim(), description: newTaskDescription.trim() || null, deadline: newTaskDeadline || null, stage_id: newTaskStageId || null, created_by: user!.id }).select().single();
+      const { data: newTask } = await supabase.from('tasks').insert({ 
+        group_id: groupId, 
+        title: newTaskTitle.trim(), 
+        description: newTaskDescription.trim() || null, 
+        deadline: newTaskDeadline || null, 
+        stage_id: newTaskStageId || null, 
+        created_by: user!.id,
+        max_file_size: newTaskMaxFileSize
+      }).select().single();
       if (newTask && newTaskAssignees.length > 0) {
         await supabase.from('task_assignments').insert(newTaskAssignees.map(userId => ({ task_id: newTask.id, user_id: userId })));
       }
@@ -152,6 +194,7 @@ export default function GroupDetail() {
       setNewTaskDeadline('');
       setNewTaskAssignees([]);
       setNewTaskStageId('');
+      setNewTaskMaxFileSize(10 * 1024 * 1024);
       fetchGroupData();
     } catch (error: any) {
       toast({ title: 'Lỗi', description: error.message, variant: 'destructive' });
@@ -218,15 +261,41 @@ export default function GroupDetail() {
           </div>
         </div>
 
-        <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
+        <Tabs defaultValue="overview" value={activeTab} onValueChange={handleTabChange}>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <TabsList>
-              <TabsTrigger value="overview" className="gap-2"><LayoutDashboard className="w-4 h-4" />Tổng quan</TabsTrigger>
-              <TabsTrigger value="tasks" className="gap-2"><Layers className="w-4 h-4" />Task & Giai đoạn</TabsTrigger>
-              <TabsTrigger value="members" className="gap-2"><Users className="w-4 h-4" />Thành viên ({members.length})</TabsTrigger>
-              <TabsTrigger value="logs" className="gap-2"><Activity className="w-4 h-4" />Nhật ký</TabsTrigger>
-              {isLeaderInGroup && group.created_by === user?.id && <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" />Cài đặt</TabsTrigger>}
-            </TabsList>
+            <div className="flex items-center gap-2">
+              {/* Back Button */}
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleGoBack}
+                disabled={isFirstTab(availableTabs)}
+                title="Lùi"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              
+              <TabsList>
+                <TabsTrigger value="overview" className="gap-2"><LayoutDashboard className="w-4 h-4" />Tổng quan</TabsTrigger>
+                <TabsTrigger value="tasks" className="gap-2"><Layers className="w-4 h-4" />Task & Giai đoạn</TabsTrigger>
+                <TabsTrigger value="members" className="gap-2"><Users className="w-4 h-4" />Thành viên ({members.length})</TabsTrigger>
+                <TabsTrigger value="logs" className="gap-2"><Activity className="w-4 h-4" />Nhật ký</TabsTrigger>
+                {isLeaderInGroup && group.created_by === user?.id && <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" />Cài đặt</TabsTrigger>}
+              </TabsList>
+              
+              {/* Next Button */}
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleGoNext}
+                disabled={isLastTab(availableTabs)}
+                title="Tới"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
 
             {/* Contextual Action Buttons for Leader */}
             {isLeaderInGroup && (
@@ -308,7 +377,7 @@ export default function GroupDetail() {
                                   <div className="w-2 h-2 rounded-full bg-warning" />
                                   Thời gian & Giai đoạn
                                 </h3>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-3 gap-4">
                                   {stages.length > 0 && (
                                     <div className="space-y-2">
                                       <Label className="text-sm font-medium">Giai đoạn <span className="text-destructive">*</span></Label>
@@ -328,6 +397,13 @@ export default function GroupDetail() {
                                       value={newTaskDeadline}
                                       onChange={setNewTaskDeadline}
                                       placeholder="Chọn ngày..."
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium">Giới hạn upload</Label>
+                                    <FileSizeLimitSelector
+                                      value={newTaskMaxFileSize}
+                                      onChange={setNewTaskMaxFileSize}
                                     />
                                   </div>
                                 </div>
