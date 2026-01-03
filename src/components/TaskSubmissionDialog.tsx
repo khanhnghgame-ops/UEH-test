@@ -40,7 +40,6 @@ import {
   Send,
   Clock,
   User,
-  FileText,
   CheckCircle2,
   AlertCircle,
   Calendar,
@@ -50,7 +49,9 @@ import {
   MessageSquare,
   AlertTriangle,
   Upload,
-  File
+  File,
+  Info,
+  Package
 } from 'lucide-react';
 import type { Task, TaskStatus } from '@/types/database';
 import { format } from 'date-fns';
@@ -72,6 +73,12 @@ interface TaskSubmissionDialogProps {
   isAssignee: boolean;
   isLeaderInGroup: boolean;
 }
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+};
 
 export default function TaskSubmissionDialog({
   task,
@@ -102,6 +109,12 @@ export default function TaskSubmissionDialog({
   // Permission logic
   const canSubmit = isAssignee || isLeaderInGroup;
   const isSubmittingOnBehalf = isLeaderInGroup && !isAssignee;
+
+  // Calculate submission stats
+  const validLinksCount = submissionLinks.filter(l => l.url?.trim()).length;
+  const filesCount = uploadedFiles.length;
+  const totalFileSize = uploadedFiles.reduce((sum, f) => sum + f.file_size, 0);
+  const hasContent = filesCount > 0 || validLinksCount > 0;
 
   useEffect(() => {
     if (task && isOpen) {
@@ -184,14 +197,10 @@ export default function TaskSubmissionDialog({
   const handleSubmitClick = () => {
     if (!task || !canSubmit) return;
     
-    // Check if we have at least one valid submission (link or file)
-    const validLinks = submissionLinks.filter(l => l.url?.trim());
-    const hasFiles = uploadedFiles.length > 0;
-    
-    if (validLinks.length === 0 && !hasFiles) {
+    if (!hasContent) {
       toast({
-        title: 'Lỗi',
-        description: 'Vui lòng thêm ít nhất 1 liên kết hoặc tải lên file bài làm',
+        title: 'Chưa có nội dung nộp',
+        description: 'Vui lòng thêm ít nhất 1 file hoặc 1 liên kết để nộp bài.',
         variant: 'destructive',
       });
       return;
@@ -255,10 +264,17 @@ export default function TaskSubmissionDialog({
 
       if (taskError) throw taskError;
 
-      // Determine submission type for history
+      // Determine submission type for history: 'file', 'link', or 'mixed'
       const hasFiles = uploadedFiles.length > 0;
       const hasLinks = validLinks.length > 0;
-      const historyType = hasFiles && hasLinks ? 'mixed' : hasFiles ? 'file' : 'link';
+      let historyType: 'file' | 'link' | 'mixed' = 'link';
+      if (hasFiles && hasLinks) {
+        historyType = 'mixed';
+      } else if (hasFiles) {
+        historyType = 'file';
+      } else {
+        historyType = 'link';
+      }
 
       // Save to submission history
       const { error: historyError } = await supabase
@@ -312,9 +328,10 @@ export default function TaskSubmissionDialog({
       onSave();
       onClose();
     } catch (error: any) {
+      console.error('Submission error:', error);
       toast({
-        title: 'Lỗi',
-        description: error.message || 'Không thể nộp bài',
+        title: 'Không thể nộp bài',
+        description: 'Hệ thống chưa ghi nhận được bài nộp. Vui lòng thử lại. Nếu vẫn lỗi, báo admin.',
         variant: 'destructive',
       });
     } finally {
@@ -345,10 +362,6 @@ export default function TaskSubmissionDialog({
   };
 
   const timeStatus = getTimeStatus();
-
-  // Count submissions for display
-  const validLinksCount = submissionLinks.filter(l => l.url?.trim()).length;
-  const filesCount = uploadedFiles.length;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -391,11 +404,11 @@ export default function TaskSubmissionDialog({
           </div>
         </DialogHeader>
         
-        {/* Content - 6:4 Two column layout */}
+        {/* Content - 5:5 Two column layout */}
         <div className="flex-1 p-5 overflow-hidden">
-          <div className="grid grid-cols-10 gap-5 h-full">
-            {/* Left Column - Task Requirements (6/10 = 60%) */}
-            <div className="col-span-6 flex flex-col gap-4 overflow-y-auto pr-2">
+          <div className="grid grid-cols-2 gap-5 h-full">
+            {/* Left Column - Task Requirements (50%) */}
+            <div className="flex flex-col gap-4 overflow-y-auto pr-2">
               {/* Task Title & Description Card */}
               <div className="p-5 rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
                 <h3 className="text-sm font-bold text-primary flex items-center gap-2 mb-4 uppercase tracking-wide">
@@ -471,25 +484,25 @@ export default function TaskSubmissionDialog({
               </div>
             </div>
             
-            {/* Right Column - Submission Area (4/10 = 40%) */}
-            <div className="col-span-4">
-              <div className="p-5 rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 h-full flex flex-col">
-                <div className="flex items-center justify-between mb-3">
+            {/* Right Column - Submission Area (50%) */}
+            <div className="flex flex-col gap-4 overflow-hidden">
+              <div className="p-5 rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 flex-1 flex flex-col overflow-hidden">
+                {/* Header with instruction */}
+                <div className="mb-3 shrink-0">
                   <h3 className="text-sm font-bold text-primary flex items-center gap-2 uppercase tracking-wide">
                     <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                     Nộp bài tại đây
                   </h3>
-                  {(filesCount > 0 || validLinksCount > 0) && (
-                    <Badge variant="secondary" className="text-[10px]">
-                      {filesCount > 0 && `${filesCount} file`}
-                      {filesCount > 0 && validLinksCount > 0 && ' + '}
-                      {validLinksCount > 0 && `${validLinksCount} link`}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
+                    <Info className="w-4 h-4 text-primary shrink-0" />
+                    <p className="text-xs text-primary/80">
+                      Bạn có thể nộp file <strong>và/hoặc</strong> link. Có thể thêm nhiều file, nhiều link.
+                    </p>
+                  </div>
                 </div>
                 
                 <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-y-auto">
-                  {/* Status Select - Inside submission area */}
+                  {/* Status Select */}
                   {canSubmit && (
                     <div className="flex items-center gap-3 p-3 rounded-lg border bg-background/50 shrink-0">
                       <div className="flex items-center gap-2">
@@ -535,8 +548,9 @@ export default function TaskSubmissionDialog({
                   {/* File Upload Section */}
                   <div className="space-y-2">
                     <Label className="text-xs font-medium flex items-center gap-1.5">
-                      <Upload className="w-3 h-3" />
+                      <Upload className="w-3.5 h-3.5" />
                       Tải file lên
+                      <span className="text-muted-foreground font-normal">(tối đa 10MB tổng)</span>
                     </Label>
                     <MultiFileUploadSubmission
                       onFilesChanged={setUploadedFiles}
@@ -551,41 +565,46 @@ export default function TaskSubmissionDialog({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs font-medium flex items-center gap-1.5">
-                        <LinkIcon className="w-3 h-3" />
+                        <LinkIcon className="w-3.5 h-3.5" />
                         Liên kết bài làm
                       </Label>
                       {canSubmit && (
-                        <Button type="button" variant="outline" size="sm" onClick={addSubmissionLink} className="gap-1 h-6 text-[10px] px-2">
+                        <Button type="button" variant="outline" size="sm" onClick={addSubmissionLink} className="gap-1 h-7 text-xs px-2">
                           <Plus className="w-3 h-3" />
-                          Thêm
+                          Thêm link
                         </Button>
                       )}
                     </div>
                     
-                    {submissionLinks.length > 0 && (
-                      <div className="space-y-1.5 max-h-[120px] overflow-y-auto">
+                    {submissionLinks.length > 0 ? (
+                      <div className="space-y-2 max-h-[150px] overflow-y-auto border rounded-lg p-2 bg-background/50">
                         {submissionLinks.map((link, index) => (
-                          <div key={index} className="p-2 rounded-lg border bg-muted/30 space-y-1">
-                            <Input
-                              placeholder="Tiêu đề (bắt buộc)"
-                              value={link.title}
-                              onChange={(e) => updateSubmissionLink(index, 'title', e.target.value)}
-                              disabled={!canSubmit}
-                              className="h-7 text-xs"
-                            />
-                            <div className="flex gap-1">
+                          <div key={index} className="p-2.5 rounded-lg border bg-card space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[10px] px-1.5 shrink-0">
+                                Link {index + 1}
+                              </Badge>
                               <Input
-                                placeholder="URL liên kết"
+                                placeholder="Tiêu đề/Ghi chú (vd: Báo cáo word)"
+                                value={link.title}
+                                onChange={(e) => updateSubmissionLink(index, 'title', e.target.value)}
+                                disabled={!canSubmit}
+                                className="h-7 text-xs flex-1"
+                              />
+                            </div>
+                            <div className="flex gap-1.5">
+                              <Input
+                                placeholder="https://..."
                                 value={link.url}
                                 onChange={(e) => updateSubmissionLink(index, 'url', e.target.value)}
                                 disabled={!canSubmit}
                                 className="h-7 text-xs flex-1"
                               />
-                              <div className="flex gap-0.5 shrink-0">
+                              <div className="flex gap-1 shrink-0">
                                 {link.url && (
                                   <a href={link.url} target="_blank" rel="noopener noreferrer">
-                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7">
-                                      <ExternalLink className="w-3 h-3" />
+                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="Mở link">
+                                      <ExternalLink className="w-3.5 h-3.5" />
                                     </Button>
                                   </a>
                                 )}
@@ -596,8 +615,9 @@ export default function TaskSubmissionDialog({
                                     size="icon" 
                                     onClick={() => removeSubmissionLink(index)}
                                     className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    title="Xóa link"
                                   >
-                                    <Trash2 className="w-3 h-3" />
+                                    <Trash2 className="w-3.5 h-3.5" />
                                   </Button>
                                 )}
                               </div>
@@ -605,12 +625,11 @@ export default function TaskSubmissionDialog({
                           </div>
                         ))}
                       </div>
-                    )}
-
-                    {submissionLinks.length === 0 && (
-                      <div className="border border-dashed rounded-lg p-3 text-center">
+                    ) : (
+                      <div className="border border-dashed rounded-lg p-3 text-center bg-background/30">
+                        <LinkIcon className="w-5 h-5 mx-auto mb-1 text-muted-foreground/50" />
                         <p className="text-[10px] text-muted-foreground">
-                          Chưa có liên kết. Nhấn "Thêm" để thêm link bài làm.
+                          Chưa có link. Nhấn "+ Thêm link" để thêm.
                         </p>
                       </div>
                     )}
@@ -634,6 +653,49 @@ export default function TaskSubmissionDialog({
                     </div>
                   )}
                 </div>
+
+                {/* Submission Summary */}
+                <div className="mt-3 pt-3 border-t shrink-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Package className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-bold text-primary uppercase">Tóm tắt bài nộp</span>
+                  </div>
+                  
+                  {hasContent ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-2 rounded-lg bg-background/50 border">
+                        <div className="flex items-center gap-2">
+                          <File className="w-4 h-4 text-blue-500" />
+                          <div>
+                            <p className="text-xs font-medium">
+                              {filesCount > 0 ? `${filesCount} file` : 'Không có file'}
+                            </p>
+                            {filesCount > 0 && (
+                              <p className="text-[10px] text-muted-foreground">
+                                {formatFileSize(totalFileSize)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-background/50 border">
+                        <div className="flex items-center gap-2">
+                          <LinkIcon className="w-4 h-4 text-green-500" />
+                          <p className="text-xs font-medium">
+                            {validLinksCount > 0 ? `${validLinksCount} link` : 'Không có link'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+                      <p className="text-xs text-warning">
+                        Bạn chưa thêm file hoặc link. Vui lòng thêm nội dung để nộp bài.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -645,7 +707,11 @@ export default function TaskSubmissionDialog({
             Đóng
           </Button>
           {canSubmit && (
-            <Button onClick={handleSubmitClick} disabled={isLoading} className="h-10 min-w-32 gap-2">
+            <Button 
+              onClick={handleSubmitClick} 
+              disabled={isLoading || !hasContent} 
+              className="h-10 min-w-32 gap-2"
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
