@@ -236,7 +236,6 @@ export default function MultiFileUploadSubmission({
         onChange={handleFilesSelect}
         disabled={disabled || isUploading}
         className="hidden"
-        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.txt,.csv,.zip,.rar"
       />
       
       <div 
