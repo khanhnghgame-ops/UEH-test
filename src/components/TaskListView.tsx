@@ -51,7 +51,6 @@ import {
   History,
   Clock,
   Target,
-  ExternalLink,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -60,6 +59,7 @@ import type { Task, Stage, GroupMember } from '@/types/database';
 import { formatDeadlineVN, isDeadlineOverdue } from '@/lib/datetime';
 import TaskSubmissionDialog from './TaskSubmissionDialog';
 import SubmissionHistoryPopup from './SubmissionHistoryPopup';
+import SubmissionButton from './SubmissionButton';
 
 // Stage color helper - returns a consistent color for each stage index
 const getStageColor = (index: number) => {
@@ -297,73 +297,12 @@ function TaskRow({
           currentSubmissionLink={task.submission_link}
         />
 
-        {/* Submission Link Button - Text based */}
-        {task.submission_link ? (() => {
-          try {
-            const links = JSON.parse(task.submission_link);
-            if (Array.isArray(links) && links.length >= 2) {
-              return (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs px-2 gap-1 text-primary"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      Xem bài ({links.length} link)
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-popover min-w-[200px]">
-                    {links.map((link: { title: string; url: string }, i: number) => (
-                      <DropdownMenuItem 
-                        key={i}
-                        onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}
-                        className="text-xs"
-                      >
-                        <ExternalLink className="w-3 h-3 mr-2" />
-                        {link.title || `Link ${i + 1}`}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            } else {
-              const firstLink = Array.isArray(links) && links.length > 0 ? links[0].url : task.submission_link;
-              return (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs px-2 gap-1 text-primary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(firstLink, '_blank', 'noopener,noreferrer');
-                  }}
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  Xem bài đã nộp
-                </Button>
-              );
-            }
-          } catch {
-            return (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs px-2 gap-1 text-primary"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  window.open(task.submission_link!, '_blank', 'noopener,noreferrer');
-                }}
-              >
-                <ExternalLink className="w-3 h-3" />
-                Xem bài đã nộp
-              </Button>
-            );
-          }
-        })() : (
-          <span className="text-[10px] text-muted-foreground px-2">Chưa có bài nộp</span>
-        )}
+        {/* Submission Link Button - Using shared component */}
+        <SubmissionButton 
+          submissionLink={task.submission_link} 
+          variant="compact"
+          onStopPropagation={true}
+        />
         
         {/* Submit Button */}
         {(isAssignee || isLeaderInGroup) && (

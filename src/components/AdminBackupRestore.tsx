@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Download, 
@@ -13,7 +14,8 @@ import {
   Loader2, 
   FolderArchive,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  File
 } from 'lucide-react';
 import JSZip from 'jszip';
 
@@ -30,6 +32,13 @@ interface Group {
   created_by: string;
   created_at: string;
   updated_at: string;
+}
+
+interface FileSubmission {
+  original_path: string;
+  file_name: string;
+  file_size: number;
+  zip_path: string;
 }
 
 interface BackupData {
@@ -50,6 +59,7 @@ interface BackupData {
     scores: Array<any>;
     submissions: Array<any>;
   }>;
+  files?: FileSubmission[];
 }
 
 export default function AdminBackupRestore() {
@@ -60,6 +70,7 @@ export default function AdminBackupRestore() {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<string>('');
+  const [exportProgress, setExportProgress] = useState<number>(0);
 
   useEffect(() => {
     if (isAdmin) {
@@ -80,6 +91,26 @@ export default function AdminBackupRestore() {
 
   const generateNewId = () => crypto.randomUUID();
 
+  // Parse submission links to find file submissions
+  const parseFileSubmissions = (submissionLink: string | null): { file_path: string; file_name: string; file_size: number }[] => {
+    if (!submissionLink) return [];
+    try {
+      const parsed = JSON.parse(submissionLink);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter(item => item.file_path)
+          .map(item => ({
+            file_path: item.file_path,
+            file_name: item.file_name || 'file',
+            file_size: item.file_size || 0
+          }));
+      }
+    } catch {
+      return [];
+    }
+    return [];
+  };
+
   const exportProject = async () => {
     if (!selectedGroupId) {
       toast({ title: 'Lỗi', description: 'Vui lòng chọn project để sao lưu', variant: 'destructive' });
@@ -87,9 +118,13 @@ export default function AdminBackupRestore() {
     }
 
     setIsExporting(true);
+    setExportProgress(0);
+    
     try {
       const group = groups.find(g => g.id === selectedGroupId);
       if (!group) throw new Error('Không tìm thấy project');
+
+      setExportProgress(10);
 
       // Fetch all related data
       const [membersRes, stagesRes, tasksRes] = await Promise.all([
@@ -108,6 +143,8 @@ export default function AdminBackupRestore() {
           .eq('group_id', selectedGroupId)
       ]);
 
+      setExportProgress(30);
+
       // Fetch profiles for members
       const memberUserIds = membersRes.data?.map(m => m.user_id) || [];
       const { data: profilesData } = await supabase
@@ -122,6 +159,30 @@ export default function AdminBackupRestore() {
         supabase.from('task_scores').select('*').in('task_id', taskIds),
         supabase.from('submission_history').select('*').in('task_id', taskIds)
       ]);
+
+      setExportProgress(50);
+
+      // Collect all file paths from tasks and submissions
+      const filesToDownload: { path: string; name: string; size: number }[] = [];
+      
+      // Check tasks for file submissions
+      tasksRes.data?.forEach(task => {
+        const files = parseFileSubmissions(task.submission_link);
+        files.forEach(f => filesToDownload.push({ path: f.file_path, name: f.file_name, size: f.file_size }));
+      });
+      
+      // Check submission history for file submissions
+      submissionsRes.data?.forEach(sub => {
+        if (sub.file_path && sub.file_name) {
+          filesToDownload.push({ path: sub.file_path, name: sub.file_name, size: sub.file_size || 0 });
+        }
+        // Also check submission_link for file references
+        const files = parseFileSubmissions(sub.submission_link);
+        files.forEach(f => filesToDownload.push({ path: f.file_path, name: f.file_name, size: f.file_size }));
+      });
+
+      // Remove duplicates
+      const uniqueFiles = Array.from(new Map(filesToDownload.map(f => [f.path, f])).values());
 
       // Build backup data with references by student_id instead of user_id
       const membersWithProfiles = membersRes.data?.map(m => {
@@ -173,13 +234,61 @@ export default function AdminBackupRestore() {
             student_id: userIdToStudentId.get(s.user_id) || '',
             submission_link: s.submission_link,
             note: s.note,
-            submitted_at: s.submitted_at
+            submitted_at: s.submitted_at,
+            submission_type: s.submission_type,
+            file_path: s.file_path,
+            file_name: s.file_name,
+            file_size: s.file_size
           }))
         };
       }) || [];
 
+      setExportProgress(60);
+
+      // Create ZIP file
+      const zip = new JSZip();
+      
+      // File mapping for backup restoration
+      const fileMapping: FileSubmission[] = [];
+
+      // Download and add files to ZIP
+      if (uniqueFiles.length > 0) {
+        const filesFolder = zip.folder('files');
+        let filesProcessed = 0;
+        
+        for (const file of uniqueFiles) {
+          try {
+            const { data } = supabase.storage
+              .from('task-submissions')
+              .getPublicUrl(file.path);
+            
+            if (data?.publicUrl) {
+              const response = await fetch(data.publicUrl);
+              if (response.ok) {
+                const blob = await response.blob();
+                const zipPath = `files/${file.path.replace(/\//g, '_')}`;
+                filesFolder?.file(file.path.replace(/\//g, '_'), blob);
+                fileMapping.push({
+                  original_path: file.path,
+                  file_name: file.name,
+                  file_size: file.size,
+                  zip_path: zipPath
+                });
+              }
+            }
+          } catch (err) {
+            console.warn(`Could not download file: ${file.path}`, err);
+          }
+          
+          filesProcessed++;
+          setExportProgress(60 + Math.round((filesProcessed / uniqueFiles.length) * 20));
+        }
+      }
+
+      setExportProgress(85);
+
       const backupData: BackupData = {
-        version: '1.0',
+        version: '2.0', // Updated version for file support
         exported_at: new Date().toISOString(),
         project_name: group.name,
         group: {
@@ -190,7 +299,7 @@ export default function AdminBackupRestore() {
           instructor_email: group.instructor_email,
           additional_info: group.additional_info,
           zalo_link: group.zalo_link,
-          leader_id: null, // Will be re-assigned during import
+          leader_id: null,
           created_by: group.created_by,
           created_at: group.created_at,
           updated_at: group.updated_at
@@ -204,12 +313,13 @@ export default function AdminBackupRestore() {
           end_date: s.end_date,
           tasks: []
         })) || [],
-        tasks: tasksWithDetails
+        tasks: tasksWithDetails,
+        files: fileMapping
       };
 
-      // Create ZIP file
-      const zip = new JSZip();
       zip.file('backup.json', JSON.stringify(backupData, null, 2));
+
+      setExportProgress(95);
 
       const blob = await zip.generateAsync({ type: 'blob' });
       const fileName = `${group.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.zip`;
@@ -224,15 +334,18 @@ export default function AdminBackupRestore() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
+      setExportProgress(100);
+
       toast({ 
         title: 'Xuất thành công!', 
-        description: `Đã sao lưu project "${group.name}" thành công.` 
+        description: `Đã sao lưu project "${group.name}" với ${fileMapping.length} file đính kèm.` 
       });
     } catch (error) {
       console.error('Export error:', error);
       toast({ title: 'Lỗi xuất dữ liệu', description: String(error), variant: 'destructive' });
     } finally {
       setIsExporting(false);
+      setExportProgress(0);
     }
   };
 
@@ -312,6 +425,34 @@ export default function AdminBackupRestore() {
         await supabase.from('group_members').insert(memberInserts);
       }
 
+      setImportProgress('Đang khôi phục file đính kèm...');
+
+      // Upload files and create path mapping
+      const oldToNewPath = new Map<string, string>();
+      
+      if (backupData.files && backupData.files.length > 0) {
+        for (const fileInfo of backupData.files) {
+          try {
+            const zipPath = fileInfo.zip_path.replace('files/', '');
+            const fileContent = await zip.file(`files/${zipPath}`)?.async('blob');
+            
+            if (fileContent) {
+              const newPath = `${user!.id}/${newGroupId}/${Date.now()}_${fileInfo.file_name}`;
+              
+              const { error: uploadError } = await supabase.storage
+                .from('task-submissions')
+                .upload(newPath, fileContent);
+              
+              if (!uploadError) {
+                oldToNewPath.set(fileInfo.original_path, newPath);
+              }
+            }
+          } catch (err) {
+            console.warn(`Could not restore file: ${fileInfo.file_name}`, err);
+          }
+        }
+      }
+
       setImportProgress('Đang tạo các giai đoạn...');
 
       // Create stages and map old names to new IDs
@@ -334,6 +475,26 @@ export default function AdminBackupRestore() {
 
       setImportProgress('Đang tạo các task...');
 
+      // Helper function to update file paths in submission_link JSON
+      const updateFilePaths = (submissionLink: string | null): string | null => {
+        if (!submissionLink) return null;
+        try {
+          const parsed = JSON.parse(submissionLink);
+          if (Array.isArray(parsed)) {
+            const updated = parsed.map(item => {
+              if (item.file_path && oldToNewPath.has(item.file_path)) {
+                return { ...item, file_path: oldToNewPath.get(item.file_path) };
+              }
+              return item;
+            });
+            return JSON.stringify(updated);
+          }
+        } catch {
+          return submissionLink;
+        }
+        return submissionLink;
+      };
+
       // Create tasks with new IDs
       for (const task of backupData.tasks) {
         const newTaskId = generateNewId();
@@ -347,7 +508,7 @@ export default function AdminBackupRestore() {
             description: task.description,
             status: task.status as 'TODO' | 'IN_PROGRESS' | 'DONE' | 'VERIFIED',
             deadline: task.deadline,
-            submission_link: task.submission_link,
+            submission_link: updateFilePaths(task.submission_link),
             created_by: user!.id
           });
 
@@ -385,13 +546,23 @@ export default function AdminBackupRestore() {
         // Create submission history
         const submissionInserts = task.submissions
           .filter(s => studentIdToUserId.has(s.student_id))
-          .map(s => ({
-            task_id: newTaskId,
-            user_id: studentIdToUserId.get(s.student_id)!,
-            submission_link: s.submission_link,
-            note: s.note,
-            submitted_at: s.submitted_at
-          }));
+          .map(s => {
+            const newFilePath = s.file_path && oldToNewPath.has(s.file_path) 
+              ? oldToNewPath.get(s.file_path) 
+              : s.file_path;
+            
+            return {
+              task_id: newTaskId,
+              user_id: studentIdToUserId.get(s.student_id)!,
+              submission_link: updateFilePaths(s.submission_link),
+              note: s.note,
+              submitted_at: s.submitted_at,
+              submission_type: s.submission_type || 'link',
+              file_path: newFilePath,
+              file_name: s.file_name,
+              file_size: s.file_size
+            };
+          });
 
         if (submissionInserts.length > 0) {
           await supabase.from('submission_history').insert(submissionInserts);
@@ -402,7 +573,7 @@ export default function AdminBackupRestore() {
 
       toast({ 
         title: 'Khôi phục thành công!', 
-        description: `Đã tạo bản sao project "${backupData.project_name}" với dữ liệu đầy đủ.` 
+        description: `Đã tạo bản sao project "${backupData.project_name}" với ${oldToNewPath.size} file đính kèm.` 
       });
 
       // Refresh groups list
@@ -435,7 +606,7 @@ export default function AdminBackupRestore() {
               Sao lưu & Khôi phục
               <span className="text-xs font-normal text-amber-600 bg-amber-500/10 px-2 py-1 rounded-full">Admin</span>
             </CardTitle>
-            <CardDescription>Xuất và nhập dữ liệu project với cơ chế tự động làm mới ID</CardDescription>
+            <CardDescription>Xuất và nhập dữ liệu project với file đính kèm</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -477,8 +648,14 @@ export default function AdminBackupRestore() {
               )}
             </Button>
           </div>
+          {isExporting && exportProgress > 0 && (
+            <div className="space-y-1">
+              <Progress value={exportProgress} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center">{exportProgress}%</p>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
-            Xuất toàn bộ dữ liệu: thông tin project, thành viên, giai đoạn, task, điểm số và lịch sử nộp bài.
+            Xuất toàn bộ dữ liệu: thông tin project, thành viên, giai đoạn, task, điểm số, lịch sử nộp bài và file đính kèm.
           </p>
         </div>
 
@@ -508,6 +685,7 @@ export default function AdminBackupRestore() {
               <p className="font-medium mb-1">Lưu ý quan trọng:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Dữ liệu sẽ được khôi phục thành project mới với ID hoàn toàn mới</li>
+                <li>File đính kèm sẽ được tải lên lại với đường dẫn mới</li>
                 <li>Chỉ những thành viên đã tồn tại trong hệ thống mới được thêm vào project</li>
                 <li>Admin hiện tại sẽ trở thành Leader của project mới</li>
               </ul>
@@ -521,6 +699,10 @@ export default function AdminBackupRestore() {
             <p className="font-medium mb-1">Tính năng hỗ trợ:</p>
             <ul className="list-disc list-inside space-y-1">
               <li>Sao lưu đầy đủ: thông tin project, giai đoạn, task, điểm số</li>
+              <li className="flex items-center gap-1">
+                <File className="w-3 h-3 inline" />
+                Đóng gói file đính kèm trực tiếp vào ZIP
+              </li>
               <li>Tự động làm mới ID để tránh xung đột dữ liệu</li>
               <li>Liên kết thành viên dựa trên MSSV (không phụ thuộc vào user_id cũ)</li>
             </ul>
