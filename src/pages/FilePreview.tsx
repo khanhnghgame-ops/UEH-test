@@ -12,10 +12,9 @@ import {
   Image as ImageIcon,
   File,
   Loader2,
-  ExternalLink,
   AlertCircle
 } from 'lucide-react';
-import { UEHLogo } from '@/components/UEHLogo';
+import uehLogo from '@/assets/ueh-logo-new.png';
 
 const getFileIcon = (fileName: string, size: 'sm' | 'lg' = 'lg') => {
   const ext = fileName.split('.').pop()?.toLowerCase();
@@ -58,6 +57,11 @@ const isPreviewableImage = (fileName: string) => {
 
 const isPDF = (fileName: string) => {
   return fileName.toLowerCase().endsWith('.pdf');
+};
+
+const isOfficeDoc = (fileName: string) => {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  return ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext || '');
 };
 
 export default function FilePreview() {
@@ -117,7 +121,12 @@ export default function FilePreview() {
     }
   };
 
-  const canPreview = isPreviewableImage(fileName) || isPDF(fileName);
+  const canPreview = isPreviewableImage(fileName) || isPDF(fileName) || isOfficeDoc(fileName);
+
+  // Office Online Viewer URL
+  const getOfficeViewerUrl = (url: string) => {
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -136,7 +145,12 @@ export default function FilePreview() {
                 Quay lại
               </Button>
               <div className="flex items-center gap-3">
-                <UEHLogo className="h-8 w-auto" width={80} />
+                <img
+                  src={uehLogo}
+                  alt="Logo"
+                  className="h-8 w-auto drop-shadow-md"
+                  loading="lazy"
+                />
                 <span className="font-semibold hidden sm:block">Xem trước file</span>
               </div>
             </div>
@@ -168,7 +182,7 @@ export default function FilePreview() {
             <p className="text-muted-foreground">{error}</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* File Info Card */}
             <Card className="p-4">
               <div className="flex items-center gap-4">
@@ -205,6 +219,12 @@ export default function FilePreview() {
                       className="w-full h-[80vh] border-0"
                       title={fileName}
                     />
+                  ) : isOfficeDoc(fileName) && fileUrl ? (
+                    <iframe
+                      src={getOfficeViewerUrl(fileUrl)}
+                      className="w-full h-[80vh] border-0"
+                      title={fileName}
+                    />
                   ) : null}
                 </div>
               ) : (
@@ -217,20 +237,10 @@ export default function FilePreview() {
                     Định dạng file này không hỗ trợ xem trước trực tiếp. 
                     Vui lòng tải file về để xem nội dung.
                   </p>
-                  <div className="flex gap-3">
-                    <Button onClick={handleDownload} className="gap-2">
-                      <Download className="w-4 h-4" />
-                      Tải xuống
-                    </Button>
-                    {fileUrl && (
-                      <Button variant="outline" asChild>
-                        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="gap-2">
-                          <ExternalLink className="w-4 h-4" />
-                          Mở trong tab mới
-                        </a>
-                      </Button>
-                    )}
-                  </div>
+                  <Button onClick={handleDownload} className="gap-2">
+                    <Download className="w-4 h-4" />
+                    Tải xuống
+                  </Button>
                 </div>
               )}
             </Card>
