@@ -408,8 +408,8 @@ export default function TaskSubmissionDialog({
             <div className="flex flex-col gap-3 overflow-y-auto pr-2">
               {/* Task Requirements - subdued, informational */}
               <div className="p-4 rounded-xl border border-border/40 bg-muted/20">
-                <h3 className="text-xs font-medium text-muted-foreground flex items-center gap-2 mb-3 uppercase tracking-wide">
-                  <Target className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <h3 className="text-sm font-semibold text-primary flex items-center gap-2 mb-3 uppercase tracking-wide">
+                  <Target className="w-4 h-4 text-primary" />
                   Yêu cầu Task
                 </h3>
                 <div className="space-y-3">
