@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,14 @@ import {
   Clock,
   FileCheck,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  File,
+  FileText,
+  FileSpreadsheet,
+  Presentation,
+  Image as ImageIcon,
+  Download,
+  Eye
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -30,6 +38,10 @@ interface SubmissionHistoryEntry {
   submission_link: string;
   note: string | null;
   submitted_at: string;
+  submission_type?: string;
+  file_path?: string;
+  file_name?: string;
+  file_size?: number;
 }
 
 interface SubmissionHistoryPopupProps {
@@ -41,11 +53,44 @@ interface SubmissionHistoryPopupProps {
 
 const ITEMS_PER_PAGE = 5;
 
+const getFileIcon = (fileName: string) => {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'pdf':
+      return <FileText className="w-3.5 h-3.5 text-red-500" />;
+    case 'doc':
+    case 'docx':
+      return <FileText className="w-3.5 h-3.5 text-blue-500" />;
+    case 'xls':
+    case 'xlsx':
+    case 'csv':
+      return <FileSpreadsheet className="w-3.5 h-3.5 text-green-500" />;
+    case 'ppt':
+    case 'pptx':
+      return <Presentation className="w-3.5 h-3.5 text-orange-500" />;
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'webp':
+      return <ImageIcon className="w-3.5 h-3.5 text-purple-500" />;
+    default:
+      return <File className="w-3.5 h-3.5 text-muted-foreground" />;
+  }
+};
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+};
+
 export default function SubmissionHistoryPopup({ 
   taskId, 
   taskDeadline,
   currentSubmissionLink 
 }: SubmissionHistoryPopupProps) {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [history, setHistory] = useState<SubmissionHistoryEntry[]>([]);
@@ -103,6 +148,16 @@ export default function SubmissionHistoryPopup({
     }
   };
 
+  const handleViewFile = (filePath: string, fileName: string, fileSize: number) => {
+    const params = new URLSearchParams({
+      path: filePath,
+      name: fileName,
+      size: fileSize.toString()
+    });
+    navigate(`/file-preview?${params.toString()}`);
+    setIsOpen(false);
+  };
+
   // Pagination
   const totalPages = Math.ceil(history.length / ITEMS_PER_PAGE);
   const paginatedHistory = history.slice(
@@ -156,6 +211,7 @@ export default function SubmissionHistoryPopup({
                   const isLate = !!taskDeadlineDate && new Date(entry.submitted_at) > taskDeadlineDate;
                   const links = parseLinks(entry.submission_link);
                   const isLatest = currentPage === 1 && index === 0;
+                  const isFileSubmission = entry.submission_type === 'file' || links.some(l => l.type === 'file');
 
                   return (
                     <div 
@@ -183,6 +239,12 @@ export default function SubmissionHistoryPopup({
 
                         {/* Status Badges */}
                         <div className="flex gap-2 shrink-0">
+                          {isFileSubmission && (
+                            <Badge variant="outline" className="text-xs px-2 gap-1">
+                              <File className="w-3 h-3" />
+                              File
+                            </Badge>
+                          )}
                           {isLate && (
                             <Badge variant="destructive" className="text-xs px-2">
                               Trễ deadline
@@ -195,21 +257,39 @@ export default function SubmissionHistoryPopup({
                           )}
                         </div>
 
-                        {/* Links */}
+                        {/* Links/Files */}
                         <div className="flex-1 flex flex-wrap gap-2">
-                          {links.map((link: { title: string; url: string }, i: number) => (
-                            <a
-                              key={i}
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 text-xs text-primary hover:underline px-3 py-2 rounded-lg bg-background border group"
-                            >
-                              <FileCheck className="w-3.5 h-3.5 shrink-0" />
-                              <span className="truncate max-w-[200px]">{link.title || 'Link nộp bài'}</span>
-                              <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                            </a>
-                          ))}
+                          {links.map((link: any, i: number) => {
+                            if (link.type === 'file' || link.file_path) {
+                              // File submission
+                              return (
+                                <button
+                                  key={i}
+                                  onClick={() => handleViewFile(link.file_path, link.file_name, link.file_size)}
+                                  className="inline-flex items-center gap-2 text-xs text-primary hover:underline px-3 py-2 rounded-lg bg-background border group"
+                                >
+                                  {getFileIcon(link.file_name || 'file')}
+                                  <span className="truncate max-w-[200px]">{link.title || link.file_name || 'File'}</span>
+                                  <Eye className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                </button>
+                              );
+                            } else {
+                              // Link submission
+                              return (
+                                <a
+                                  key={i}
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 text-xs text-primary hover:underline px-3 py-2 rounded-lg bg-background border group"
+                                >
+                                  <FileCheck className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="truncate max-w-[200px]">{link.title || 'Link nộp bài'}</span>
+                                  <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                </a>
+                              );
+                            }
+                          })}
                         </div>
                       </div>
 

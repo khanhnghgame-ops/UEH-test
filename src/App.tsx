@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import AdminActivity from "./pages/AdminActivity";
 import AdminBackup from "./pages/AdminBackup";
 import PublicProjectView from "./pages/PublicProjectView";
+import FilePreview from "./pages/FilePreview";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/public/project/:shareToken" element={<PublicProjectView />} />
+      <Route path="/file-preview" element={<FilePreview />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/auth/member" element={<Navigate to="/auth" replace />} />
       <Route path="/auth/admin" element={<Navigate to="/auth" replace />} />

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -12,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { 
   Calendar, Clock, CheckCircle, Circle, AlertCircle, Layers, 
-  ChevronDown, ChevronRight, Link as LinkIcon, ExternalLink
+  ChevronDown, ChevronRight, Link as LinkIcon, ExternalLink, Eye, File, FileText
 } from 'lucide-react';
 import { formatDeadlineVN, parseLocalDateTime } from '@/lib/datetime';
 import type { Stage, Task, TaskAssignment } from '@/types/database';
@@ -23,6 +24,7 @@ interface PublicTaskListViewProps {
 }
 
 export default function PublicTaskListView({ stages, tasks }: PublicTaskListViewProps) {
+  const navigate = useNavigate();
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set(stages.map(s => s.id)));
 
@@ -73,79 +75,112 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
     setExpandedStages(newExpanded);
   };
 
-  const renderSubmissionLinks = (submissionLink: string | null) => {
-    if (!submissionLink) return null;
-
+  const parseSubmissionLinks = (submissionLink: string | null) => {
+    if (!submissionLink) return [];
     try {
-      const links = JSON.parse(submissionLink);
-      if (Array.isArray(links) && links.length > 0) {
-        if (links.length === 1) {
-          return (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs px-2 gap-1 text-primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                window.open(links[0].url, '_blank', 'noopener,noreferrer');
-              }}
-            >
-              <ExternalLink className="w-3 h-3" />
-              Xem bài nộp
-            </Button>
-          );
-        } else {
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs px-2 gap-1 text-primary"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  Xem bài ({links.length})
-                  <ChevronDown className="w-3 h-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover min-w-[200px]">
-                {links.map((link: { title: string; url: string }, i: number) => (
-                  <DropdownMenuItem 
-                    key={i}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(link.url, '_blank', 'noopener,noreferrer');
-                    }}
-                    className="text-xs cursor-pointer"
-                  >
-                    <ExternalLink className="w-3 h-3 mr-2" />
-                    {link.title || `Link ${i + 1}`}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        }
+      const parsed = JSON.parse(submissionLink);
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => ({
+          ...item,
+          type: item.file_path ? 'file' : 'link'
+        }));
       }
+      return [{ title: 'Bài nộp', url: submissionLink, type: 'link' }];
     } catch {
+      return [{ title: 'Bài nộp', url: submissionLink, type: 'link' }];
+    }
+  };
+
+  const handleOpenItem = (item: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    
+    if (item.type === 'file' && item.file_path) {
+      const params = new URLSearchParams({
+        path: item.file_path,
+        name: item.file_name || 'file',
+        size: (item.file_size || 0).toString()
+      });
+      navigate(`/file-preview?${params.toString()}`);
+    } else if (item.url) {
+      window.open(item.url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const renderSubmissionLinks = (submissionLink: string | null) => {
+    const items = parseSubmissionLinks(submissionLink);
+    if (items.length === 0) return null;
+
+    if (items.length === 1) {
+      const item = items[0];
+      const isFile = item.type === 'file';
+      
       return (
         <Button
           variant="outline"
           size="sm"
           className="h-7 text-xs px-2 gap-1 text-primary"
-          onClick={(e) => {
-            e.stopPropagation();
-            window.open(submissionLink, '_blank', 'noopener,noreferrer');
-          }}
+          onClick={(e) => handleOpenItem(item, e)}
         >
-          <ExternalLink className="w-3 h-3" />
-          Xem bài nộp
+          {isFile ? (
+            <>
+              <Eye className="w-3 h-3" />
+              Xem file
+            </>
+          ) : (
+            <>
+              <ExternalLink className="w-3 h-3" />
+              Xem bài nộp
+            </>
+          )}
         </Button>
       );
     }
 
-    return null;
+    // Multiple items
+    const hasFiles = items.some(i => i.type === 'file');
+    const label = hasFiles ? `Xem bài (${items.length})` : `Xem bài (${items.length} link)`;
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs px-2 gap-1 text-primary"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="w-3 h-3" />
+            {label}
+            <ChevronDown className="w-3 h-3" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="bg-popover min-w-[200px]">
+          {items.map((item: any, i: number) => {
+            const isFile = item.type === 'file';
+            return (
+              <DropdownMenuItem 
+                key={i}
+                onClick={(e) => handleOpenItem(item, e)}
+                className="text-xs cursor-pointer"
+              >
+                {isFile ? (
+                  <>
+                    <File className="w-3 h-3 mr-2" />
+                    <span className="truncate">{item.title || item.file_name || 'File'}</span>
+                    <Eye className="w-3 h-3 ml-auto opacity-50" />
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink className="w-3 h-3 mr-2" />
+                    <span className="truncate">{item.title || `Link ${i + 1}`}</span>
+                  </>
+                )}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
   };
 
   const getInitials = (name: string) => {

@@ -439,25 +439,37 @@ export type Database = {
       }
       submission_history: {
         Row: {
+          file_name: string | null
+          file_path: string | null
+          file_size: number | null
           id: string
           note: string | null
           submission_link: string
+          submission_type: string | null
           submitted_at: string
           task_id: string
           user_id: string
         }
         Insert: {
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
           id?: string
           note?: string | null
           submission_link: string
+          submission_type?: string | null
           submitted_at?: string
           task_id: string
           user_id: string
         }
         Update: {
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
           id?: string
           note?: string | null
           submission_link?: string
+          submission_type?: string | null
           submitted_at?: string
           task_id?: string
           user_id?: string
