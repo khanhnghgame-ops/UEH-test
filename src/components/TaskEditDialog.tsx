@@ -27,6 +27,7 @@ import { Loader2, AlertTriangle, Eye, Calendar, Users, FileText, Layers, Edit } 
 import type { Task, Stage, GroupMember, TaskStatus } from '@/types/database';
 import { formatDeadlineVN, isDeadlineOverdue } from '@/lib/datetime';
 import { DeadlineHourPicker } from './DeadlineHourPicker';
+import FileSizeLimitSelector, { formatFileSizeMB } from './FileSizeLimitSelector';
 
 interface TaskEditDialogProps {
   task: Task | null;
@@ -55,8 +56,8 @@ export default function TaskEditDialog({
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState('');
   const [stageId, setStageId] = useState<string>('');
-  const [status, setStatus] = useState<TaskStatus>('TODO');
   const [assignees, setAssignees] = useState<string[]>([]);
+  const [maxFileSize, setMaxFileSize] = useState<number>(10 * 1024 * 1024); // 10MB default
 
   // Check if task is overdue
   const isOverdue = isDeadlineOverdue(task?.deadline);
@@ -72,8 +73,10 @@ export default function TaskEditDialog({
       setDescription(task.description || '');
       setDeadline(task.deadline ? task.deadline.slice(0, 16) : '');
       setStageId(task.stage_id || '');
-      setStatus(task.status);
       setAssignees(task.task_assignments?.map(a => a.user_id) || []);
+      // Get max_file_size from task (need to cast since not in types yet)
+      const taskWithSize = task as Task & { max_file_size?: number };
+      setMaxFileSize(taskWithSize.max_file_size || 10 * 1024 * 1024);
     }
   }, [task]);
 
@@ -91,7 +94,7 @@ export default function TaskEditDialog({
     setIsLoading(true);
 
     try {
-      // Update task details
+      // Update task details (không cập nhật status - chỉ cập nhật khi nộp bài)
       const { error: taskError } = await supabase
         .from('tasks')
         .update({
@@ -99,7 +102,7 @@ export default function TaskEditDialog({
           description: description.trim() || null,
           deadline: deadline || null,
           stage_id: stageId || null,
-          status,
+          max_file_size: maxFileSize,
         })
         .eq('id', task.id);
 
@@ -282,49 +285,6 @@ export default function TaskEditDialog({
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Trạng thái</Label>
-                    {canEditDetails ? (
-                      <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
-                        <SelectTrigger className="h-10">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="TODO">
-                            <span className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                              Chờ làm
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="IN_PROGRESS">
-                            <span className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-warning" />
-                              Đang làm
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="DONE">
-                            <span className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-primary" />
-                              Hoàn thành
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="VERIFIED">
-                            <span className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-success" />
-                              Đã duyệt
-                            </span>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="p-2.5 rounded-lg bg-background/50 border">
-                        <Badge className={`${statusConfig.color} border text-xs`}>
-                          {statusConfig.label}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
                     <Label className="text-sm font-medium">Deadline</Label>
                     {canEditDetails ? (
                       <DeadlineHourPicker
@@ -341,6 +301,20 @@ export default function TaskEditDialog({
                         ) : (
                           <span className="text-muted-foreground">Không có</span>
                         )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Giới hạn upload</Label>
+                    {canEditDetails ? (
+                      <FileSizeLimitSelector
+                        value={maxFileSize}
+                        onChange={setMaxFileSize}
+                      />
+                    ) : (
+                      <div className="p-2.5 rounded-lg bg-background/50 border text-sm">
+                        {formatFileSizeMB(maxFileSize)}
                       </div>
                     )}
                   </div>

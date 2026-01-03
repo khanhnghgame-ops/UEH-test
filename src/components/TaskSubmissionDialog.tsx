@@ -77,6 +77,8 @@ const formatFileSize = (bytes: number) => {
   return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 };
 
+const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 export default function TaskSubmissionDialog({
   task,
   isOpen,
@@ -95,6 +97,10 @@ export default function TaskSubmissionDialog({
   const [note, setNote] = useState('');
   const [taskAssignees, setTaskAssignees] = useState<string[]>([]);
   const [showLateWarning, setShowLateWarning] = useState(false);
+
+  // Get max file size from task (cast since not in types yet)
+  const taskWithSize = task as (Task & { max_file_size?: number }) | null;
+  const maxFileSize = taskWithSize?.max_file_size || DEFAULT_MAX_FILE_SIZE;
 
   const deadlineDate = task?.deadline ? parseLocalDateTime(task.deadline) : null;
 
@@ -496,9 +502,14 @@ export default function TaskSubmissionDialog({
                   <div className="grid grid-cols-2 gap-5 flex-1 min-h-0">
                     {/* File Upload Column */}
                     <div className="flex flex-col overflow-hidden">
-                      <div className="flex items-center gap-2 mb-2 px-1">
-                        <Upload className="w-4 h-4 text-primary/70" />
-                        <span className="text-xs font-semibold text-foreground/80">Tải file lên</span>
+                      <div className="flex items-center justify-between mb-2 px-1">
+                        <div className="flex items-center gap-2">
+                          <Upload className="w-4 h-4 text-primary/70" />
+                          <span className="text-xs font-semibold text-foreground/80">Tải file lên</span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">
+                          Tối đa: {formatFileSize(maxFileSize)}
+                        </span>
                       </div>
                       <div className="flex-1 rounded-xl border border-border/50 bg-background/80 p-3 overflow-y-auto hover:border-primary/30 transition-colors">
                         <MultiFileUploadSubmission
@@ -508,6 +519,7 @@ export default function TaskSubmissionDialog({
                           taskId={task?.id || ''}
                           disabled={!canSubmit}
                           compact
+                          maxTotalSize={maxFileSize}
                         />
                       </div>
                     </div>

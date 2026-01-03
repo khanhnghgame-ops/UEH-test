@@ -574,11 +574,13 @@ export type Database = {
           description: string | null
           group_id: string
           id: string
+          max_file_size: number | null
           stage_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           submission_link: string | null
           title: string
           updated_at: string
+          upload_size_limit: number
         }
         Insert: {
           created_at?: string
@@ -587,11 +589,13 @@ export type Database = {
           description?: string | null
           group_id: string
           id?: string
+          max_file_size?: number | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           submission_link?: string | null
           title: string
           updated_at?: string
+          upload_size_limit?: number
         }
         Update: {
           created_at?: string
@@ -600,11 +604,13 @@ export type Database = {
           description?: string | null
           group_id?: string
           id?: string
+          max_file_size?: number | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           submission_link?: string | null
           title?: string
           updated_at?: string
+          upload_size_limit?: number
         }
         Relationships: [
           {
