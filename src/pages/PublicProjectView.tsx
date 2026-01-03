@@ -7,15 +7,23 @@ import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { UEHLogo } from '@/components/UEHLogo';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   Loader2, Eye, Calendar, Clock, Users, Activity, 
   CheckCircle, Circle, AlertCircle, Layers, 
-  ChevronRight, User, BookOpen, Mail, Link as LinkIcon,
-  ExternalLink
+  ChevronDown, ChevronRight, User, BookOpen, Mail, Link as LinkIcon,
+  ExternalLink, LogIn, BarChart3, FileText
 } from 'lucide-react';
-import { format, formatDistanceToNow, isPast } from 'date-fns';
+import { formatDistanceToNow, isPast } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { parseLocalDateTime, formatDeadlineVN } from '@/lib/datetime';
 import type { Group, Stage, Task, TaskAssignment, Profile, GroupMember } from '@/types/database';
 
 interface ExtendedGroup extends Group {
@@ -48,7 +56,7 @@ export default function PublicProjectView() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (shareToken) fetchPublicData();
@@ -144,10 +152,17 @@ export default function PublicProjectView() {
     }
   };
 
+  // Use parseLocalDateTime for proper timezone handling
+  const isOverdue = (deadline: string | null) => {
+    if (!deadline) return false;
+    const d = parseLocalDateTime(deadline);
+    return d ? d.getTime() < Date.now() : false;
+  };
+
   const getStatusConfig = (status: string, deadline: string | null) => {
-    const isOverdue = deadline && isPast(new Date(deadline)) && status !== 'DONE' && status !== 'VERIFIED';
+    const overdue = isOverdue(deadline) && status !== 'DONE' && status !== 'VERIFIED';
     
-    if (isOverdue) {
+    if (overdue) {
       return { label: 'Quá hạn', color: 'bg-destructive text-destructive-foreground', icon: AlertCircle };
     }
     
@@ -170,13 +185,100 @@ export default function PublicProjectView() {
     const done = tasks.filter(t => t.status === 'DONE' || t.status === 'VERIFIED').length;
     const inProgress = tasks.filter(t => t.status === 'IN_PROGRESS').length;
     const overdue = tasks.filter(t => 
-      t.deadline && isPast(new Date(t.deadline)) && t.status !== 'DONE' && t.status !== 'VERIFIED'
+      isOverdue(t.deadline) && t.status !== 'DONE' && t.status !== 'VERIFIED'
     ).length;
     
     return { total, done, inProgress, overdue, percent: total > 0 ? Math.round((done / total) * 100) : 0 };
   };
 
   const stats = getProgressStats();
+
+  const toggleTaskExpand = (taskId: string) => {
+    const newExpanded = new Set(expandedTasks);
+    if (newExpanded.has(taskId)) {
+      newExpanded.delete(taskId);
+    } else {
+      newExpanded.add(taskId);
+    }
+    setExpandedTasks(newExpanded);
+  };
+
+  // Parse and render submission links properly
+  const renderSubmissionLinks = (submissionLink: string | null) => {
+    if (!submissionLink) return null;
+
+    try {
+      const links = JSON.parse(submissionLink);
+      if (Array.isArray(links) && links.length > 0) {
+        if (links.length === 1) {
+          return (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs px-2 gap-1 text-primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(links[0].url, '_blank', 'noopener,noreferrer');
+              }}
+            >
+              <ExternalLink className="w-3 h-3" />
+              Xem bài nộp
+            </Button>
+          );
+        } else {
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs px-2 gap-1 text-primary"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  Xem bài ({links.length} link)
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover min-w-[200px]">
+                {links.map((link: { title: string; url: string }, i: number) => (
+                  <DropdownMenuItem 
+                    key={i}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(link.url, '_blank', 'noopener,noreferrer');
+                    }}
+                    className="text-xs cursor-pointer"
+                  >
+                    <ExternalLink className="w-3 h-3 mr-2" />
+                    {link.title || `Link ${i + 1}`}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        }
+      }
+    } catch {
+      // Not JSON, treat as plain URL
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs px-2 gap-1 text-primary"
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open(submissionLink, '_blank', 'noopener,noreferrer');
+          }}
+        >
+          <ExternalLink className="w-3 h-3" />
+          Xem bài nộp
+        </Button>
+      );
+    }
+
+    return null;
+  };
 
   if (isLoading) {
     return (
@@ -211,12 +313,25 @@ export default function PublicProjectView() {
           <div className="flex items-center gap-3">
             <UEHLogo width={100} />
             <div className="h-6 w-px bg-border" />
-            <span className="font-medium text-sm">Xem Project</span>
+            <span className="font-medium text-sm hidden sm:block">Xem Project</span>
           </div>
-          <Badge variant="outline" className="gap-1.5 px-3 py-1.5 bg-warning/10 text-warning border-warning/30">
-            <Eye className="w-3.5 h-3.5" />
-            Chỉ xem – không chỉnh sửa
-          </Badge>
+          
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="gap-1.5 px-3 py-1.5 bg-warning/10 text-warning border-warning/30">
+              <Eye className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Chỉ xem – không chỉnh sửa</span>
+              <span className="sm:hidden">Read-only</span>
+            </Badge>
+            
+            {/* Login button */}
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link to="/auth">
+                <LogIn className="w-4 h-4" />
+                <span className="hidden sm:inline">Đăng nhập chỉnh sửa</span>
+                <span className="sm:hidden">Đăng nhập</span>
+              </Link>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -287,16 +402,16 @@ export default function PublicProjectView() {
           </CardContent>
         </Card>
 
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="tasks" className="space-y-4">
+        {/* Main Content Tabs - Reordered as requested */}
+        <Tabs defaultValue="overview" className="space-y-4">
           <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid lg:grid-cols-4">
+            <TabsTrigger value="overview" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Tổng quan
+            </TabsTrigger>
             <TabsTrigger value="tasks" className="gap-2">
               <Layers className="w-4 h-4" />
               Task & Giai đoạn
-            </TabsTrigger>
-            <TabsTrigger value="overview" className="gap-2">
-              <Eye className="w-4 h-4" />
-              Tổng quan
             </TabsTrigger>
             {group.show_members_public && (
               <TabsTrigger value="members" className="gap-2">
@@ -312,218 +427,15 @@ export default function PublicProjectView() {
             )}
           </TabsList>
 
-          {/* Tasks Tab */}
-          <TabsContent value="tasks" className="space-y-6">
-            {stages.map(stage => {
-              const stageTasks = tasks.filter(t => t.stage_id === stage.id);
-              const completedTasks = stageTasks.filter(t => t.status === 'DONE' || t.status === 'VERIFIED').length;
-              const stageProgress = stageTasks.length > 0 ? Math.round((completedTasks / stageTasks.length) * 100) : 0;
-
-              return (
-                <Card key={stage.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10">
-                          <Layers className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">{stage.name}</CardTitle>
-                          {stage.description && (
-                            <CardDescription>{stage.description}</CardDescription>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium">{completedTasks}/{stageTasks.length} task</div>
-                        <Progress value={stageProgress} className="h-1.5 w-24 mt-1" />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {stageTasks.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Chưa có task trong giai đoạn này
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {stageTasks.map(task => {
-                          const config = getStatusConfig(task.status, task.deadline);
-                          const StatusIcon = config.icon;
-                          
-                          return (
-                            <div
-                              key={task.id}
-                              className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-                              onClick={() => setSelectedTask(selectedTask?.id === task.id ? null : task)}
-                            >
-                              <StatusIcon className={`w-5 h-5 shrink-0 ${
-                                config.label === 'Quá hạn' ? 'text-destructive' :
-                                config.label === 'Hoàn thành' || config.label === 'Đã duyệt' ? 'text-success' :
-                                config.label === 'Đang làm' ? 'text-primary' : 'text-muted-foreground'
-                              }`} />
-                              
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium truncate">{task.title}</div>
-                                {task.deadline && (
-                                  <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                    <Calendar className="w-3 h-3" />
-                                    {format(new Date(task.deadline), 'dd/MM/yyyy – HH:mm', { locale: vi })}
-                                  </div>
-                                )}
-                              </div>
-
-                              <Badge className={config.color}>{config.label}</Badge>
-
-                              {task.task_assignments && task.task_assignments.length > 0 && (
-                                <div className="flex -space-x-2">
-                                  {task.task_assignments.slice(0, 3).map((assignment: TaskAssignment) => (
-                                    <Avatar key={assignment.id} className="w-7 h-7 border-2 border-background">
-                                      <AvatarFallback className="text-xs bg-primary/10">
-                                        {assignment.profiles?.full_name?.charAt(0) || '?'}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  ))}
-                                  {task.task_assignments.length > 3 && (
-                                    <Avatar className="w-7 h-7 border-2 border-background">
-                                      <AvatarFallback className="text-xs bg-muted">
-                                        +{task.task_assignments.length - 3}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  )}
-                                </div>
-                              )}
-
-                              <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${
-                                selectedTask?.id === task.id ? 'rotate-90' : ''
-                              }`} />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-
-            {/* Unstaged Tasks */}
-            {tasks.filter(t => !t.stage_id).length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-muted-foreground">Chưa phân giai đoạn</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {tasks.filter(t => !t.stage_id).map(task => {
-                      const config = getStatusConfig(task.status, task.deadline);
-                      const StatusIcon = config.icon;
-                      
-                      return (
-                        <div
-                          key={task.id}
-                          className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => setSelectedTask(selectedTask?.id === task.id ? null : task)}
-                        >
-                          <StatusIcon className={`w-5 h-5 shrink-0 ${
-                            config.label === 'Quá hạn' ? 'text-destructive' :
-                            config.label === 'Hoàn thành' || config.label === 'Đã duyệt' ? 'text-success' :
-                            config.label === 'Đang làm' ? 'text-primary' : 'text-muted-foreground'
-                          }`} />
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{task.title}</div>
-                            {task.deadline && (
-                              <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                <Calendar className="w-3 h-3" />
-                                {format(new Date(task.deadline), 'dd/MM/yyyy – HH:mm', { locale: vi })}
-                              </div>
-                            )}
-                          </div>
-
-                          <Badge className={config.color}>{config.label}</Badge>
-                          <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${
-                            selectedTask?.id === task.id ? 'rotate-90' : ''
-                          }`} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Task Detail Panel */}
-            {selectedTask && (
-              <Card className="border-2 border-primary/30 bg-primary/5">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <CardTitle>{selectedTask.title}</CardTitle>
-                      <CardDescription className="mt-2">
-                        {selectedTask.description || 'Không có mô tả'}
-                      </CardDescription>
-                    </div>
-                    <Badge className={getStatusConfig(selectedTask.status, selectedTask.deadline).color}>
-                      {getStatusConfig(selectedTask.status, selectedTask.deadline).label}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {selectedTask.deadline && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        Deadline: {format(new Date(selectedTask.deadline), 'dd/MM/yyyy – HH:mm', { locale: vi })}
-                        <span className="text-muted-foreground ml-2">
-                          ({formatDistanceToNow(new Date(selectedTask.deadline), { addSuffix: true, locale: vi })})
-                        </span>
-                      </span>
-                    </div>
-                  )}
-                  
-                  {selectedTask.submission_link && (
-                    <div className="flex items-center gap-2">
-                      <LinkIcon className="w-4 h-4 text-muted-foreground" />
-                      <a 
-                        href={selectedTask.submission_link} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline flex items-center gap-1"
-                      >
-                        Xem bài nộp <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  )}
-
-                  {selectedTask.task_assignments && selectedTask.task_assignments.length > 0 && (
-                    <div>
-                      <div className="text-sm font-medium mb-2">Người phụ trách:</div>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedTask.task_assignments.map((assignment: TaskAssignment) => (
-                          <Badge key={assignment.id} variant="secondary" className="gap-1.5">
-                            <Avatar className="w-4 h-4">
-                              <AvatarFallback className="text-[10px]">
-                                {assignment.profiles?.full_name?.charAt(0) || '?'}
-                              </AvatarFallback>
-                            </Avatar>
-                            {assignment.profiles?.full_name || 'Unknown'}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
           {/* Overview Tab */}
           <TabsContent value="overview">
             <div className="grid md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Thông tin Project</CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Thông tin Project
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {group.class_code && (
@@ -563,7 +475,10 @@ export default function PublicProjectView() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Giai đoạn ({stages.length})</CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Layers className="w-5 h-5" />
+                    Giai đoạn ({stages.length})
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {stages.length === 0 ? (
@@ -592,6 +507,250 @@ export default function PublicProjectView() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Tasks Tab */}
+          <TabsContent value="tasks" className="space-y-6">
+            {stages.map((stage, stageIndex) => {
+              const stageTasks = tasks.filter(t => t.stage_id === stage.id);
+              const completedTasks = stageTasks.filter(t => t.status === 'DONE' || t.status === 'VERIFIED').length;
+              const stageProgress = stageTasks.length > 0 ? Math.round((completedTasks / stageTasks.length) * 100) : 0;
+
+              return (
+                <Card key={stage.id}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                          {stageIndex + 1}
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{stage.name}</CardTitle>
+                          {stage.description && (
+                            <CardDescription>{stage.description}</CardDescription>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium">{completedTasks}/{stageTasks.length} task</div>
+                        <Progress value={stageProgress} className="h-1.5 w-24 mt-1" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {stageTasks.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Chưa có task trong giai đoạn này
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {stageTasks.map((task, taskIndex) => {
+                          const config = getStatusConfig(task.status, task.deadline);
+                          const StatusIcon = config.icon;
+                          const isExpanded = expandedTasks.has(task.id);
+                          const taskCode = `${stageIndex + 1}.${taskIndex + 1}`;
+                          
+                          return (
+                            <div key={task.id} className="space-y-2">
+                              <div
+                                className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+                                onClick={() => toggleTaskExpand(task.id)}
+                              >
+                                {/* Task code */}
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 font-mono font-semibold bg-primary/5 border-primary/20 text-primary shrink-0">
+                                  {taskCode}
+                                </Badge>
+                                
+                                <StatusIcon className={`w-5 h-5 shrink-0 ${
+                                  config.label === 'Quá hạn' ? 'text-destructive' :
+                                  config.label === 'Hoàn thành' || config.label === 'Đã duyệt' ? 'text-success' :
+                                  config.label === 'Đang làm' ? 'text-primary' : 'text-muted-foreground'
+                                }`} />
+                                
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium truncate">{task.title}</div>
+                                  {task.deadline && (
+                                    <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                      <Calendar className="w-3 h-3" />
+                                      {formatDeadlineVN(task.deadline)}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Submission link button */}
+                                {task.submission_link && renderSubmissionLinks(task.submission_link)}
+
+                                <Badge className={config.color}>{config.label}</Badge>
+
+                                {task.task_assignments && task.task_assignments.length > 0 && (
+                                  <div className="flex -space-x-2">
+                                    {task.task_assignments.slice(0, 3).map((assignment: TaskAssignment) => (
+                                      <Avatar key={assignment.id} className="w-7 h-7 border-2 border-background">
+                                        <AvatarFallback className="text-xs bg-primary/10">
+                                          {assignment.profiles?.full_name?.charAt(0) || '?'}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    ))}
+                                    {task.task_assignments.length > 3 && (
+                                      <Avatar className="w-7 h-7 border-2 border-background">
+                                        <AvatarFallback className="text-xs bg-muted">
+                                          +{task.task_assignments.length - 3}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    )}
+                                  </div>
+                                )}
+
+                                <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${
+                                  isExpanded ? 'rotate-90' : ''
+                                }`} />
+                              </div>
+
+                              {/* Expanded Task Detail */}
+                              {isExpanded && (
+                                <Card className="ml-4 border-l-4 border-l-primary/30 bg-muted/30">
+                                  <CardContent className="p-4 space-y-3">
+                                    {task.description && (
+                                      <div>
+                                        <span className="text-sm font-medium">Mô tả:</span>
+                                        <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                                      </div>
+                                    )}
+                                    
+                                    {task.deadline && (
+                                      <div className="flex items-center gap-2">
+                                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                                        <span className="text-sm">
+                                          Deadline: {formatDeadlineVN(task.deadline)}
+                                          {parseLocalDateTime(task.deadline) && (
+                                            <span className="text-muted-foreground ml-2">
+                                              ({formatDistanceToNow(parseLocalDateTime(task.deadline)!, { addSuffix: true, locale: vi })})
+                                            </span>
+                                          )}
+                                        </span>
+                                      </div>
+                                    )}
+                                    
+                                    {task.submission_link && (
+                                      <div className="flex items-center gap-2">
+                                        <LinkIcon className="w-4 h-4 text-muted-foreground" />
+                                        <span className="text-sm">Bài nộp:</span>
+                                        {renderSubmissionLinks(task.submission_link)}
+                                      </div>
+                                    )}
+
+                                    {task.task_assignments && task.task_assignments.length > 0 && (
+                                      <div>
+                                        <div className="text-sm font-medium mb-2">Người phụ trách:</div>
+                                        <div className="flex flex-wrap gap-2">
+                                          {task.task_assignments.map((assignment: TaskAssignment) => (
+                                            <Badge key={assignment.id} variant="secondary" className="gap-1.5">
+                                              <Avatar className="w-4 h-4">
+                                                <AvatarFallback className="text-[10px]">
+                                                  {assignment.profiles?.full_name?.charAt(0) || '?'}
+                                                </AvatarFallback>
+                                              </Avatar>
+                                              {assignment.profiles?.full_name || 'Unknown'}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+
+            {/* Unstaged Tasks */}
+            {tasks.filter(t => !t.stage_id).length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg text-muted-foreground">Chưa phân giai đoạn</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {tasks.filter(t => !t.stage_id).map(task => {
+                      const config = getStatusConfig(task.status, task.deadline);
+                      const StatusIcon = config.icon;
+                      const isExpanded = expandedTasks.has(task.id);
+                      
+                      return (
+                        <div key={task.id} className="space-y-2">
+                          <div
+                            className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => toggleTaskExpand(task.id)}
+                          >
+                            <StatusIcon className={`w-5 h-5 shrink-0 ${
+                              config.label === 'Quá hạn' ? 'text-destructive' :
+                              config.label === 'Hoàn thành' || config.label === 'Đã duyệt' ? 'text-success' :
+                              config.label === 'Đang làm' ? 'text-primary' : 'text-muted-foreground'
+                            }`} />
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{task.title}</div>
+                              {task.deadline && (
+                                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <Calendar className="w-3 h-3" />
+                                  {formatDeadlineVN(task.deadline)}
+                                </div>
+                              )}
+                            </div>
+
+                            {task.submission_link && renderSubmissionLinks(task.submission_link)}
+
+                            <Badge className={config.color}>{config.label}</Badge>
+                            <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${
+                              isExpanded ? 'rotate-90' : ''
+                            }`} />
+                          </div>
+
+                          {isExpanded && (
+                            <Card className="ml-4 border-l-4 border-l-muted bg-muted/30">
+                              <CardContent className="p-4 space-y-3">
+                                {task.description && (
+                                  <p className="text-sm text-muted-foreground">{task.description}</p>
+                                )}
+                                {task.deadline && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Calendar className="w-4 h-4" />
+                                    Deadline: {formatDeadlineVN(task.deadline)}
+                                  </div>
+                                )}
+                                {task.submission_link && (
+                                  <div className="flex items-center gap-2">
+                                    <LinkIcon className="w-4 h-4 text-muted-foreground" />
+                                    <span className="text-sm">Bài nộp:</span>
+                                    {renderSubmissionLinks(task.submission_link)}
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Empty state */}
+            {stages.length === 0 && tasks.length === 0 && (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Layers className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Chưa có giai đoạn hoặc task nào</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Members Tab */}
