@@ -430,6 +430,13 @@ export default function AdminBackupRestore() {
       // Upload files and create path mapping
       const oldToNewPath = new Map<string, string>();
       
+      // Helper function to generate safe storage names (UUID-based) to avoid "Invalid key" errors
+      const generateSafeStorageName = (originalName: string): string => {
+        const ext = originalName.split('.').pop()?.toLowerCase() || 'bin';
+        const uuid = crypto.randomUUID();
+        return `${uuid}.${ext}`;
+      };
+      
       if (backupData.files && backupData.files.length > 0) {
         for (const fileInfo of backupData.files) {
           try {
@@ -437,7 +444,9 @@ export default function AdminBackupRestore() {
             const fileContent = await zip.file(`files/${zipPath}`)?.async('blob');
             
             if (fileContent) {
-              const newPath = `${user!.id}/${newGroupId}/${Date.now()}_${fileInfo.file_name}`;
+              // Use safe storage name to avoid "Invalid key" errors with special chars
+              const safeStorageName = generateSafeStorageName(fileInfo.file_name);
+              const newPath = `${user!.id}/${newGroupId}/${safeStorageName}`;
               
               const { error: uploadError } = await supabase.storage
                 .from('task-submissions')
