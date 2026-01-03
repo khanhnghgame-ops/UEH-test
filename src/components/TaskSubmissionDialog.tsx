@@ -482,188 +482,198 @@ export default function TaskSubmissionDialog({
             </div>
             
             {/* Right Column - Submission Area (50%) */}
-            <div className="flex flex-col gap-3 overflow-hidden">
-              {/* Header */}
-              <div className="shrink-0">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  Nộp bài tại đây
-                </h3>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Có thể nộp file và/hoặc link. Thêm nhiều file, nhiều link.
-                </p>
-              </div>
-              
-              {/* Two columns: File Upload | Links - 50/50 */}
-              <div className="grid grid-cols-2 gap-3 flex-1 min-h-0 overflow-hidden">
-                {/* File Upload Column */}
-                <div className="flex flex-col border rounded-lg overflow-hidden">
-                  <div className="px-2.5 py-1.5 bg-blue-500/10 border-b border-blue-500/20 shrink-0">
-                    <div className="flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">Tải file lên</span>
+            <div className="flex flex-col overflow-hidden">
+              {/* Single container box for all submission content */}
+              <div className="flex-1 flex flex-col rounded-xl border-2 border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 shadow-sm overflow-hidden">
+                {/* Header */}
+                <div className="px-4 py-2.5 bg-gradient-to-r from-primary/15 to-primary/5 border-b border-primary/20 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-primary/20">
+                      <Send className="w-4 h-4 text-primary" />
                     </div>
-                  </div>
-                  <div className="flex-1 p-2 overflow-y-auto bg-card/50">
-                    <MultiFileUploadSubmission
-                      onFilesChanged={setUploadedFiles}
-                      uploadedFiles={uploadedFiles}
-                      userId={user?.id || ''}
-                      taskId={task?.id || ''}
-                      disabled={!canSubmit}
-                      compact
-                    />
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">Nộp bài tại đây</h3>
+                      <p className="text-[10px] text-muted-foreground">
+                        Có thể nộp file và/hoặc link
+                      </p>
+                    </div>
                   </div>
                 </div>
-
-                {/* Links Column */}
-                <div className="flex flex-col border rounded-lg overflow-hidden">
-                  <div className="px-2.5 py-1.5 bg-emerald-500/10 border-b border-emerald-500/20 shrink-0 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <LinkIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Liên kết bài làm</span>
-                    </div>
-                    {canSubmit && (
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={addSubmissionLink} 
-                        className="h-5 px-1.5 text-[10px] gap-0.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100/50"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Thêm
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex-1 p-2 overflow-y-auto bg-card/50">
-                    {submissionLinks.length > 0 ? (
-                      <div className="space-y-1.5">
-                        {submissionLinks.map((link, index) => (
-                          <div key={index} className="p-1.5 rounded border bg-background space-y-1 group">
-                            <div className="flex items-center gap-1">
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0 bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300">
-                                {index + 1}
-                              </Badge>
-                              <Input
-                                placeholder="Tiêu đề (vd: Báo cáo)"
-                                value={link.title}
-                                onChange={(e) => updateSubmissionLink(index, 'title', e.target.value)}
-                                disabled={!canSubmit}
-                                className="h-5 text-[10px] px-1.5 flex-1"
-                              />
-                            </div>
-                            <div className="flex gap-1">
-                              <Input
-                                placeholder="https://..."
-                                value={link.url}
-                                onChange={(e) => updateSubmissionLink(index, 'url', e.target.value)}
-                                disabled={!canSubmit}
-                                className="h-5 text-[10px] px-1.5 flex-1 font-mono"
-                              />
-                              <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {link.url && (
-                                  <a href={link.url} target="_blank" rel="noopener noreferrer">
-                                    <Button type="button" variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-blue-500" title="Mở">
-                                      <ExternalLink className="w-2.5 h-2.5" />
-                                    </Button>
-                                  </a>
-                                )}
-                                {canSubmit && (
-                                  <Button 
-                                    type="button" 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={() => removeSubmissionLink(index)}
-                                    className="h-5 w-5 text-muted-foreground hover:text-destructive"
-                                    title="Xóa"
-                                  >
-                                    <Trash2 className="w-2.5 h-2.5" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                
+                {/* Content area */}
+                <div className="flex-1 flex flex-col gap-3 p-3 overflow-y-auto">
+                  {/* Two columns: File Upload | Links - 50/50 */}
+                  <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
+                    {/* File Upload Column */}
+                    <div className="flex flex-col rounded-lg border overflow-hidden bg-background/50">
+                      <div className="px-2.5 py-1.5 bg-blue-500/10 border-b border-blue-500/20 shrink-0">
+                        <div className="flex items-center gap-1.5">
+                          <Upload className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                          <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">Tải file lên</span>
+                        </div>
                       </div>
-                    ) : (
-                      <div 
-                        onClick={() => canSubmit && addSubmissionLink()}
-                        className={`
-                          h-full min-h-[60px] border-2 border-dashed rounded-lg flex flex-col items-center justify-center
-                          ${canSubmit ? 'cursor-pointer border-emerald-300/50 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30' : 'border-muted'}
-                        `}
-                      >
-                        <LinkIcon className="w-4 h-4 text-muted-foreground/50 mb-1" />
-                        <p className="text-[10px] text-muted-foreground">
-                          {canSubmit ? 'Nhấn để thêm link' : 'Chưa có link'}
-                        </p>
+                      <div className="flex-1 p-2 overflow-y-auto">
+                        <MultiFileUploadSubmission
+                          onFilesChanged={setUploadedFiles}
+                          uploadedFiles={uploadedFiles}
+                          userId={user?.id || ''}
+                          taskId={task?.id || ''}
+                          disabled={!canSubmit}
+                          compact
+                        />
                       </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Row: Status (50%) | Note (50%) */}
-              {canSubmit && (
-                <div className="grid grid-cols-2 gap-3 shrink-0">
-                  {/* Status - More prominent */}
-                  <div className="p-2.5 rounded-lg border-2 border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <Target className="w-3.5 h-3.5 text-primary" />
-                      <Label className="text-[10px] font-bold text-primary uppercase tracking-wide">Trạng thái</Label>
                     </div>
-                    <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
-                      <SelectTrigger className="h-7 text-xs bg-background">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="TODO">
-                          <span className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                            Chờ làm
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="IN_PROGRESS">
-                          <span className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-warning" />
-                            Đang làm
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="DONE">
-                          <span className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-primary" />
-                            Hoàn thành
-                          </span>
-                        </SelectItem>
-                        {isLeaderInGroup && (
-                          <SelectItem value="VERIFIED">
-                            <span className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-success" />
-                              Đã duyệt
-                            </span>
-                          </SelectItem>
+
+                    {/* Links Column */}
+                    <div className="flex flex-col rounded-lg border overflow-hidden bg-background/50">
+                      <div className="px-2.5 py-1.5 bg-emerald-500/10 border-b border-emerald-500/20 shrink-0 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <LinkIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Liên kết bài làm</span>
+                        </div>
+                        {canSubmit && (
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={addSubmissionLink} 
+                            className="h-5 px-1.5 text-[10px] gap-0.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/50"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Thêm
+                          </Button>
                         )}
-                      </SelectContent>
-                    </Select>
+                      </div>
+                      <div className="flex-1 p-2 overflow-y-auto">
+                        {submissionLinks.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {submissionLinks.map((link, index) => (
+                              <div key={index} className="p-1.5 rounded border bg-card space-y-1 group hover:border-emerald-300/50 transition-colors">
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0 bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300">
+                                    {index + 1}
+                                  </Badge>
+                                  <Input
+                                    placeholder="Tiêu đề (vd: Báo cáo)"
+                                    value={link.title}
+                                    onChange={(e) => updateSubmissionLink(index, 'title', e.target.value)}
+                                    disabled={!canSubmit}
+                                    className="h-5 text-[10px] px-1.5 flex-1"
+                                  />
+                                </div>
+                                <div className="flex gap-1">
+                                  <Input
+                                    placeholder="https://..."
+                                    value={link.url}
+                                    onChange={(e) => updateSubmissionLink(index, 'url', e.target.value)}
+                                    disabled={!canSubmit}
+                                    className="h-5 text-[10px] px-1.5 flex-1 font-mono"
+                                  />
+                                  <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {link.url && (
+                                      <a href={link.url} target="_blank" rel="noopener noreferrer">
+                                        <Button type="button" variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-blue-500" title="Mở">
+                                          <ExternalLink className="w-2.5 h-2.5" />
+                                        </Button>
+                                      </a>
+                                    )}
+                                    {canSubmit && (
+                                      <Button 
+                                        type="button" 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={() => removeSubmissionLink(index)}
+                                        className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                                        title="Xóa"
+                                      >
+                                        <Trash2 className="w-2.5 h-2.5" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div 
+                            onClick={() => canSubmit && addSubmissionLink()}
+                            className={`
+                              h-full min-h-[60px] border-2 border-dashed rounded-lg flex flex-col items-center justify-center
+                              ${canSubmit ? 'cursor-pointer border-emerald-300/40 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30' : 'border-muted'}
+                            `}
+                          >
+                            <LinkIcon className="w-4 h-4 text-muted-foreground/50 mb-1" />
+                            <p className="text-[10px] text-muted-foreground">
+                              {canSubmit ? 'Nhấn để thêm link' : 'Chưa có link'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Note - Less prominent */}
-                  <div className="p-2.5 rounded-lg border bg-muted/30">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <MessageSquare className="w-3 h-3 text-muted-foreground" />
-                      <Label className="text-[10px] font-medium text-muted-foreground">Ghi chú (tùy chọn)</Label>
+                  {/* Bottom Row: Status (50%) | Note (50%) */}
+                  {canSubmit && (
+                    <div className="grid grid-cols-2 gap-3 shrink-0">
+                      {/* Status - More prominent */}
+                      <div className="p-2.5 rounded-lg border-2 border-primary/30 bg-gradient-to-r from-primary/10 to-transparent">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <Target className="w-3.5 h-3.5 text-primary" />
+                          <Label className="text-[10px] font-bold text-primary uppercase tracking-wide">Trạng thái</Label>
+                        </div>
+                        <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
+                          <SelectTrigger className="h-7 text-xs bg-background">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="TODO">
+                              <span className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                                Chờ làm
+                              </span>
+                            </SelectItem>
+                            <SelectItem value="IN_PROGRESS">
+                              <span className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-warning" />
+                                Đang làm
+                              </span>
+                            </SelectItem>
+                            <SelectItem value="DONE">
+                              <span className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-primary" />
+                                Hoàn thành
+                              </span>
+                            </SelectItem>
+                            {isLeaderInGroup && (
+                              <SelectItem value="VERIFIED">
+                                <span className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-success" />
+                                  Đã duyệt
+                                </span>
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Note - Less prominent */}
+                      <div className="p-2.5 rounded-lg border bg-muted/20">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <MessageSquare className="w-3 h-3 text-muted-foreground" />
+                          <Label className="text-[10px] font-medium text-muted-foreground">Ghi chú (tùy chọn)</Label>
+                        </div>
+                        <Textarea
+                          placeholder="Thêm ghi chú..."
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          rows={1}
+                          className="resize-none text-[10px] min-h-[28px] h-7"
+                        />
+                      </div>
                     </div>
-                    <Textarea
-                      placeholder="Thêm ghi chú..."
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      rows={1}
-                      className="resize-none text-[10px] min-h-[28px] h-7"
-                    />
-                  </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
