@@ -23,6 +23,7 @@ interface SubmissionItem {
   file_path?: string;
   file_name?: string;
   file_size?: number;
+  storage_name?: string; // Safe UUID-based storage name
   type?: 'link' | 'file';
 }
 
@@ -142,11 +143,17 @@ export default function SubmissionButton({
   // Multiple items
   const hasFiles = items.some(i => i.type === 'file');
   const hasLinks = items.some(i => i.type === 'link');
-  const label = hasFiles && hasLinks 
-    ? `Xem bài (${items.length})` 
-    : hasFiles 
-      ? `Xem file (${items.length})` 
-      : `Xem bài (${items.length} link)`;
+  const filesCount = items.filter(i => i.type === 'file').length;
+  const linksCount = items.filter(i => i.type === 'link').length;
+  
+  let label = `Xem bài (${items.length})`;
+  if (hasFiles && hasLinks) {
+    label = `${filesCount} file + ${linksCount} link`;
+  } else if (hasFiles) {
+    label = `Xem ${filesCount} file`;
+  } else {
+    label = `Xem ${linksCount} link`;
+  }
 
   return (
     <DropdownMenu>
