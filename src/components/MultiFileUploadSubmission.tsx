@@ -120,10 +120,17 @@ export default function MultiFileUploadSubmission({
     }
 
     setIsUploading(true);
-    setUploadProgress(5); // Bắt đầu từ 5% để người dùng thấy progress ngay
+    setUploadProgress(0);
 
     const newUploadedFiles: UploadedFile[] = [];
     const totalFiles = files.length;
+    let totalBytesToUpload = 0;
+    let bytesUploaded = 0;
+
+    // Calculate total bytes
+    for (let i = 0; i < files.length; i++) {
+      totalBytesToUpload += files[i].size;
+    }
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -133,12 +140,25 @@ export default function MultiFileUploadSubmission({
         const storageName = generateSafeStorageName(file.name);
         const filePath = `${userId}/${taskId}/${storageName}`;
 
-        // Tính progress: mỗi file chiếm phần đều nhau từ 5% đến 100%
-        const progressPerFile = 95 / totalFiles;
-        const baseProgress = 5 + (i * progressPerFile);
+        // Simulate smooth progress during upload
+        const startProgress = Math.round((bytesUploaded / totalBytesToUpload) * 100);
+        const endProgress = Math.round(((bytesUploaded + file.size) / totalBytesToUpload) * 100);
         
-        // Hiển thị progress đang upload file này
-        setUploadProgress(Math.round(baseProgress + progressPerFile * 0.3));
+        // Start animation for this file
+        setUploadProgress(startProgress + 5);
+
+        // Create progress simulation interval for smooth animation
+        const progressInterval = setInterval(() => {
+          setUploadProgress(prev => {
+            const target = endProgress - 5;
+            if (prev >= target) {
+              clearInterval(progressInterval);
+              return prev;
+            }
+            // Increment by small steps for smooth animation
+            return Math.min(prev + 2, target);
+          });
+        }, 50);
 
         // Thực hiện upload - không giới hạn loại file
         const { data, error } = await supabase.storage
@@ -147,6 +167,8 @@ export default function MultiFileUploadSubmission({
             cacheControl: '3600',
             upsert: true // Cho phép ghi đè nếu trùng tên
           });
+
+        clearInterval(progressInterval);
 
         if (error) {
           // Log chi tiết lỗi để debug
@@ -176,7 +198,8 @@ export default function MultiFileUploadSubmission({
               file_size: file.size,
               storage_name: storageName
             });
-            setUploadProgress(Math.round(baseProgress + progressPerFile));
+            bytesUploaded += file.size;
+            setUploadProgress(endProgress);
             continue;
           }
           
@@ -190,11 +213,12 @@ export default function MultiFileUploadSubmission({
           storage_name: storageName
         });
 
+        bytesUploaded += file.size;
         // Cập nhật progress hoàn thành file này
-        setUploadProgress(Math.round(baseProgress + progressPerFile));
+        setUploadProgress(endProgress);
       }
 
-      // Hoàn thành 100%
+      // Hoàn thành 100% với animation
       setUploadProgress(100);
       
       const allFiles = [...uploadedFiles, ...newUploadedFiles];
@@ -296,13 +320,15 @@ export default function MultiFileUploadSubmission({
         `}
       >
         {isUploading ? (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-              <span className="text-xs font-medium text-blue-600 dark:text-blue-400">{uploadProgress}%</span>
+              <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                Đang tải... {uploadProgress}%
+              </span>
             </div>
             <p className="text-[10px] text-muted-foreground truncate px-2">{currentFileName}</p>
-            <Progress value={uploadProgress} className="h-1" />
+            <Progress value={uploadProgress} className="h-2 transition-all duration-150" />
           </div>
         ) : (
           <div className="flex items-center justify-center gap-2">

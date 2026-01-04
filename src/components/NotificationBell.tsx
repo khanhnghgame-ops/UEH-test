@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, Trash2, Check, Clock, AlertCircle } from 'lucide-react';
+import { Bell, Trash2, Check, Clock, AlertCircle, CheckCircle2, Send, UserPlus, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 interface Notification {
   id: string;
   user_id: string;
-  type: 'task_assigned' | 'task_deadline' | 'task_updated';
+  type: 'task_assigned' | 'task_deadline' | 'task_updated' | 'task_verified' | 'task_submitted';
   title: string;
   message: string | null;
   task_id: string | null;
@@ -194,9 +194,15 @@ export default function NotificationBell() {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'task_assigned':
-        return <AlertCircle className="w-4 h-4 text-primary" />;
+        return <UserPlus className="w-4 h-4 text-primary" />;
       case 'task_deadline':
         return <Clock className="w-4 h-4 text-warning" />;
+      case 'task_updated':
+        return <Edit className="w-4 h-4 text-blue-500" />;
+      case 'task_verified':
+        return <CheckCircle2 className="w-4 h-4 text-success" />;
+      case 'task_submitted':
+        return <Send className="w-4 h-4 text-primary" />;
       default:
         return <Bell className="w-4 h-4 text-muted-foreground" />;
     }

@@ -51,7 +51,7 @@ interface SubmissionHistoryPopupProps {
   currentSubmissionLink?: string | null;
 }
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 3;
 
 const getFileIcon = (fileName: string) => {
   const ext = fileName.split('.').pop()?.toLowerCase();
@@ -177,126 +177,168 @@ export default function SubmissionHistoryPopup({
           <span className="hidden sm:inline">Lịch sử</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl w-[90vw] aspect-video max-h-[85vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-5 py-3 border-b bg-muted/30 shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <History className="w-4 h-4 text-primary" />
-            Lịch sử nộp bài
-            {history.length > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                {history.length} lần nộp
-              </Badge>
+      <DialogContent className="max-w-6xl w-[95vw] min-h-[70vh] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-primary/10 to-transparent shrink-0">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-3 text-lg font-bold">
+              <div className="p-2 rounded-lg bg-primary/20 border border-primary/30">
+                <History className="w-5 h-5 text-primary" />
+              </div>
+              Lịch sử nộp bài
+              {history.length > 0 && (
+                <Badge variant="secondary" className="text-sm px-3">
+                  {history.length} lần nộp
+                </Badge>
+              )}
+            </DialogTitle>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                Trang {currentPage} / {totalPages}
+              </div>
             )}
-          </DialogTitle>
+          </div>
         </DialogHeader>
         
-        <div className="flex-1 p-5 overflow-hidden">
+        <div className="flex-1 p-6 overflow-hidden flex flex-col">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : history.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <History className="w-12 h-12 mb-3 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground font-medium">Chưa có lịch sử nộp bài</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <div className="p-4 rounded-full bg-muted/50 mb-4">
+                <History className="w-16 h-16 text-muted-foreground/30" />
+              </div>
+              <p className="text-lg font-medium text-muted-foreground">Chưa có lịch sử nộp bài</p>
+              <p className="text-sm text-muted-foreground mt-2">
                 Lịch sử sẽ được ghi lại khi nộp bài
               </p>
             </div>
           ) : (
-            <div className="h-full flex flex-col">
-              {/* History Grid */}
-              <div className="flex-1 grid gap-3">
+            <>
+              {/* History Cards - Takes remaining space */}
+              <div className="flex-1 space-y-4 overflow-y-auto pr-2">
                 {paginatedHistory.map((entry, index) => {
                   const isLate = !!taskDeadlineDate && new Date(entry.submitted_at) > taskDeadlineDate;
                   const links = parseLinks(entry.submission_link);
                   const isLatest = currentPage === 1 && index === 0;
                   const isFileSubmission = entry.submission_type === 'file' || links.some(l => l.type === 'file');
+                  const hasLinks = links.some(l => l.url && !l.file_path);
+                  const hasFiles = links.some(l => l.file_path);
 
                   return (
                     <div 
                       key={entry.id} 
-                      className={`p-4 rounded-xl border transition-colors ${
+                      className={`p-5 rounded-2xl border-2 transition-all ${
                         isLatest 
-                          ? 'border-primary/30 bg-primary/5' 
-                          : 'border-border bg-muted/20'
+                          ? 'border-primary/40 bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg shadow-primary/5' 
+                          : 'border-border bg-card hover:border-border/80'
                       }`}
                     >
-                      <div className="flex items-start gap-4">
-                        {/* User Info */}
-                        <div className="flex items-center gap-3 min-w-[200px]">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                            <User className="w-5 h-5 text-primary" />
+                      {/* Header Row */}
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-4">
+                          {/* Avatar */}
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+                            isLatest ? 'bg-primary/20 border-2 border-primary/30' : 'bg-muted'
+                          }`}>
+                            <User className={`w-6 h-6 ${isLatest ? 'text-primary' : 'text-muted-foreground'}`} />
                           </div>
-                          <div className="min-w-0">
-                            <span className="text-sm font-semibold block truncate">{entry.user_name}</span>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {format(new Date(entry.submitted_at), "dd/MM/yyyy – HH:mm", { locale: vi })}
+                          
+                          {/* User Info */}
+                          <div>
+                            <span className="text-base font-bold block">{entry.user_name}</span>
+                            <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5" />
+                              {format(new Date(entry.submitted_at), "EEEE, dd/MM/yyyy – HH:mm", { locale: vi })}
                             </span>
                           </div>
                         </div>
 
                         {/* Status Badges */}
-                        <div className="flex gap-2 shrink-0">
-                          {isFileSubmission && (
-                            <Badge variant="outline" className="text-xs px-2 gap-1">
-                              <File className="w-3 h-3" />
-                              File
-                            </Badge>
-                          )}
-                          {isLate && (
-                            <Badge variant="destructive" className="text-xs px-2">
-                              Trễ deadline
-                            </Badge>
-                          )}
+                        <div className="flex flex-wrap gap-2">
                           {isLatest && (
-                            <Badge className="text-xs px-2 bg-primary/10 text-primary border-primary/30">
+                            <Badge className="text-xs px-3 py-1 bg-primary text-primary-foreground">
                               Mới nhất
                             </Badge>
                           )}
+                          {isLate && (
+                            <Badge variant="destructive" className="text-xs px-3 py-1">
+                              Nộp trễ
+                            </Badge>
+                          )}
+                          {hasFiles && (
+                            <Badge variant="outline" className="text-xs px-3 py-1 gap-1.5">
+                              <File className="w-3.5 h-3.5" />
+                              {links.filter(l => l.file_path).length} file
+                            </Badge>
+                          )}
+                          {hasLinks && (
+                            <Badge variant="outline" className="text-xs px-3 py-1 gap-1.5">
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              {links.filter(l => l.url && !l.file_path).length} link
+                            </Badge>
+                          )}
                         </div>
+                      </div>
 
-                        {/* Links/Files */}
-                        <div className="flex-1 flex flex-wrap gap-2">
-                          {links.map((link: any, i: number) => {
-                            if (link.type === 'file' || link.file_path) {
-                              // File submission
-                              return (
-                                <button
-                                  key={i}
-                                  onClick={() => handleViewFile(link.file_path, link.file_name, link.file_size)}
-                                  className="inline-flex items-center gap-2 text-xs text-primary hover:underline px-3 py-2 rounded-lg bg-background border group"
-                                >
+                      {/* Files & Links Grid */}
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                        {links.map((link: any, i: number) => {
+                          if (link.type === 'file' || link.file_path) {
+                            return (
+                              <button
+                                key={i}
+                                onClick={() => handleViewFile(link.file_path, link.file_name, link.file_size)}
+                                className="flex items-center gap-3 p-3 rounded-xl bg-background border-2 border-transparent hover:border-primary/30 hover:bg-primary/5 transition-all group text-left"
+                              >
+                                <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10">
                                   {getFileIcon(link.file_name || 'file')}
-                                  <span className="truncate max-w-[200px]">{link.title || link.file_name || 'File'}</span>
-                                  <Eye className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                                </button>
-                              );
-                            } else {
-                              // Link submission
-                              return (
-                                <a
-                                  key={i}
-                                  href={link.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-2 text-xs text-primary hover:underline px-3 py-2 rounded-lg bg-background border group"
-                                >
-                                  <FileCheck className="w-3.5 h-3.5 shrink-0" />
-                                  <span className="truncate max-w-[200px]">{link.title || 'Link nộp bài'}</span>
-                                  <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                                </a>
-                              );
-                            }
-                          })}
-                        </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate group-hover:text-primary">
+                                    {link.title || link.file_name || 'File'}
+                                  </p>
+                                  {link.file_size && (
+                                    <p className="text-xs text-muted-foreground">
+                                      {formatFileSize(link.file_size)}
+                                    </p>
+                                  )}
+                                </div>
+                                <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                              </button>
+                            );
+                          } else {
+                            return (
+                              <a
+                                key={i}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 p-3 rounded-xl bg-background border-2 border-transparent hover:border-primary/30 hover:bg-primary/5 transition-all group"
+                              >
+                                <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10">
+                                  <FileCheck className="w-4 h-4 text-primary" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate group-hover:text-primary">
+                                    {link.title || 'Link nộp bài'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {link.url}
+                                  </p>
+                                </div>
+                                <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                              </a>
+                            );
+                          }
+                        })}
                       </div>
 
                       {/* Note */}
                       {entry.note && (
-                        <div className="text-xs text-muted-foreground bg-background/50 p-3 rounded-lg mt-3 italic break-words border">
-                          "{entry.note}"
+                        <div className="mt-4 p-4 rounded-xl bg-muted/50 border">
+                          <p className="text-sm text-muted-foreground italic">"{entry.note}"</p>
                         </div>
                       )}
                     </div>
@@ -304,33 +346,78 @@ export default function SubmissionHistoryPopup({
                 })}
               </div>
 
-              {/* Pagination */}
+              {/* Pagination - Fixed at bottom */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-4 border-t mt-4">
+                <div className="flex items-center justify-center gap-3 pt-5 border-t mt-5">
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="default"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="h-10 px-4"
+                  >
+                    Đầu
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="default"
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="h-8 px-3"
+                    className="h-10 px-4"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Trước
                   </Button>
-                  <span className="text-sm text-muted-foreground">
-                    Trang {currentPage} / {totalPages}
-                  </span>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="default"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className="h-10 w-10"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="default"
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="h-8 px-3"
+                    className="h-10 px-4"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    Sau
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="h-10 px-4"
+                  >
+                    Cuối
                   </Button>
                 </div>
               )}
-            </div>
+            </>
           )}
         </div>
       </DialogContent>

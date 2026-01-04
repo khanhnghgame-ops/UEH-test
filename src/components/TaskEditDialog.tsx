@@ -28,6 +28,7 @@ import type { Task, Stage, GroupMember, TaskStatus } from '@/types/database';
 import { formatDeadlineVN, isDeadlineOverdue } from '@/lib/datetime';
 import { DeadlineHourPicker } from './DeadlineHourPicker';
 import FileSizeLimitSelector, { formatFileSizeMB } from './FileSizeLimitSelector';
+import { notifyTaskUpdated, notifyTaskAssigneesChanged } from '@/lib/notifications';
 
 interface TaskEditDialogProps {
   task: Task | null;
@@ -94,7 +95,22 @@ export default function TaskEditDialog({
     setIsLoading(true);
 
     try {
-      // Update task details (không cập nhật status - chỉ cập nhật khi nộp bài)
+      // Track what changed for notifications
+      const changes: string[] = [];
+      if (title.trim() !== task.title) changes.push('tên task');
+      if ((description.trim() || null) !== (task.description || null)) changes.push('mô tả');
+      if ((deadline || null) !== (task.deadline || null)) changes.push('deadline');
+      if ((stageId || null) !== (task.stage_id || null)) changes.push('giai đoạn');
+      
+      const taskWithSize = task as Task & { max_file_size?: number };
+      if (maxFileSize !== (taskWithSize.max_file_size || 10 * 1024 * 1024)) changes.push('giới hạn upload');
+
+      // Track assignee changes
+      const oldAssignees = task.task_assignments?.map(a => a.user_id) || [];
+      const newAssigneeIds = assignees.filter(id => !oldAssignees.includes(id));
+      const removedAssigneeIds = oldAssignees.filter(id => !assignees.includes(id));
+
+      // Update task details
       const { error: taskError } = await supabase
         .from('tasks')
         .update({
@@ -119,15 +135,60 @@ export default function TaskEditDialog({
         await supabase.from('task_assignments').insert(assignments);
       }
 
-      // Log activity
+      // Get group name for notifications
+      const { data: groupData } = await supabase
+        .from('groups')
+        .select('name')
+        .eq('id', task.group_id)
+        .single();
+
+      const leaderName = profile?.full_name || user?.email || 'Leader';
+      const groupName = groupData?.name || 'Project';
+
+      // Send notifications for task updates (only if something changed)
+      if (changes.length > 0 && assignees.length > 0) {
+        await notifyTaskUpdated({
+          assigneeIds: assignees,
+          leaderName,
+          taskTitle: title.trim(),
+          taskId: task.id,
+          groupId: task.group_id,
+          changes,
+        });
+      }
+
+      // Send notifications for assignee changes
+      if (newAssigneeIds.length > 0 || removedAssigneeIds.length > 0) {
+        await notifyTaskAssigneesChanged({
+          newAssigneeIds,
+          removedAssigneeIds,
+          leaderName,
+          taskTitle: title.trim(),
+          taskId: task.id,
+          groupId: task.group_id,
+          groupName,
+        });
+      }
+
+      // Log activity with detailed description
+      const activityDescription = changes.length > 0
+        ? `Cập nhật ${changes.join(', ')} của task "${title.trim()}"`
+        : `Cập nhật task "${title.trim()}"`;
+
       await supabase.from('activity_logs').insert({
         user_id: user!.id,
-        user_name: profile?.full_name || user?.email || 'Unknown',
+        user_name: leaderName,
         action: 'UPDATE_TASK',
         action_type: 'task',
-        description: `Cập nhật task "${title.trim()}"`,
+        description: activityDescription,
         group_id: task.group_id,
-        metadata: { task_id: task.id, task_title: title.trim() }
+        metadata: { 
+          task_id: task.id, 
+          task_title: title.trim(),
+          changes,
+          new_assignees: newAssigneeIds.length,
+          removed_assignees: removedAssigneeIds.length,
+        }
       });
 
       toast({

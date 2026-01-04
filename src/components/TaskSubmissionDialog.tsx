@@ -55,6 +55,7 @@ import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { parseLocalDateTime } from '@/lib/datetime';
 import MultiFileUploadSubmission, { UploadedFile } from './MultiFileUploadSubmission';
+import { notifyTaskSubmitted, notifyTaskVerified } from '@/lib/notifications';
 
 interface SubmissionLink {
   id?: string;
@@ -229,6 +230,9 @@ export default function TaskSubmissionDialog({
       const now = new Date();
       const isLateSubmission = !!deadlineDate && now > deadlineDate;
 
+      // Check if this is a status change to VERIFIED
+      const isVerifying = status === 'VERIFIED' && task.status !== 'VERIFIED';
+
       // Build combined submission data (links + files)
       const allSubmissions: any[] = [];
       
@@ -300,16 +304,59 @@ export default function TaskSubmissionDialog({
         ? Math.round((now.getTime() - deadlineDate.getTime()) / (1000 * 60 * 60))
         : 0;
 
+      // Get leader IDs for notification
+      const { data: groupMembers } = await supabase
+        .from('group_members')
+        .select('user_id, role')
+        .eq('group_id', task.group_id);
+      
+      const leaderIds = groupMembers
+        ?.filter(m => m.role === 'leader' && m.user_id !== user?.id)
+        .map(m => m.user_id) || [];
+
+      const submitterName = profile?.full_name || user?.email || 'Thành viên';
+
+      // Notify leaders about submission
+      if (leaderIds.length > 0 && !isSubmittingOnBehalf) {
+        await notifyTaskSubmitted({
+          leaderIds,
+          submitterName,
+          taskTitle: task.title,
+          taskId: task.id,
+          groupId: task.group_id,
+          isLate: isLateSubmission,
+        });
+      }
+
+      // If task is being verified, notify assignees
+      if (isVerifying) {
+        const assigneeIds = task.task_assignments
+          ?.map((a: any) => a.user_id)
+          .filter((id: string) => id !== user?.id) || [];
+        
+        if (assigneeIds.length > 0) {
+          await notifyTaskVerified({
+            assigneeIds,
+            leaderName: submitterName,
+            taskTitle: task.title,
+            taskId: task.id,
+            groupId: task.group_id,
+          });
+        }
+      }
+
       await supabase.from('activity_logs').insert({
         user_id: user!.id,
-        user_name: profile?.full_name || user?.email || 'Unknown',
-        action: actionType,
+        user_name: submitterName,
+        action: isVerifying ? 'VERIFY_TASK' : actionType,
         action_type: 'task',
-        description: isSubmittingOnBehalf 
-          ? `Leader nộp thay cho task "${task.title}"${isLateSubmission ? ` (trễ ${lateHours} giờ)` : ''}`
-          : isLateSubmission 
-            ? `Nộp bài trễ ${lateHours} giờ cho task "${task.title}"`
-            : `Nộp bài đúng hạn cho task "${task.title}"`,
+        description: isVerifying
+          ? `Đã duyệt task "${task.title}"`
+          : isSubmittingOnBehalf 
+            ? `Leader nộp thay cho task "${task.title}"${isLateSubmission ? ` (trễ ${lateHours} giờ)` : ''}`
+            : isLateSubmission 
+              ? `Nộp bài trễ ${lateHours} giờ cho task "${task.title}"`
+              : `Nộp bài đúng hạn cho task "${task.title}"`,
         group_id: task.group_id,
         metadata: { 
           task_id: task.id, 
@@ -319,13 +366,18 @@ export default function TaskSubmissionDialog({
           late_hours: lateHours,
           submitted_by_leader: isSubmittingOnBehalf,
           files_count: uploadedFiles.length,
-          links_count: validLinks.length
+          links_count: validLinks.length,
+          is_verified: isVerifying,
         }
       });
 
       toast({
-        title: 'Nộp bài thành công',
-        description: isLateSubmission ? 'Bài nộp đã được ghi nhận (trễ hạn)' : 'Bài nộp đã được ghi nhận',
+        title: isVerifying ? 'Đã duyệt task' : 'Nộp bài thành công',
+        description: isVerifying 
+          ? 'Task đã được đánh dấu hoàn thành'
+          : isLateSubmission 
+            ? 'Bài nộp đã được ghi nhận (trễ hạn)' 
+            : 'Bài nộp đã được ghi nhận',
       });
       
       onSave();
