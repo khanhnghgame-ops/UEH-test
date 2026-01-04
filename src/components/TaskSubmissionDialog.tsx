@@ -56,6 +56,7 @@ import { vi } from 'date-fns/locale';
 import { parseLocalDateTime } from '@/lib/datetime';
 import MultiFileUploadSubmission, { UploadedFile } from './MultiFileUploadSubmission';
 import { notifyTaskSubmitted, notifyTaskVerified } from '@/lib/notifications';
+import TaskComments from './communication/TaskComments';
 
 interface SubmissionLink {
   id?: string;
@@ -527,6 +528,15 @@ export default function TaskSubmissionDialog({
                   )}
                 </div>
               </div>
+
+              {/* Task Comments Section */}
+              {task && (
+                <TaskComments 
+                  taskId={task.id} 
+                  groupId={task.group_id} 
+                  className="flex-shrink-0 max-h-[280px]"
+                />
+              )}
             </div>
             
             {/* Right Column - Submission Area (50%) - Main action area, prominent */}

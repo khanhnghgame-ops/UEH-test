@@ -23,6 +23,7 @@ import {
   Users,
   Lightbulb,
   FolderArchive,
+  MessageSquare,
 } from 'lucide-react';
 import uehLogo from '@/assets/ueh-logo-new.png';
 import UserChangePasswordDialog from '@/components/UserChangePasswordDialog';
@@ -42,6 +43,7 @@ interface NavItem {
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Projects', href: '/groups', icon: FolderKanban },
+  { name: 'Trao đổi', href: '/communication', icon: MessageSquare },
   { name: 'Góp ý & Cải tiến', href: '/feedback', icon: Lightbulb },
   { name: 'Thành viên hệ thống', href: '/members', icon: Users, requiresAdmin: true },
   { name: 'Sao lưu & Khôi phục', href: '/admin/backup', icon: FolderArchive, requiresAdmin: true },

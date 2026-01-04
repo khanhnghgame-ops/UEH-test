@@ -268,6 +268,61 @@ export type Database = {
           },
         ]
       }
+      message_mentions: {
+        Row: {
+          comment_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          mention_type: string
+          mentioned_task_id: string | null
+          mentioned_user_id: string | null
+          message_id: string | null
+        }
+        Insert: {
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          mention_type: string
+          mentioned_task_id?: string | null
+          mentioned_user_id?: string | null
+          message_id?: string | null
+        }
+        Update: {
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          mention_type?: string
+          mentioned_task_id?: string | null
+          mentioned_user_id?: string | null
+          message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_mentions_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "task_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_mentions_mentioned_task_id_fkey"
+            columns: ["mentioned_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_mentions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "project_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -393,6 +448,67 @@ export type Database = {
         }
         Relationships: []
       }
+      project_messages: {
+        Row: {
+          content: string
+          created_at: string
+          group_id: string
+          id: string
+          is_read_by: Json | null
+          source_comment_id: string | null
+          source_task_id: string | null
+          source_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          group_id: string
+          id?: string
+          is_read_by?: Json | null
+          source_comment_id?: string | null
+          source_task_id?: string | null
+          source_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          is_read_by?: Json | null
+          source_comment_id?: string | null
+          source_task_id?: string | null
+          source_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_messages_source_comment_id_fkey"
+            columns: ["source_comment_id"]
+            isOneToOne: false
+            referencedRelation: "task_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_messages_source_task_id_fkey"
+            columns: ["source_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stages: {
         Row: {
           created_at: string
@@ -506,6 +622,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "task_assignments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          task_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          task_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "tasks"

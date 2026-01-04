@@ -15,6 +15,7 @@ import Feedback from "./pages/Feedback";
 import NotFound from "./pages/NotFound";
 import AdminActivity from "./pages/AdminActivity";
 import AdminBackup from "./pages/AdminBackup";
+import Communication from "./pages/Communication";
 import PublicProjectView from "./pages/PublicProjectView";
 import FilePreview from "./pages/FilePreview";
 
@@ -39,6 +40,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
       <Route path="/groups/:groupId" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
+      <Route path="/communication" element={<ProtectedRoute><Communication /></ProtectedRoute>} />
       <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
       <Route path="/members" element={<ProtectedRoute><MemberManagement /></ProtectedRoute>} />
       <Route path="/admin/activity" element={<ProtectedRoute><AdminActivity /></ProtectedRoute>} />
