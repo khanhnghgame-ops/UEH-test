@@ -1,0 +1,340 @@
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { Card } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Loader2, MessageSquare } from 'lucide-react';
+import { format } from 'date-fns';
+import MentionInput from './MentionInput';
+import { parseMessageContent, renderMessageContent } from '@/lib/messageParser';
+import { cn } from '@/lib/utils';
+
+interface Comment {
+  id: string;
+  content: string;
+  user_id: string;
+  created_at: string;
+  user_name?: string;
+}
+
+interface TaskCommentsProps {
+  taskId: string;
+  groupId: string;
+  className?: string;
+}
+
+export default function TaskComments({ taskId, groupId, className }: TaskCommentsProps) {
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [commentInput, setCommentInput] = useState('');
+  const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
+  const [tasks, setTasks] = useState<{ id: string; title: string; number: number }[]>([]);
+
+  useEffect(() => {
+    fetchComments();
+    fetchMembers();
+    fetchTasks();
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel(`task-comments-${taskId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'task_comments',
+        filter: `task_id=eq.${taskId}`
+      }, () => {
+        fetchComments();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [taskId]);
+
+  // Scroll to bottom when comments change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [comments]);
+
+  const fetchComments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('task_comments')
+        .select(`
+          *,
+          profiles:user_id(full_name)
+        `)
+        .eq('task_id', taskId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      const commentsWithNames = (data || []).map((c: any) => ({
+        ...c,
+        user_name: c.profiles?.full_name || 'Unknown'
+      }));
+
+      setComments(commentsWithNames);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchMembers = async () => {
+    try {
+      const { data } = await supabase
+        .from('group_members')
+        .select('user_id, profiles:user_id(id, full_name)')
+        .eq('group_id', groupId);
+
+      const memberList = (data || [])
+        .map((m: any) => ({
+          id: m.profiles?.id,
+          name: m.profiles?.full_name || 'Unknown'
+        }))
+        .filter((m: any) => m.id);
+
+      setMembers(memberList);
+    } catch (error) {
+      console.error('Error fetching members:', error);
+    }
+  };
+
+  const fetchTasks = async () => {
+    try {
+      const { data } = await supabase
+        .from('tasks')
+        .select('id, title')
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: false });
+
+      const taskList = (data || []).map((t: any, idx: number) => ({
+        id: t.id,
+        title: t.title,
+        number: idx + 1
+      }));
+
+      setTasks(taskList);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    }
+  };
+
+  const handleSendComment = async () => {
+    if (!commentInput.trim() || !user || isSending) return;
+
+    setIsSending(true);
+    const content = commentInput.trim();
+
+    try {
+      const parsed = parseMessageContent(content);
+
+      // Insert comment
+      const { data: newComment, error: commentError } = await supabase
+        .from('task_comments')
+        .insert({
+          task_id: taskId,
+          user_id: user.id,
+          content
+        })
+        .select()
+        .single();
+
+      if (commentError) throw commentError;
+
+      // Insert mentions
+      const mentionsToInsert: any[] = [];
+
+      for (const mention of parsed.mentions) {
+        if (mention.type === 'user') {
+          const member = members.find(m => 
+            m.name.toLowerCase().includes(mention.value.toLowerCase())
+          );
+          if (member) {
+            mentionsToInsert.push({
+              comment_id: newComment.id,
+              mention_type: 'user',
+              mentioned_user_id: member.id
+            });
+          }
+        } else if (mention.type === 'assignee') {
+          // Get assignees of current task
+          const { data: assignments } = await supabase
+            .from('task_assignments')
+            .select('user_id')
+            .eq('task_id', taskId);
+          
+          (assignments || []).forEach((a: any) => {
+            mentionsToInsert.push({
+              comment_id: newComment.id,
+              mention_type: 'assignee',
+              mentioned_user_id: a.user_id
+            });
+          });
+        } else if (mention.type === 'task') {
+          mentionsToInsert.push({
+            comment_id: newComment.id,
+            mention_type: 'task',
+            mentioned_task_id: mention.taskId
+          });
+        }
+      }
+
+      if (mentionsToInsert.length > 0) {
+        await supabase.from('message_mentions').insert(mentionsToInsert);
+      }
+
+      // If there are @mentions, also post a copy to project chat
+      const hasMentions = parsed.mentions.some(m => m.type === 'user' || m.type === 'assignee');
+      
+      if (hasMentions) {
+        // Get task title for the source label
+        const { data: taskData } = await supabase
+          .from('tasks')
+          .select('title')
+          .eq('id', taskId)
+          .single();
+
+        await supabase.from('project_messages').insert({
+          group_id: groupId,
+          user_id: user.id,
+          content,
+          source_type: 'from_task',
+          source_task_id: taskId,
+          source_comment_id: newComment.id
+        });
+      }
+
+      setCommentInput('');
+      fetchComments();
+    } catch (error) {
+      console.error('Error sending comment:', error);
+      toast({
+        title: 'Lỗi',
+        description: 'Không thể gửi bình luận',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  if (isLoading) {
+    return (
+      <Card className={cn('p-4', className)}>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className={cn('flex flex-col', className)}>
+      <div className="p-3 border-b flex items-center gap-2">
+        <MessageSquare className="w-4 h-4 text-primary" />
+        <span className="font-medium text-sm">Trao đổi trong task</span>
+        <span className="text-xs text-muted-foreground">({comments.length})</span>
+      </div>
+
+      <ScrollArea className="flex-1 p-3 max-h-64" ref={scrollRef}>
+        {comments.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+            <MessageSquare className="w-8 h-8 mb-2 opacity-30" />
+            <p className="text-sm">Chưa có bình luận</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {comments.map((comment) => {
+              const isOwn = comment.user_id === user?.id;
+              const segments = renderMessageContent(comment.content);
+
+              return (
+                <div key={comment.id} className={cn('flex gap-2', isOwn && 'flex-row-reverse')}>
+                  <Avatar className="w-7 h-7 shrink-0">
+                    <AvatarFallback className={cn(
+                      'text-[10px]',
+                      isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                    )}>
+                      {getInitials(comment.user_name || 'U')}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className={cn('flex flex-col max-w-[80%]', isOwn && 'items-end')}>
+                    {!isOwn && (
+                      <span className="text-[10px] font-medium text-muted-foreground mb-0.5">
+                        {comment.user_name}
+                      </span>
+                    )}
+                    <div className={cn(
+                      'px-3 py-1.5 rounded-xl text-sm',
+                      isOwn 
+                        ? 'bg-primary text-primary-foreground rounded-br-sm' 
+                        : 'bg-muted rounded-bl-sm'
+                    )}>
+                      {segments.map((segment, idx) => {
+                        if (segment.type === 'user-mention' || segment.type === 'assignee-mention') {
+                          return (
+                            <span key={idx} className={cn(
+                              'font-semibold',
+                              isOwn ? 'text-primary-foreground/90' : 'text-primary'
+                            )}>
+                              {segment.content}
+                            </span>
+                          );
+                        }
+                        if (segment.type === 'task-ref') {
+                          return (
+                            <span key={idx} className={cn(
+                              'font-medium underline',
+                              isOwn ? 'text-primary-foreground/90' : 'text-accent-foreground'
+                            )}>
+                              {segment.content}
+                            </span>
+                          );
+                        }
+                        return <span key={idx}>{segment.content}</span>;
+                      })}
+                    </div>
+                    <span className="text-[9px] text-muted-foreground mt-0.5">
+                      {format(new Date(comment.created_at), 'HH:mm')}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </ScrollArea>
+
+      <div className="p-3 border-t">
+        <MentionInput
+          value={commentInput}
+          onChange={setCommentInput}
+          onSend={handleSendComment}
+          members={members}
+          tasks={tasks}
+          placeholder="Nhập bình luận..."
+          isSending={isSending}
+        />
+      </div>
+    </Card>
+  );
+}
