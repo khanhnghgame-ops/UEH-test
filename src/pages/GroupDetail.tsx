@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Users, Loader2, ArrowLeft, Layers, LayoutDashboard, Trash2, Settings, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Group, GroupMember, Task, Profile, Stage } from '@/types/database';
 import { DeadlineHourPicker } from '@/components/DeadlineHourPicker';
+import { notifyTaskAssigned } from '@/lib/notifications';
 
 interface ExtendedGroup extends Group {
   class_code: string | null;
@@ -184,9 +185,31 @@ export default function GroupDetail() {
         created_by: user!.id,
         max_file_size: newTaskMaxFileSize
       }).select().single();
+      
       if (newTask && newTaskAssignees.length > 0) {
         await supabase.from('task_assignments').insert(newTaskAssignees.map(userId => ({ task_id: newTask.id, user_id: userId })));
+        
+        // Send notification to assignees (exclude the leader who created the task)
+        const assigneesToNotify = newTaskAssignees.filter(id => id !== user?.id);
+        if (assigneesToNotify.length > 0) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user!.id)
+            .single();
+          
+          await notifyTaskAssigned({
+            assigneeIds: assigneesToNotify,
+            leaderName: profileData?.full_name || 'Leader',
+            taskTitle: newTaskTitle.trim(),
+            taskId: newTask.id,
+            groupId: groupId!,
+            groupName: group?.name || 'Project',
+            deadline: newTaskDeadline || null,
+          });
+        }
       }
+      
       toast({ title: 'Thành công', description: 'Đã tạo task mới' });
       setIsTaskDialogOpen(false);
       setNewTaskTitle('');
