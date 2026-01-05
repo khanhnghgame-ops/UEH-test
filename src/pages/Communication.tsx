@@ -551,6 +551,37 @@ export default function Communication() {
     }
   };
 
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      // First delete related mentions
+      await supabase
+        .from('message_mentions')
+        .delete()
+        .eq('message_id', messageId);
+
+      // Then delete the message
+      const { error } = await supabase
+        .from('project_messages')
+        .delete()
+        .eq('id', messageId)
+        .eq('user_id', user?.id); // Ensure user can only delete their own messages
+
+      if (error) throw error;
+
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      toast({
+        title: 'Đã xóa tin nhắn'
+      });
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast({
+        title: 'Lỗi',
+        description: 'Không thể xóa tin nhắn',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleNavigateToTask = (taskId: string) => {
     navigate(`/groups/${selectedProject?.id}?task=${taskId}`);
   };
@@ -847,6 +878,7 @@ export default function Communication() {
                         message={msg}
                         isOwn={msg.user_id === user?.id}
                         onTaskClick={handleNavigateToTask}
+                        onDelete={handleDeleteMessage}
                       />
                     ))}
                   </div>
