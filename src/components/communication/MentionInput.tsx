@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Send, AtSign, Hash, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Send, AtSign, Hash, Loader2, User, ListTodo, Smile } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Member {
@@ -198,47 +199,85 @@ export default function MentionInput({
     <div className={cn('relative', className)}>
       {/* Suggestions Popup */}
       {showSuggestions && suggestions.length > 0 && (
-        <Card className="absolute bottom-full left-0 right-0 mb-2 p-2 max-h-64 overflow-y-auto z-50 shadow-lg">
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={`${suggestion.type}-${suggestion.id}`}
-              className={cn(
-                'w-full text-left px-3 py-2 rounded-md flex items-center gap-2 transition-colors',
-                index === selectedIndex ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
-              )}
-              onClick={() => handleSelectSuggestion(suggestion)}
-              onMouseEnter={() => setSelectedIndex(index)}
-            >
-              {suggestion.type === 'user' ? (
-                <AtSign className="w-4 h-4 text-primary shrink-0" />
+        <Card className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden z-50 shadow-xl border-border/50 animate-scale-in">
+          <div className="p-2 border-b bg-muted/30">
+            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              {triggerType === '@' ? (
+                <>
+                  <User className="w-3 h-3" />
+                  Chọn thành viên
+                </>
               ) : (
-                <Hash className="w-4 h-4 text-accent shrink-0" />
+                <>
+                  <ListTodo className="w-3 h-3" />
+                  Chọn task
+                </>
               )}
-              <div className="flex-1 min-w-0">
-                <span className="font-medium">{suggestion.label}</span>
-                {suggestion.sublabel && (
-                  <span className="text-muted-foreground text-sm ml-2 truncate">
-                    {suggestion.sublabel}
-                  </span>
+            </span>
+          </div>
+          <div className="max-h-64 overflow-y-auto p-1">
+            {suggestions.map((suggestion, index) => (
+              <button
+                key={`${suggestion.type}-${suggestion.id}`}
+                className={cn(
+                  'w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-all duration-150',
+                  index === selectedIndex 
+                    ? 'bg-primary/10 text-foreground' 
+                    : 'hover:bg-muted/50'
                 )}
-              </div>
-            </button>
-          ))}
+                onClick={() => handleSelectSuggestion(suggestion)}
+                onMouseEnter={() => setSelectedIndex(index)}
+              >
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                  suggestion.type === 'user' 
+                    ? "bg-primary/10 text-primary" 
+                    : "bg-accent/10 text-accent"
+                )}>
+                  {suggestion.type === 'user' ? (
+                    <AtSign className="w-4 h-4" />
+                  ) : (
+                    <Hash className="w-4 h-4" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-sm">{suggestion.label}</span>
+                  {suggestion.sublabel && (
+                    <p className="text-muted-foreground text-xs truncate">
+                      {suggestion.sublabel}
+                    </p>
+                  )}
+                </div>
+                {index === selectedIndex && (
+                  <Badge variant="secondary" className="text-[10px] shrink-0">
+                    Enter ↵
+                  </Badge>
+                )}
+              </button>
+            ))}
+          </div>
         </Card>
       )}
 
-      {/* Input */}
-      <div className="flex items-center gap-2">
-        <div className="flex gap-1">
+      {/* Input Container */}
+      <div className="flex items-center gap-2 p-1 rounded-xl bg-background border shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
+        {/* Action Buttons */}
+        <div className="flex gap-0.5 pl-1">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-primary"
+            className={cn(
+              "h-8 w-8 rounded-lg transition-colors",
+              triggerType === '@' 
+                ? "bg-primary/10 text-primary" 
+                : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+            )}
             onClick={() => {
               onChange(value + '@');
               inputRef.current?.focus();
             }}
+            title="Nhắc đến thành viên (@)"
           >
             <AtSign className="w-4 h-4" />
           </Button>
@@ -246,29 +285,44 @@ export default function MentionInput({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-primary"
+            className={cn(
+              "h-8 w-8 rounded-lg transition-colors",
+              triggerType === '#' 
+                ? "bg-accent/10 text-accent" 
+                : "text-muted-foreground hover:text-accent hover:bg-accent/10"
+            )}
             onClick={() => {
               onChange(value + '#');
               inputRef.current?.focus();
             }}
+            title="Tham chiếu task (#)"
           >
             <Hash className="w-4 h-4" />
           </Button>
         </div>
+
+        {/* Text Input */}
         <Input
           ref={inputRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="flex-1"
+          className="flex-1 border-0 shadow-none focus-visible:ring-0 bg-transparent px-2"
           disabled={isSending}
         />
+
+        {/* Send Button */}
         <Button
           onClick={onSend}
           disabled={!value.trim() || isSending}
           size="icon"
-          className="h-9 w-9"
+          className={cn(
+            "h-9 w-9 rounded-lg shrink-0 transition-all",
+            value.trim() 
+              ? "bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25" 
+              : "bg-muted text-muted-foreground"
+          )}
         >
           {isSending ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -276,6 +330,19 @@ export default function MentionInput({
             <Send className="w-4 h-4" />
           )}
         </Button>
+      </div>
+
+      {/* Helper Text */}
+      <div className="flex items-center gap-3 mt-2 px-1">
+        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+          <AtSign className="w-3 h-3" /> Tag người
+        </span>
+        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+          <Hash className="w-3 h-3" /> Tham chiếu task
+        </span>
+        <span className="text-[10px] text-muted-foreground ml-auto">
+          Enter để gửi
+        </span>
       </div>
     </div>
   );
