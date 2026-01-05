@@ -13,7 +13,8 @@ interface Member {
 interface Task {
   id: string;
   title: string;
-  number: number;
+  stageOrder: number;
+  stageName: string;
 }
 
 interface MentionInputProps {
@@ -115,18 +116,18 @@ export default function MentionInput({
         }
       });
     } else if (trigger === '#') {
-      // Add matching tasks
+      // Add matching tasks - display with stage order and task title
       tasks.forEach(task => {
-        const taskNum = task.id.substring(0, 4);
+        const displayLabel = `GĐ${task.stageOrder}`;
         if (
           task.title.toLowerCase().includes(searchText) ||
-          taskNum.includes(searchText) ||
+          task.stageOrder.toString().includes(searchText) ||
           searchText === ''
         ) {
           newSuggestions.push({
             type: 'task',
             id: task.id,
-            label: `#${taskNum}`,
+            label: `#${displayLabel}`,
             sublabel: task.title
           });
         }
@@ -154,8 +155,9 @@ export default function MentionInput({
         insertText = `@${member?.name || ''} `;
       }
     } else if (suggestion.type === 'task') {
-      const taskNum = suggestion.id.substring(0, 4);
-      insertText = `#${taskNum} `;
+      const task = tasks.find(t => t.id === suggestion.id);
+      const displayLabel = task ? `GĐ${task.stageOrder}` : suggestion.id.substring(0, 4);
+      insertText = `#${displayLabel} – ${task?.title || ''} `;
     }
 
     const newValue = beforeTrigger + insertText + afterCursor;
