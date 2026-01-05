@@ -35,7 +35,7 @@ export default function TaskComments({ taskId, groupId, className }: TaskComment
   const [isSending, setIsSending] = useState(false);
   const [commentInput, setCommentInput] = useState('');
   const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
-  const [tasks, setTasks] = useState<{ id: string; title: string; number: number }[]>([]);
+  const [tasks, setTasks] = useState<{ id: string; title: string; stageOrder: number; stageName: string }[]>([]);
 
   useEffect(() => {
     fetchComments();
@@ -71,18 +71,23 @@ export default function TaskComments({ taskId, groupId, className }: TaskComment
     try {
       const { data, error } = await supabase
         .from('task_comments')
-        .select(`
-          *,
-          profiles:user_id(full_name)
-        `)
+        .select('*')
         .eq('task_id', taskId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
 
+      // Fetch user names separately
+      const userIds = [...new Set((data || []).map(c => c.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+
       const commentsWithNames = (data || []).map((c: any) => ({
         ...c,
-        user_name: c.profiles?.full_name || 'Unknown'
+        user_name: profileMap.get(c.user_id) || 'Unknown'
       }));
 
       setComments(commentsWithNames);
@@ -97,15 +102,24 @@ export default function TaskComments({ taskId, groupId, className }: TaskComment
     try {
       const { data } = await supabase
         .from('group_members')
-        .select('user_id, profiles:user_id(id, full_name)')
+        .select('user_id')
         .eq('group_id', groupId);
 
-      const memberList = (data || [])
-        .map((m: any) => ({
-          id: m.profiles?.id,
-          name: m.profiles?.full_name || 'Unknown'
-        }))
-        .filter((m: any) => m.id);
+      if (!data || data.length === 0) {
+        setMembers([]);
+        return;
+      }
+
+      const userIds = data.map(m => m.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      const memberList = (profiles || []).map((p: any) => ({
+        id: p.id,
+        name: p.full_name || 'Unknown'
+      }));
 
       setMembers(memberList);
     } catch (error) {
@@ -117,14 +131,15 @@ export default function TaskComments({ taskId, groupId, className }: TaskComment
     try {
       const { data } = await supabase
         .from('tasks')
-        .select('id, title')
+        .select('id, title, stage_id, stages(name, order_index)')
         .eq('group_id', groupId)
         .order('created_at', { ascending: false });
 
-      const taskList = (data || []).map((t: any, idx: number) => ({
+      const taskList = (data || []).map((t: any) => ({
         id: t.id,
         title: t.title,
-        number: idx + 1
+        stageOrder: (t.stages?.order_index ?? 0) + 1,
+        stageName: t.stages?.name || ''
       }));
 
       setTasks(taskList);

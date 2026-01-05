@@ -81,7 +81,7 @@ export default function Communication() {
 
   // Project members for mentions
   const [projectMembers, setProjectMembers] = useState<{ id: string; name: string }[]>([]);
-  const [projectTasks, setProjectTasks] = useState<{ id: string; title: string; number: number }[]>([]);
+  const [projectTasks, setProjectTasks] = useState<{ id: string; title: string; stageOrder: number; stageName: string }[]>([]);
 
   // Fetch projects with unread counts
   useEffect(() => {
@@ -184,25 +184,49 @@ export default function Communication() {
     if (!selectedProject) return;
 
     try {
+      // Fetch messages
       const { data, error } = await supabase
         .from('project_messages')
-        .select(`
-          *,
-          profiles:user_id(full_name),
-          source_task:source_task_id(title)
-        `)
+        .select('*')
         .eq('group_id', selectedProject.id)
         .order('created_at', { ascending: true })
         .limit(100);
 
       if (error) throw error;
 
-      const messagesWithParsed = (data || []).map((msg: any) => ({
-        ...msg,
-        user_name: msg.profiles?.full_name || 'Unknown',
-        source_task_title: msg.source_task?.title,
-        mentions: parseMessageContent(msg.content).mentions
-      }));
+      // Fetch user names separately
+      const userIds = [...new Set((data || []).map(m => m.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+
+      // Fetch task titles separately
+      const taskIds = [...new Set((data || []).filter(m => m.source_task_id).map(m => m.source_task_id))];
+      let taskMap = new Map<string, { title: string; stageOrder: number; stageName: string }>();
+      if (taskIds.length > 0) {
+        const { data: tasksData } = await supabase
+          .from('tasks')
+          .select('id, title, stage_id, stages(name, order_index)')
+          .in('id', taskIds);
+        taskMap = new Map((tasksData || []).map((t: any) => [t.id, {
+          title: t.title,
+          stageOrder: t.stages?.order_index ?? 0,
+          stageName: t.stages?.name || ''
+        }]));
+      }
+
+      const messagesWithParsed = (data || []).map((msg: any) => {
+        const taskInfo = msg.source_task_id ? taskMap.get(msg.source_task_id) : null;
+        return {
+          ...msg,
+          user_name: profileMap.get(msg.user_id) || 'Unknown',
+          source_task_title: taskInfo?.title,
+          source_task_stage: taskInfo?.stageOrder,
+          mentions: parseMessageContent(msg.content).mentions
+        };
+      });
 
       setMessages(messagesWithParsed);
     } catch (error) {
@@ -214,74 +238,122 @@ export default function Communication() {
     if (!selectedProject || !user) return;
 
     try {
-      // Get mentions from project messages
+      // Get mentions that have message_id (from project messages)
       const { data: messageMentions } = await supabase
         .from('message_mentions')
-        .select(`
-          *,
-          project_messages!inner(
-            id, content, source_type, source_task_id, created_at, group_id,
-            profiles:user_id(full_name),
-            source_task:source_task_id(title)
-          )
-        `)
+        .select('*')
         .eq('mentioned_user_id', user.id)
-        .eq('project_messages.group_id', selectedProject.id)
-        .order('created_at', { ascending: false });
+        .not('message_id', 'is', null);
 
-      // Get mentions from task comments in this project's tasks
+      // Get mentions that have comment_id (from task comments)
       const { data: commentMentions } = await supabase
         .from('message_mentions')
-        .select(`
-          *,
-          task_comments!inner(
-            id, content, task_id, created_at,
-            profiles:user_id(full_name),
-            tasks!inner(title, group_id)
-          )
-        `)
+        .select('*')
         .eq('mentioned_user_id', user.id)
         .not('comment_id', 'is', null);
 
       const allMentions: MentionItem[] = [];
 
       // Process message mentions
-      (messageMentions || []).forEach((m: any) => {
-        const pm = m.project_messages;
-        if (!pm) return;
-        
-        allMentions.push({
-          id: m.id,
-          message_id: pm.id,
-          content: pm.content,
-          source_type: pm.source_type,
-          source_label: pm.source_type === 'from_task' && pm.source_task
-            ? `Từ Task #${pm.source_task_id?.substring(0, 4)} – ${pm.source_task.title}`
-            : `Chung – ${selectedProject.name}`,
-          source_task_id: pm.source_task_id,
-          user_name: pm.profiles?.full_name || 'Unknown',
-          created_at: pm.created_at,
-          is_read: m.is_read
-        });
-      });
+      if (messageMentions && messageMentions.length > 0) {
+        const messageIds = messageMentions.map(m => m.message_id).filter(Boolean);
+        const { data: messages } = await supabase
+          .from('project_messages')
+          .select('*')
+          .in('id', messageIds)
+          .eq('group_id', selectedProject.id);
 
-      // Process comment mentions (filter by project)
-      (commentMentions || []).forEach((m: any) => {
-        const tc = m.task_comments;
-        if (!tc || tc.tasks?.group_id !== selectedProject.id) return;
-        
-        allMentions.push({
-          id: m.id,
-          comment_id: tc.id,
-          content: tc.content,
-          source_type: 'from_task',
-          source_label: `Từ Task #${tc.task_id?.substring(0, 4)} – ${tc.tasks?.title}`,
-          source_task_id: tc.task_id,
-          user_name: tc.profiles?.full_name || 'Unknown',
-          created_at: tc.created_at,
-          is_read: m.is_read
-        });
-      });
+        if (messages && messages.length > 0) {
+          // Get user names
+          const userIds = [...new Set(messages.map(m => m.user_id))];
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', userIds);
+          const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+
+          // Get task titles
+          const taskIds = [...new Set(messages.filter(m => m.source_task_id).map(m => m.source_task_id))];
+          let taskMap = new Map<string, string>();
+          if (taskIds.length > 0) {
+            const { data: tasks } = await supabase
+              .from('tasks')
+              .select('id, title')
+              .in('id', taskIds);
+            taskMap = new Map((tasks || []).map(t => [t.id, t.title]));
+          }
+
+          const messageMap = new Map(messages.map(m => [m.id, m]));
+          
+          messageMentions.forEach(mention => {
+            const pm = messageMap.get(mention.message_id!);
+            if (!pm) return;
+
+            allMentions.push({
+              id: mention.id,
+              message_id: pm.id,
+              content: pm.content,
+              source_type: pm.source_type as 'direct' | 'from_task',
+              source_label: pm.source_type === 'from_task' && pm.source_task_id
+                ? `Từ Task – ${taskMap.get(pm.source_task_id) || ''}`
+                : `Chung – ${selectedProject.name}`,
+              source_task_id: pm.source_task_id,
+              user_name: profileMap.get(pm.user_id) || 'Unknown',
+              created_at: pm.created_at,
+              is_read: mention.is_read
+            });
+          });
+        }
+      }
+
+      // Process comment mentions
+      if (commentMentions && commentMentions.length > 0) {
+        const commentIds = commentMentions.map(m => m.comment_id).filter(Boolean);
+        const { data: comments } = await supabase
+          .from('task_comments')
+          .select('*')
+          .in('id', commentIds);
+
+        if (comments && comments.length > 0) {
+          // Get task info
+          const taskIds = [...new Set(comments.map(c => c.task_id))];
+          const { data: tasks } = await supabase
+            .from('tasks')
+            .select('id, title, group_id')
+            .in('id', taskIds);
+          const taskMap = new Map((tasks || []).map(t => [t.id, { title: t.title, group_id: t.group_id }]));
+
+          // Get user names
+          const userIds = [...new Set(comments.map(c => c.user_id))];
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', userIds);
+          const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+
+          const commentMap = new Map(comments.map(c => [c.id, c]));
+
+          commentMentions.forEach(mention => {
+            const tc = commentMap.get(mention.comment_id!);
+            if (!tc) return;
+            
+            const taskInfo = taskMap.get(tc.task_id);
+            if (!taskInfo || taskInfo.group_id !== selectedProject.id) return;
+
+            allMentions.push({
+              id: mention.id,
+              comment_id: tc.id,
+              content: tc.content,
+              source_type: 'from_task',
+              source_label: `Từ Task – ${taskInfo.title}`,
+              source_task_id: tc.task_id,
+              user_name: profileMap.get(tc.user_id) || 'Unknown',
+              created_at: tc.created_at,
+              is_read: mention.is_read
+            });
+          });
+        }
+      }
 
       // Sort by created_at desc
       allMentions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -298,15 +370,24 @@ export default function Communication() {
     try {
       const { data } = await supabase
         .from('group_members')
-        .select('user_id, profiles:user_id(id, full_name)')
+        .select('user_id')
         .eq('group_id', selectedProject.id);
 
-      const members = (data || [])
-        .map((m: any) => ({
-          id: m.profiles?.id,
-          name: m.profiles?.full_name || 'Unknown'
-        }))
-        .filter((m: any) => m.id);
+      if (!data || data.length === 0) {
+        setProjectMembers([]);
+        return;
+      }
+
+      const userIds = data.map(m => m.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      const members = (profiles || []).map((p: any) => ({
+        id: p.id,
+        name: p.full_name || 'Unknown'
+      }));
 
       setProjectMembers(members);
     } catch (error) {
@@ -320,14 +401,15 @@ export default function Communication() {
     try {
       const { data } = await supabase
         .from('tasks')
-        .select('id, title')
+        .select('id, title, stage_id, stages(name, order_index)')
         .eq('group_id', selectedProject.id)
         .order('created_at', { ascending: false });
 
-      const tasks = (data || []).map((t: any, idx: number) => ({
+      const tasks = (data || []).map((t: any) => ({
         id: t.id,
         title: t.title,
-        number: idx + 1
+        stageOrder: (t.stages?.order_index ?? 0) + 1,
+        stageName: t.stages?.name || ''
       }));
 
       setProjectTasks(tasks);
