@@ -7,27 +7,31 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 import {
   MessageSquare,
   ChevronLeft,
-  Send,
   AtSign,
-  Hash,
   FolderKanban,
-  Check,
-  CheckCheck,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Users,
+  Clock,
+  Sparkles,
+  MessagesSquare,
+  Bell,
+  Search,
+  MoreVertical
 } from 'lucide-react';
-import { format, isToday, isYesterday } from 'date-fns';
+import { format, isToday, isYesterday, formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import MentionInput from '@/components/communication/MentionInput';
 import MessageItem from '@/components/communication/MessageItem';
 import { parseMessageContent, type ParsedMention } from '@/lib/messageParser';
+import { cn } from '@/lib/utils';
 
 interface Project {
   id: string;
@@ -35,6 +39,7 @@ interface Project {
   unread_mentions: number;
   last_message?: string;
   last_message_at?: string;
+  member_count?: number;
 }
 
 interface Message {
@@ -162,12 +167,19 @@ export default function Communication() {
             .limit(1)
             .single();
 
+          // Get member count
+          const { count: memberCount } = await supabase
+            .from('group_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('group_id', group.id);
+
           return {
             id: group.id,
             name: group.name,
             unread_mentions: count || 0,
-            last_message: lastMsg?.content?.substring(0, 50) + (lastMsg?.content?.length > 50 ? '...' : ''),
-            last_message_at: lastMsg?.created_at
+            last_message: lastMsg?.content?.substring(0, 60) + (lastMsg?.content?.length > 60 ? '...' : ''),
+            last_message_at: lastMsg?.created_at,
+            member_count: memberCount || 0
           };
         })
       );
@@ -295,8 +307,8 @@ export default function Communication() {
               content: pm.content,
               source_type: pm.source_type as 'direct' | 'from_task',
               source_label: pm.source_type === 'from_task' && pm.source_task_id
-                ? `Từ Task – ${taskMap.get(pm.source_task_id) || ''}`
-                : `Chung – ${selectedProject.name}`,
+                ? `Task – ${taskMap.get(pm.source_task_id) || ''}`
+                : `Chat chung`,
               source_task_id: pm.source_task_id,
               user_name: profileMap.get(pm.user_id) || 'Unknown',
               created_at: pm.created_at,
@@ -345,7 +357,7 @@ export default function Communication() {
               comment_id: tc.id,
               content: tc.content,
               source_type: 'from_task',
-              source_label: `Từ Task – ${taskInfo.title}`,
+              source_label: `Task – ${taskInfo.title}`,
               source_task_id: tc.task_id,
               user_name: profileMap.get(tc.user_id) || 'Unknown',
               created_at: tc.created_at,
@@ -519,8 +531,27 @@ export default function Communication() {
     }
   };
 
+  const handleMarkAllAsRead = async () => {
+    const unreadIds = mentions.filter(m => !m.is_read).map(m => m.id);
+    if (unreadIds.length === 0) return;
+
+    try {
+      await supabase
+        .from('message_mentions')
+        .update({ is_read: true })
+        .in('id', unreadIds);
+
+      setMentions(prev => prev.map(m => ({ ...m, is_read: true })));
+      fetchProjects();
+      toast({
+        title: 'Đã đánh dấu tất cả là đã đọc'
+      });
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
   const handleNavigateToTask = (taskId: string) => {
-    // Find which group this task belongs to
     navigate(`/groups/${selectedProject?.id}?task=${taskId}`);
   };
 
@@ -531,8 +562,12 @@ export default function Communication() {
   const formatMessageDate = (dateStr: string) => {
     const date = new Date(dateStr);
     if (isToday(date)) return format(date, 'HH:mm');
-    if (isYesterday(date)) return 'Hôm qua ' + format(date, 'HH:mm');
-    return format(date, 'dd/MM HH:mm');
+    if (isYesterday(date)) return 'Hôm qua';
+    return format(date, 'dd/MM');
+  };
+
+  const formatRelativeTime = (dateStr: string) => {
+    return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: vi });
   };
 
   const groupMessagesByDate = (msgs: Message[]) => {
@@ -541,7 +576,7 @@ export default function Communication() {
 
     msgs.forEach(msg => {
       const msgDate = new Date(msg.created_at);
-      let dateLabel = format(msgDate, 'dd/MM/yyyy');
+      let dateLabel = format(msgDate, 'EEEE, dd/MM/yyyy', { locale: vi });
       if (isToday(msgDate)) dateLabel = 'Hôm nay';
       else if (isYesterday(msgDate)) dateLabel = 'Hôm qua';
 
@@ -556,66 +591,160 @@ export default function Communication() {
     return groups;
   };
 
+  const totalUnreadMentions = projects.reduce((acc, p) => acc + p.unread_mentions, 0);
+
   // Project List View
   if (!selectedProject) {
     return (
       <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
-              <MessageSquare className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Trao đổi</h1>
-              <p className="text-muted-foreground text-sm">Chọn project để bắt đầu trao đổi</p>
+        <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25">
+                  <MessagesSquare className="w-7 h-7 text-primary-foreground" />
+                </div>
+                {totalUnreadMentions > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground ring-2 ring-background">
+                    {totalUnreadMentions > 9 ? '9+' : totalUnreadMentions}
+                  </span>
+                )}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold font-heading">Trao đổi</h1>
+                <p className="text-muted-foreground text-sm">
+                  {projects.length} dự án • {totalUnreadMentions > 0 ? `${totalUnreadMentions} thông báo mới` : 'Không có thông báo mới'}
+                </p>
+              </div>
             </div>
           </div>
 
+          {/* Stats Cards */}
+          <div className="grid grid-cols-3 gap-4">
+            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/15">
+                  <FolderKanban className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{projects.length}</p>
+                  <p className="text-xs text-muted-foreground">Dự án</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-accent/5 to-accent/10 border-accent/20">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-accent/15">
+                  <Bell className="w-5 h-5 text-accent" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{totalUnreadMentions}</p>
+                  <p className="text-xs text-muted-foreground">Chưa đọc</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-success/5 to-success/10 border-success/20">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-success/15">
+                  <Users className="w-5 h-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{projects.reduce((acc, p) => acc + (p.member_count || 0), 0)}</p>
+                  <p className="text-xs text-muted-foreground">Thành viên</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Project List */}
           {isLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Đang tải dự án...</p>
             </div>
           ) : projects.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <FolderKanban className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground">Bạn chưa tham gia project nào</p>
+            <Card className="border-dashed">
+              <CardContent className="py-16 text-center">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                  <FolderKanban className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Chưa có dự án nào</h3>
+                <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+                  Bạn chưa tham gia dự án nào. Hãy tham gia hoặc tạo dự án mới để bắt đầu trao đổi.
+                </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-3">
-              {projects.map(project => (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Các dự án</h2>
+              </div>
+              {projects.map((project, index) => (
                 <Card 
                   key={project.id}
-                  className="cursor-pointer hover:border-primary/50 transition-colors"
+                  className={cn(
+                    "cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/40 group",
+                    project.unread_mentions > 0 && "border-primary/30 bg-primary/[0.02]"
+                  )}
                   onClick={() => setSelectedProject(project)}
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-lg bg-primary/10">
-                          <FolderKanban className="w-5 h-5 text-primary" />
+                    <div className="flex items-center gap-4">
+                      {/* Project Avatar */}
+                      <div className="relative">
+                        <div className={cn(
+                          "w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg transition-transform group-hover:scale-105",
+                          project.unread_mentions > 0 
+                            ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/20" 
+                            : "bg-gradient-to-br from-muted to-muted/80 text-muted-foreground"
+                        )}>
+                          {project.name.charAt(0).toUpperCase()}
                         </div>
-                        <div>
-                          <h3 className="font-semibold">{project.name}</h3>
-                          {project.last_message && (
-                            <p className="text-sm text-muted-foreground truncate max-w-md">
-                              {project.last_message}
-                            </p>
+                        {project.unread_mentions > 0 && (
+                          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground ring-2 ring-card animate-pulse">
+                            {project.unread_mentions}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Project Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold truncate group-hover:text-primary transition-colors">
+                            {project.name}
+                          </h3>
+                          {project.unread_mentions > 0 && (
+                            <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] px-1.5">
+                              <AtSign className="w-3 h-3 mr-0.5" />
+                              {project.unread_mentions}
+                            </Badge>
                           )}
                         </div>
+                        {project.last_message ? (
+                          <p className="text-sm text-muted-foreground truncate">
+                            {project.last_message}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground/60 italic">
+                            Chưa có tin nhắn
+                          </p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-3">
+
+                      {/* Meta Info */}
+                      <div className="flex flex-col items-end gap-1 shrink-0">
                         {project.last_message_at && (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
                             {formatMessageDate(project.last_message_at)}
                           </span>
                         )}
-                        {project.unread_mentions > 0 && (
-                          <Badge variant="destructive" className="px-2 py-0.5 text-xs">
-                            {project.unread_mentions} @Tôi
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Users className="w-3 h-3" />
+                          {project.member_count || 0}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -629,57 +758,88 @@ export default function Communication() {
   }
 
   // Chat Room View
+  const unreadMentionsCount = mentions.filter(m => !m.is_read).length;
+
   return (
     <DashboardLayout>
-      <div className="h-[calc(100vh-8rem)] flex flex-col">
+      <div className="h-[calc(100vh-7rem)] flex flex-col animate-fade-in">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 pb-4 border-b">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setSelectedProject(null)}
+              className="rounded-xl hover:bg-muted"
             >
               <ChevronLeft className="w-5 h-5" />
             </Button>
-            <div className="p-2.5 rounded-lg bg-primary/10">
-              <FolderKanban className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground font-bold shadow-lg shadow-primary/20">
+              {selectedProject.name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-lg font-bold">{selectedProject.name}</h1>
-              <p className="text-xs text-muted-foreground">{projectMembers.length} thành viên</p>
+              <h1 className="text-lg font-bold font-heading">{selectedProject.name}</h1>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Users className="w-3 h-3" />
+                <span>{projectMembers.length} thành viên</span>
+                <span>•</span>
+                <span>{messages.length} tin nhắn</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Members Preview */}
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-2">
+              {projectMembers.slice(0, 4).map((member) => (
+                <Avatar key={member.id} className="w-8 h-8 border-2 border-background">
+                  <AvatarFallback className="text-[10px] bg-secondary text-secondary-foreground">
+                    {getInitials(member.name)}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {projectMembers.length > 4 && (
+                <div className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium text-muted-foreground">
+                  +{projectMembers.length - 4}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'mentions')} className="flex-1 flex flex-col">
-          <TabsList className="w-fit">
-            <TabsTrigger value="all" className="gap-2">
+          <TabsList className="w-fit bg-muted/50 p-1 rounded-xl">
+            <TabsTrigger value="all" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
               <MessageSquare className="w-4 h-4" />
               Tất cả
+              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
+                {messages.length}
+              </Badge>
             </TabsTrigger>
-            <TabsTrigger value="mentions" className="gap-2">
+            <TabsTrigger value="mentions" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
               <AtSign className="w-4 h-4" />
               @Tôi
-              {mentions.filter(m => !m.is_read).length > 0 && (
-                <Badge variant="destructive" className="ml-1 px-1.5 py-0 text-xs">
-                  {mentions.filter(m => !m.is_read).length}
+              {unreadMentionsCount > 0 && (
+                <Badge variant="destructive" className="ml-1 px-1.5 py-0 text-[10px] animate-pulse">
+                  {unreadMentionsCount}
                 </Badge>
               )}
             </TabsTrigger>
           </TabsList>
 
           {/* All Messages Tab */}
-          <TabsContent value="all" className="flex-1 flex flex-col mt-4">
-            <Card className="flex-1 flex flex-col overflow-hidden">
+          <TabsContent value="all" className="flex-1 flex flex-col mt-4 min-h-0">
+            <Card className="flex-1 flex flex-col overflow-hidden border-muted/50">
               <ScrollArea className="flex-1 p-4" ref={scrollRef}>
                 {groupMessagesByDate(messages).map((group, groupIdx) => (
                   <div key={groupIdx}>
-                    <div className="flex items-center justify-center my-4">
-                      <div className="px-3 py-1 rounded-full bg-muted text-xs text-muted-foreground">
+                    <div className="flex items-center justify-center my-6">
+                      <Separator className="flex-1" />
+                      <span className="px-4 py-1.5 rounded-full bg-muted/80 text-xs font-medium text-muted-foreground">
                         {group.date}
-                      </div>
+                      </span>
+                      <Separator className="flex-1" />
                     </div>
                     {group.messages.map((msg) => (
                       <MessageItem
@@ -692,23 +852,27 @@ export default function Communication() {
                   </div>
                 ))}
                 {messages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                    <MessageSquare className="w-12 h-12 mb-4 opacity-30" />
-                    <p>Chưa có tin nhắn nào</p>
-                    <p className="text-sm">Hãy bắt đầu cuộc trò chuyện!</p>
+                  <div className="flex flex-col items-center justify-center h-full py-16">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mb-4">
+                      <Sparkles className="w-10 h-10 text-primary/60" />
+                    </div>
+                    <h3 className="font-semibold text-lg mb-2">Bắt đầu cuộc trò chuyện</h3>
+                    <p className="text-muted-foreground text-sm text-center max-w-xs">
+                      Hãy gửi tin nhắn đầu tiên để bắt đầu trao đổi với các thành viên trong dự án
+                    </p>
                   </div>
                 )}
               </ScrollArea>
 
               {/* Message Input */}
-              <div className="p-4 border-t">
+              <div className="p-4 border-t bg-muted/30">
                 <MentionInput
                   value={messageInput}
                   onChange={setMessageInput}
                   onSend={handleSendMessage}
                   members={projectMembers}
                   tasks={projectTasks}
-                  placeholder="Nhập tin nhắn..."
+                  placeholder="Nhập tin nhắn... Dùng @ để tag, # để tham chiếu task"
                   isSending={isSending}
                 />
               </div>
@@ -716,58 +880,113 @@ export default function Communication() {
           </TabsContent>
 
           {/* Mentions Tab */}
-          <TabsContent value="mentions" className="flex-1 mt-4">
-            <Card className="h-full">
-              <ScrollArea className="h-full p-4">
+          <TabsContent value="mentions" className="flex-1 mt-4 min-h-0">
+            <Card className="h-full flex flex-col border-muted/50">
+              {/* Mentions Header */}
+              {mentions.length > 0 && (
+                <div className="flex items-center justify-between p-4 border-b">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">
+                      {unreadMentionsCount > 0 ? `${unreadMentionsCount} chưa đọc` : 'Tất cả đã đọc'}
+                    </span>
+                  </div>
+                  {unreadMentionsCount > 0 && (
+                    <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead} className="text-xs">
+                      Đánh dấu tất cả đã đọc
+                    </Button>
+                  )}
+                </div>
+              )}
+              
+              <ScrollArea className="flex-1 p-4">
                 {mentions.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                    <AtSign className="w-12 h-12 mb-4 opacity-30" />
-                    <p>Chưa có tin nhắn nào nhắc đến bạn</p>
+                  <div className="flex flex-col items-center justify-center h-64 py-16">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                      <AtSign className="w-8 h-8 text-muted-foreground/50" />
+                    </div>
+                    <h3 className="font-semibold mb-2">Chưa có ai nhắc đến bạn</h3>
+                    <p className="text-muted-foreground text-sm text-center max-w-xs">
+                      Khi có người nhắc đến bạn bằng @, bạn sẽ thấy thông báo tại đây
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {mentions.map((mention) => (
+                    {mentions.map((mention, index) => (
                       <Card 
                         key={mention.id}
-                        className={`cursor-pointer transition-colors ${
+                        className={cn(
+                          "cursor-pointer transition-all duration-200 hover:shadow-md overflow-hidden",
                           mention.is_read 
-                            ? 'bg-muted/30 border-border/50' 
-                            : 'bg-primary/5 border-primary/30 hover:border-primary/50'
-                        }`}
+                            ? 'bg-card border-border/50 hover:border-border' 
+                            : 'bg-primary/[0.03] border-primary/30 hover:border-primary/50 shadow-sm'
+                        )}
                         onClick={() => {
                           if (!mention.is_read) handleMarkAsRead(mention.id);
                           if (mention.source_task_id) handleNavigateToTask(mention.source_task_id);
                         }}
+                        style={{ animationDelay: `${index * 50}ms` }}
                       >
+                        {/* Unread indicator bar */}
+                        {!mention.is_read && (
+                          <div className="h-1 bg-gradient-to-r from-primary to-accent" />
+                        )}
                         <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-start gap-3">
+                            {/* Avatar */}
+                            <Avatar className={cn(
+                              "w-10 h-10 shrink-0",
+                              !mention.is_read && "ring-2 ring-primary/20"
+                            )}>
+                              <AvatarFallback className={cn(
+                                "text-sm font-medium",
+                                !mention.is_read 
+                                  ? "bg-primary/20 text-primary" 
+                                  : "bg-muted text-muted-foreground"
+                              )}>
+                                {getInitials(mention.user_name)}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                <span className="font-semibold text-sm">{mention.user_name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatRelativeTime(mention.created_at)}
+                                </span>
                                 {!mention.is_read && (
-                                  <Badge variant="default" className="text-[10px] px-1.5 py-0">
-                                    Chưa xem
+                                  <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0">
+                                    Mới
                                   </Badge>
                                 )}
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                  📌 {mention.source_label}
-                                </Badge>
                               </div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <Avatar className="w-6 h-6">
-                                  <AvatarFallback className="text-[10px] bg-primary/20">
-                                    {getInitials(mention.user_name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="text-sm font-medium">{mention.user_name}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  · {formatMessageDate(mention.created_at)}
-                                </span>
-                              </div>
-                              <p className="text-sm text-foreground/90">{mention.content}</p>
+                              
+                              <Badge 
+                                variant="outline" 
+                                className={cn(
+                                  "text-[10px] px-2 py-0.5 mb-2",
+                                  mention.source_type === 'from_task' 
+                                    ? "bg-accent/10 text-accent border-accent/20" 
+                                    : "bg-muted text-muted-foreground"
+                                )}
+                              >
+                                📌 {mention.source_label}
+                              </Badge>
+
+                              <p className="text-sm text-foreground/90 line-clamp-2">
+                                {mention.content}
+                              </p>
                             </div>
+
+                            {/* Action */}
                             {mention.source_task_id && (
-                              <Button variant="ghost" size="sm" className="shrink-0">
-                                Mở task <ExternalLink className="w-3 h-3 ml-1" />
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="shrink-0 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
                               </Button>
                             )}
                           </div>
