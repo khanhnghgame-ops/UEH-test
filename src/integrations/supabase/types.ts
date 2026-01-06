@@ -725,6 +725,7 @@ export type Database = {
           description: string | null
           group_id: string
           id: string
+          is_restored: boolean
           max_file_size: number | null
           stage_id: string | null
           status: Database["public"]["Enums"]["task_status"]
@@ -740,6 +741,7 @@ export type Database = {
           description?: string | null
           group_id: string
           id?: string
+          is_restored?: boolean
           max_file_size?: number | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
@@ -755,6 +757,7 @@ export type Database = {
           description?: string | null
           group_id?: string
           id?: string
+          is_restored?: boolean
           max_file_size?: number | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]

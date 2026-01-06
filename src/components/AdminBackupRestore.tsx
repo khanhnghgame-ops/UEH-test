@@ -15,7 +15,8 @@ import {
   FolderArchive,
   AlertTriangle,
   CheckCircle,
-  File
+  File,
+  MessageSquare
 } from 'lucide-react';
 import JSZip from 'jszip';
 
@@ -41,6 +42,13 @@ interface FileSubmission {
   zip_path: string;
 }
 
+interface BackupMessage {
+  student_id: string;
+  content: string;
+  source_type: string;
+  created_at: string;
+}
+
 interface BackupData {
   version: string;
   exported_at: string;
@@ -59,6 +67,7 @@ interface BackupData {
     scores: Array<any>;
     submissions: Array<any>;
   }>;
+  messages?: BackupMessage[];
   files?: FileSubmission[];
 }
 
@@ -126,8 +135,8 @@ export default function AdminBackupRestore() {
 
       setExportProgress(10);
 
-      // Fetch all related data
-      const [membersRes, stagesRes, tasksRes] = await Promise.all([
+      // Fetch all related data including messages
+      const [membersRes, stagesRes, tasksRes, messagesRes] = await Promise.all([
         supabase
           .from('group_members')
           .select('user_id, role, joined_at')
@@ -140,7 +149,12 @@ export default function AdminBackupRestore() {
         supabase
           .from('tasks')
           .select('*')
+          .eq('group_id', selectedGroupId),
+        supabase
+          .from('project_messages')
+          .select('*')
           .eq('group_id', selectedGroupId)
+          .order('created_at')
       ]);
 
       setExportProgress(30);
@@ -243,6 +257,14 @@ export default function AdminBackupRestore() {
         };
       }) || [];
 
+      // Process messages for backup
+      const messagesForBackup: BackupMessage[] = messagesRes.data?.map(msg => ({
+        student_id: userIdToStudentId.get(msg.user_id) || '',
+        content: msg.content,
+        source_type: msg.source_type,
+        created_at: msg.created_at
+      })) || [];
+
       setExportProgress(60);
 
       // Create ZIP file
@@ -288,7 +310,7 @@ export default function AdminBackupRestore() {
       setExportProgress(85);
 
       const backupData: BackupData = {
-        version: '2.0', // Updated version for file support
+        version: '3.0', // Updated version for messages support
         exported_at: new Date().toISOString(),
         project_name: group.name,
         group: {
@@ -314,6 +336,7 @@ export default function AdminBackupRestore() {
           tasks: []
         })) || [],
         tasks: tasksWithDetails,
+        messages: messagesForBackup,
         files: fileMapping
       };
 
@@ -338,7 +361,7 @@ export default function AdminBackupRestore() {
 
       toast({ 
         title: 'Xuất thành công!', 
-        description: `Đã sao lưu project "${group.name}" với ${fileMapping.length} file đính kèm.` 
+        description: `Đã sao lưu project "${group.name}" với ${fileMapping.length} file và ${messagesForBackup.length} tin nhắn.` 
       });
     } catch (error) {
       console.error('Export error:', error);
@@ -482,7 +505,7 @@ export default function AdminBackupRestore() {
         stageNameToId.set(stage.name, newStageId);
       }
 
-      setImportProgress('Đang tạo các task...');
+      setImportProgress('Đang khôi phục các task (không gửi thông báo)...');
 
       // Helper function to update file paths in submission_link JSON
       const updateFilePaths = (submissionLink: string | null): string | null => {
@@ -504,9 +527,11 @@ export default function AdminBackupRestore() {
         return submissionLink;
       };
 
-      // Create tasks with new IDs
+      // Create tasks with is_restored = true to prevent notifications
       for (const task of backupData.tasks) {
         const newTaskId = generateNewId();
+        
+        // Insert task with is_restored = true to skip notifications
         await supabase
           .from('tasks')
           .insert({
@@ -518,10 +543,11 @@ export default function AdminBackupRestore() {
             status: task.status as 'TODO' | 'IN_PROGRESS' | 'DONE' | 'VERIFIED',
             deadline: task.deadline,
             submission_link: updateFilePaths(task.submission_link),
-            created_by: user!.id
+            created_by: user!.id,
+            is_restored: true // Mark as restored to prevent notifications
           });
 
-        // Create task assignments
+        // Create task assignments (no notification will be sent due to is_restored flag)
         const assignmentInserts = task.assignments
           .filter(a => studentIdToUserId.has(a.student_id))
           .map(a => ({
@@ -578,11 +604,34 @@ export default function AdminBackupRestore() {
         }
       }
 
+      // Restore messages if available
+      let messagesRestored = 0;
+      if (backupData.messages && backupData.messages.length > 0) {
+        setImportProgress('Đang khôi phục tin nhắn...');
+        
+        const messageInserts = backupData.messages
+          .filter(msg => studentIdToUserId.has(msg.student_id))
+          .map(msg => ({
+            group_id: newGroupId,
+            user_id: studentIdToUserId.get(msg.student_id)!,
+            content: msg.content,
+            source_type: msg.source_type || 'direct',
+            created_at: msg.created_at
+          }));
+
+        if (messageInserts.length > 0) {
+          const { error: msgError } = await supabase.from('project_messages').insert(messageInserts);
+          if (!msgError) {
+            messagesRestored = messageInserts.length;
+          }
+        }
+      }
+
       setImportProgress('Hoàn tất!');
 
       toast({ 
         title: 'Khôi phục thành công!', 
-        description: `Đã tạo bản sao project "${backupData.project_name}" với ${oldToNewPath.size} file đính kèm.` 
+        description: `Đã tạo bản sao project "${backupData.project_name}" với ${oldToNewPath.size} file và ${messagesRestored} tin nhắn. Các task được đánh dấu là dữ liệu khôi phục, không có thông báo nào được gửi.` 
       });
 
       // Refresh groups list
@@ -615,7 +664,7 @@ export default function AdminBackupRestore() {
               Sao lưu & Khôi phục
               <span className="text-xs font-normal text-amber-600 bg-amber-500/10 px-2 py-1 rounded-full">Admin</span>
             </CardTitle>
-            <CardDescription>Xuất và nhập dữ liệu project với file đính kèm</CardDescription>
+            <CardDescription>Xuất và nhập dữ liệu project với file đính kèm và tin nhắn</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -664,7 +713,7 @@ export default function AdminBackupRestore() {
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            Xuất toàn bộ dữ liệu: thông tin project, thành viên, giai đoạn, task, điểm số, lịch sử nộp bài và file đính kèm.
+            Xuất toàn bộ dữ liệu: thông tin project, thành viên, giai đoạn, task, điểm số, lịch sử nộp bài, tin nhắn và file đính kèm.
           </p>
         </div>
 
@@ -694,9 +743,10 @@ export default function AdminBackupRestore() {
               <p className="font-medium mb-1">Lưu ý quan trọng:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Dữ liệu sẽ được khôi phục thành project mới với ID hoàn toàn mới</li>
-                <li>File đính kèm sẽ được tải lên lại với đường dẫn mới</li>
+                <li>File đính kèm và tin nhắn sẽ được tải lên lại với đường dẫn mới</li>
                 <li>Chỉ những thành viên đã tồn tại trong hệ thống mới được thêm vào project</li>
                 <li>Admin hiện tại sẽ trở thành Leader của project mới</li>
+                <li><strong>Task khôi phục sẽ KHÔNG gửi thông báo cho member</strong></li>
               </ul>
             </div>
           </div>
@@ -712,8 +762,13 @@ export default function AdminBackupRestore() {
                 <File className="w-3 h-3 inline" />
                 Đóng gói file đính kèm trực tiếp vào ZIP
               </li>
+              <li className="flex items-center gap-1">
+                <MessageSquare className="w-3 h-3 inline" />
+                Sao lưu và khôi phục tin nhắn
+              </li>
               <li>Tự động làm mới ID để tránh xung đột dữ liệu</li>
               <li>Liên kết thành viên dựa trên MSSV (không phụ thuộc vào user_id cũ)</li>
+              <li><strong>Task khôi phục được đánh dấu riêng, không gửi thông báo</strong></li>
             </ul>
           </div>
         </div>
