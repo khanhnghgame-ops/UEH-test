@@ -30,10 +30,12 @@ import {
   Trash2, 
   Clock,
   ArrowRight,
-  User
+  User,
+  Reply,
+  CornerDownRight
 } from 'lucide-react';
 
-interface Message {
+export interface Message {
   id: string;
   content: string;
   user_id: string;
@@ -42,6 +44,9 @@ interface Message {
   source_task_id?: string;
   source_task_title?: string;
   user_name?: string;
+  reply_to?: string;
+  reply_to_content?: string;
+  reply_to_user_name?: string;
 }
 
 interface MessageItemProps {
@@ -49,9 +54,10 @@ interface MessageItemProps {
   isOwn: boolean;
   onTaskClick?: (taskId: string) => void;
   onDelete?: (messageId: string) => void;
+  onReply?: (message: Message) => void;
 }
 
-export default function MessageItem({ message, isOwn, onTaskClick, onDelete }: MessageItemProps) {
+export default function MessageItem({ message, isOwn, onTaskClick, onDelete, onReply }: MessageItemProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -131,33 +137,80 @@ export default function MessageItem({ message, isOwn, onTaskClick, onDelete }: M
               </div>
             </div>
 
-            {/* Actions Menu (only for own messages) */}
-            {isOwn && onDelete && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity",
-                      "hover:bg-primary-foreground/20"
-                    )}
-                  >
-                    <MoreHorizontal className="w-3.5 h-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40 bg-popover">
-                  <DropdownMenuItem 
-                    className="text-destructive focus:text-destructive cursor-pointer"
-                    onClick={() => setShowDeleteDialog(true)}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Xóa tin nhắn
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            {/* Actions Menu */}
+            <div className="flex items-center gap-1">
+              {/* Reply Button */}
+              {onReply && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={cn(
+                    "h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity",
+                    isOwn ? "hover:bg-primary-foreground/20" : "hover:bg-muted"
+                  )}
+                  onClick={() => onReply(message)}
+                >
+                  <Reply className="w-3.5 h-3.5" />
+                </Button>
+              )}
+              
+              {/* Delete Menu (only for own messages) */}
+              {isOwn && onDelete && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className={cn(
+                        "h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity",
+                        "hover:bg-primary-foreground/20"
+                      )}
+                    >
+                      <MoreHorizontal className="w-3.5 h-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40 bg-popover">
+                    <DropdownMenuItem 
+                      className="text-destructive focus:text-destructive cursor-pointer"
+                      onClick={() => setShowDeleteDialog(true)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Xóa tin nhắn
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           </div>
+
+          {/* Reply Reference */}
+          {message.reply_to && message.reply_to_content && (
+            <div className={cn(
+              "px-3 py-2 border-b flex items-start gap-2",
+              isOwn 
+                ? "bg-primary-foreground/5 border-primary-foreground/10" 
+                : "bg-muted/50 border-border/50"
+            )}>
+              <CornerDownRight className={cn(
+                "w-3.5 h-3.5 mt-0.5 shrink-0",
+                isOwn ? "text-primary-foreground/50" : "text-muted-foreground"
+              )} />
+              <div className="min-w-0 flex-1">
+                <p className={cn(
+                  "text-[11px] font-medium mb-0.5",
+                  isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
+                )}>
+                  Trả lời {message.reply_to_user_name || 'tin nhắn'}
+                </p>
+                <p className={cn(
+                  "text-xs line-clamp-2",
+                  isOwn ? "text-primary-foreground/60" : "text-muted-foreground/80"
+                )}>
+                  {message.reply_to_content}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Source label for messages from tasks */}
           {message.source_type === 'from_task' && message.source_task_title && (

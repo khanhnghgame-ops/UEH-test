@@ -1,8 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, Download } from 'lucide-react';
 import type { GroupMember } from '@/types/database';
+import { exportMembersToExcel, getRoleDisplayName } from '@/lib/excelExport';
 
 interface PublicMemberListProps {
   members: GroupMember[];
@@ -18,13 +20,31 @@ export default function PublicMemberList({ members }: PublicMemberListProps) {
       .slice(0, 2);
   };
 
+  const handleExport = () => {
+    const exportData = members.map(m => ({
+      fullName: m.profiles?.full_name || '',
+      studentId: m.profiles?.student_id || '',
+      email: m.profiles?.email || '',
+      role: getRoleDisplayName(m.role)
+    }));
+    exportMembersToExcel(exportData, 'danh-sach-thanh-vien-project');
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Users className="w-5 h-5" />
-          Thành viên Project ({members.length})
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Thành viên Project ({members.length})
+          </CardTitle>
+          {members.length > 0 && (
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Xuất Excel</span>
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {members.length === 0 ? (

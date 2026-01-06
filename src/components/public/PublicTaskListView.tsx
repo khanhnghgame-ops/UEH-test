@@ -32,6 +32,35 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set(stages.map(s => s.id)));
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
 
+  // Sort stages by created_at to match internal numbering
+  const sortedStages = [...stages].sort((a, b) => 
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  // Get task code consistent with internal system
+  const getTaskCode = (task: Task, stageId: string | null) => {
+    if (!stageId) return null;
+    
+    // Find stage order (1-indexed, based on created order)
+    const stageOrder = sortedStages.findIndex(s => s.id === stageId) + 1;
+    if (stageOrder === 0) return null;
+    
+    // Find task order within stage (1-indexed, based on created order)
+    const stageTasks = tasks
+      .filter(t => t.stage_id === stageId)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const taskOrder = stageTasks.findIndex(t => t.id === task.id) + 1;
+    
+    return `${stageOrder}.${taskOrder}`;
+  };
+
+  // Get sorted tasks for a stage
+  const getSortedStageTasks = (stageId: string) => {
+    return tasks
+      .filter(t => t.stage_id === stageId)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  };
+
   const isOverdue = (deadline: string | null) => {
     if (!deadline) return false;
     const d = parseLocalDateTime(deadline);
@@ -331,8 +360,8 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
       </div>
 
       {/* Stages */}
-      {stages.map((stage, stageIndex) => {
-        const stageTasks = tasks.filter(t => t.stage_id === stage.id);
+      {sortedStages.map((stage, stageIndex) => {
+        const stageTasks = getSortedStageTasks(stage.id);
         const completedTasks = stageTasks.filter(t => t.status === 'DONE' || t.status === 'VERIFIED').length;
         const stageProgress = stageTasks.length > 0 ? Math.round((completedTasks / stageTasks.length) * 100) : 0;
         const isExpanded = expandedStages.has(stage.id);
@@ -375,21 +404,21 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
                     </p>
                   ) : viewMode === 'compact' ? (
                     <div className="space-y-2">
-                      {stageTasks.map((task, taskIndex) => (
+                      {stageTasks.map((task) => (
                         <CompactTaskItem 
                           key={task.id} 
                           task={task} 
-                          taskCode={`${stageIndex + 1}.${taskIndex + 1}`}
+                          taskCode={getTaskCode(task, task.stage_id) || `${stageIndex + 1}.?`}
                         />
                       ))}
                     </div>
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {stageTasks.map((task, taskIndex) => (
+                      {stageTasks.map((task) => (
                         <DetailedTaskItem 
                           key={task.id} 
                           task={task} 
-                          taskCode={`${stageIndex + 1}.${taskIndex + 1}`}
+                          taskCode={getTaskCode(task, task.stage_id) || `${stageIndex + 1}.?`}
                         />
                       ))}
                     </div>
@@ -408,27 +437,33 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
             <CardTitle className="text-base text-muted-foreground">Chưa phân giai đoạn</CardTitle>
           </CardHeader>
           <CardContent className="pt-0 pb-4 px-4">
-            {viewMode === 'compact' ? (
-              <div className="space-y-2">
-                {tasks.filter(t => !t.stage_id).map((task, index) => (
-                  <CompactTaskItem 
-                    key={task.id} 
-                    task={task} 
-                    taskCode={`?.${index + 1}`}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {tasks.filter(t => !t.stage_id).map((task, index) => (
-                  <DetailedTaskItem 
-                    key={task.id} 
-                    task={task} 
-                    taskCode={`?.${index + 1}`}
-                  />
-                ))}
-              </div>
-            )}
+            {(() => {
+              const unstagedTasks = tasks
+                .filter(t => !t.stage_id)
+                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+              
+              return viewMode === 'compact' ? (
+                <div className="space-y-2">
+                  {unstagedTasks.map((task, index) => (
+                    <CompactTaskItem 
+                      key={task.id} 
+                      task={task} 
+                      taskCode={`?.${index + 1}`}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {unstagedTasks.map((task, index) => (
+                    <DetailedTaskItem 
+                      key={task.id} 
+                      task={task} 
+                      taskCode={`?.${index + 1}`}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       )}
