@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,8 +12,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { 
-  Calendar, Clock, CheckCircle, Circle, AlertCircle, Layers, 
-  ChevronDown, ChevronRight, Link as LinkIcon, ExternalLink, Eye, File, FileText
+  Calendar, Clock, CheckCircle, Circle, AlertCircle, 
+  ChevronDown, ChevronRight, ExternalLink, Eye, File,
+  List, LayoutGrid, Layers
 } from 'lucide-react';
 import { formatDeadlineVN, parseLocalDateTime } from '@/lib/datetime';
 import type { Stage, Task, TaskAssignment } from '@/types/database';
@@ -23,10 +24,13 @@ interface PublicTaskListViewProps {
   tasks: Task[];
 }
 
+type ViewMode = 'compact' | 'detailed';
+
 export default function PublicTaskListView({ stages, tasks }: PublicTaskListViewProps) {
   const navigate = useNavigate();
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set(stages.map(s => s.id)));
+  const [viewMode, setViewMode] = useState<ViewMode>('compact');
 
   const isOverdue = (deadline: string | null) => {
     if (!deadline) return false;
@@ -38,20 +42,20 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
     const overdue = isOverdue(deadline) && status !== 'DONE' && status !== 'VERIFIED';
     
     if (overdue) {
-      return { label: 'Quá hạn', color: 'bg-destructive text-destructive-foreground', icon: AlertCircle };
+      return { label: 'Quá hạn', color: 'bg-destructive text-destructive-foreground', icon: AlertCircle, iconColor: 'text-destructive' };
     }
     
     switch (status) {
       case 'TODO':
-        return { label: 'Chưa làm', color: 'bg-muted text-muted-foreground', icon: Circle };
+        return { label: 'Chưa làm', color: 'bg-muted text-muted-foreground', icon: Circle, iconColor: 'text-muted-foreground' };
       case 'IN_PROGRESS':
-        return { label: 'Đang làm', color: 'bg-warning text-warning-foreground', icon: Clock };
+        return { label: 'Đang làm', color: 'bg-warning text-warning-foreground', icon: Clock, iconColor: 'text-warning' };
       case 'DONE':
-        return { label: 'Hoàn thành', color: 'bg-primary text-primary-foreground', icon: CheckCircle };
+        return { label: 'Hoàn thành', color: 'bg-primary text-primary-foreground', icon: CheckCircle, iconColor: 'text-primary' };
       case 'VERIFIED':
-        return { label: 'Đã duyệt', color: 'bg-success text-success-foreground', icon: CheckCircle };
+        return { label: 'Đã duyệt', color: 'bg-success text-success-foreground', icon: CheckCircle, iconColor: 'text-success' };
       default:
-        return { label: status, color: 'bg-muted', icon: Circle };
+        return { label: status, color: 'bg-muted', icon: Circle, iconColor: 'text-muted-foreground' };
     }
   };
 
@@ -106,7 +110,7 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
     }
   };
 
-  const renderSubmissionLinks = (submissionLink: string | null) => {
+  const renderSubmissionButton = (submissionLink: string | null) => {
     const items = parseSubmissionLinks(submissionLink);
     if (items.length === 0) return null;
 
@@ -118,27 +122,14 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-xs px-2 gap-1 text-primary"
+          className="h-8 text-xs gap-1.5 text-primary shrink-0"
           onClick={(e) => handleOpenItem(item, e)}
         >
-          {isFile ? (
-            <>
-              <Eye className="w-3 h-3" />
-              Xem file
-            </>
-          ) : (
-            <>
-              <ExternalLink className="w-3 h-3" />
-              Xem bài nộp
-            </>
-          )}
+          {isFile ? <Eye className="w-3.5 h-3.5" /> : <ExternalLink className="w-3.5 h-3.5" />}
+          <span className="hidden sm:inline">{isFile ? 'Xem file' : 'Xem bài'}</span>
         </Button>
       );
     }
-
-    // Multiple items
-    const hasFiles = items.some(i => i.type === 'file');
-    const label = hasFiles ? `Xem bài (${items.length})` : `Xem bài (${items.length} link)`;
 
     return (
       <DropdownMenu>
@@ -146,35 +137,25 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
           <Button
             variant="outline"
             size="sm"
-            className="h-7 text-xs px-2 gap-1 text-primary"
+            className="h-8 text-xs gap-1.5 text-primary shrink-0"
             onClick={(e) => e.stopPropagation()}
           >
-            <ExternalLink className="w-3 h-3" />
-            {label}
-            <ChevronDown className="w-3 h-3" />
+            <ExternalLink className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Xem bài</span>
+            <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{items.length}</Badge>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="bg-popover min-w-[200px]">
+        <DropdownMenuContent align="end" className="bg-popover min-w-[180px]">
           {items.map((item: any, i: number) => {
             const isFile = item.type === 'file';
             return (
               <DropdownMenuItem 
                 key={i}
                 onClick={(e) => handleOpenItem(item, e)}
-                className="text-xs cursor-pointer"
+                className="text-xs cursor-pointer gap-2"
               >
-                {isFile ? (
-                  <>
-                    <File className="w-3 h-3 mr-2" />
-                    <span className="truncate">{item.title || item.file_name || 'File'}</span>
-                    <Eye className="w-3 h-3 ml-auto opacity-50" />
-                  </>
-                ) : (
-                  <>
-                    <ExternalLink className="w-3 h-3 mr-2" />
-                    <span className="truncate">{item.title || `Link ${i + 1}`}</span>
-                  </>
-                )}
+                {isFile ? <File className="w-3.5 h-3.5" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                <span className="truncate flex-1">{item.title || item.file_name || `Bài ${i + 1}`}</span>
               </DropdownMenuItem>
             );
           })}
@@ -183,17 +164,173 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
     );
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  // Compact task item - Mobile first, minimal
+  const CompactTaskItem = ({ task, taskCode }: { task: Task; taskCode: string }) => {
+    const config = getStatusConfig(task.status, task.deadline);
+    const StatusIcon = config.icon;
+    const isTaskExpanded = expandedTasks.has(task.id);
+    const overdueStatus = isOverdue(task.deadline) && task.status !== 'DONE' && task.status !== 'VERIFIED';
+
+    return (
+      <Collapsible open={isTaskExpanded} onOpenChange={() => toggleTaskExpand(task.id)}>
+        <CollapsibleTrigger asChild>
+          <div
+            className={`w-full rounded-lg border p-3 cursor-pointer transition-colors hover:bg-muted/50 ${
+              overdueStatus ? 'border-destructive/40 bg-destructive/5' : 'bg-card'
+            }`}
+          >
+            {/* Row 1: Status icon + Title + Expand arrow */}
+            <div className="flex items-start gap-2 w-full">
+              <StatusIcon className={`w-4 h-4 mt-0.5 shrink-0 ${config.iconColor}`} />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm leading-tight line-clamp-2">{task.title}</p>
+              </div>
+              <ChevronRight className={`w-4 h-4 shrink-0 text-muted-foreground transition-transform ${isTaskExpanded ? 'rotate-90' : ''}`} />
+            </div>
+            
+            {/* Row 2: Task code + Deadline + Status badge - stacked vertically on small screens */}
+            <div className="flex flex-wrap items-center gap-1.5 mt-2 pl-6">
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono bg-primary/5 border-primary/20 text-primary">
+                {taskCode}
+              </Badge>
+              {task.deadline && (
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {formatDeadlineVN(task.deadline)}
+                </span>
+              )}
+              <Badge className={`${config.color} text-[10px] px-1.5 py-0 ml-auto`}>
+                {config.label}
+              </Badge>
+            </div>
+          </div>
+        </CollapsibleTrigger>
+        
+        <CollapsibleContent>
+          <div className="mt-2 ml-4 p-3 rounded-lg bg-muted/40 border-l-2 border-primary/30 space-y-3">
+            {task.description && (
+              <p className="text-sm text-muted-foreground">{task.description}</p>
+            )}
+            
+            {task.task_assignments && task.task_assignments.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Người phụ trách:</p>
+                <div className="flex flex-wrap gap-1">
+                  {task.task_assignments.map((a: TaskAssignment) => (
+                    <Badge key={a.id} variant="secondary" className="text-xs">
+                      {a.profiles?.full_name || 'Unknown'}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {task.submission_link && (
+              <div className="pt-1">
+                {renderSubmissionButton(task.submission_link)}
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
+  // Detailed task item - More info visible
+  const DetailedTaskItem = ({ task, taskCode }: { task: Task; taskCode: string }) => {
+    const config = getStatusConfig(task.status, task.deadline);
+    const StatusIcon = config.icon;
+    const overdueStatus = isOverdue(task.deadline) && task.status !== 'DONE' && task.status !== 'VERIFIED';
+
+    return (
+      <div className={`rounded-lg border p-4 space-y-3 ${
+        overdueStatus ? 'border-destructive/40 bg-destructive/5' : 'bg-card'
+      }`}>
+        {/* Header: Code + Status */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 font-mono bg-primary/5 border-primary/20 text-primary">
+            {taskCode}
+          </Badge>
+          <Badge className={`${config.color} text-[10px] px-2 py-0.5`}>
+            <StatusIcon className="w-3 h-3 mr-1" />
+            {config.label}
+          </Badge>
+        </div>
+        
+        {/* Title */}
+        <h4 className="font-medium text-sm leading-snug">{task.title}</h4>
+        
+        {/* Description */}
+        {task.description && (
+          <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+        )}
+        
+        {/* Meta: Deadline + Assignees */}
+        <div className="space-y-2">
+          {task.deadline && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{formatDeadlineVN(task.deadline)}</span>
+            </div>
+          )}
+          
+          {task.task_assignments && task.task_assignments.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {task.task_assignments.slice(0, 3).map((a: TaskAssignment) => (
+                <Badge key={a.id} variant="secondary" className="text-[10px] px-1.5">
+                  {a.profiles?.full_name || '?'}
+                </Badge>
+              ))}
+              {task.task_assignments.length > 3 && (
+                <Badge variant="outline" className="text-[10px] px-1.5">
+                  +{task.task_assignments.length - 3}
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Action */}
+        {task.submission_link && (
+          <div className="pt-1 border-t">
+            {renderSubmissionButton(task.submission_link)}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
     <div className="space-y-4">
+      {/* View Mode Toggle */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Layers className="w-5 h-5 text-primary" />
+          Danh sách Task
+        </h2>
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+          <Button
+            variant={viewMode === 'compact' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="h-8 px-3 text-xs gap-1.5"
+            onClick={() => setViewMode('compact')}
+          >
+            <List className="w-4 h-4" />
+            <span className="hidden sm:inline">Gọn</span>
+          </Button>
+          <Button
+            variant={viewMode === 'detailed' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="h-8 px-3 text-xs gap-1.5"
+            onClick={() => setViewMode('detailed')}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span className="hidden sm:inline">Chi tiết</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Stages */}
       {stages.map((stage, stageIndex) => {
         const stageTasks = tasks.filter(t => t.stage_id === stage.id);
         const completedTasks = stageTasks.filter(t => t.status === 'DONE' || t.status === 'VERIFIED').length;
@@ -201,173 +338,65 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
         const isExpanded = expandedStages.has(stage.id);
 
         return (
-          <Card key={stage.id}>
-            <CardHeader 
-              className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors rounded-t-lg"
-              onClick={() => toggleStageExpand(stage.id)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
-                    {stageIndex + 1}
+          <Card key={stage.id} className="overflow-hidden">
+            {/* Stage Header - Simplified, no overlap */}
+            <Collapsible open={isExpanded} onOpenChange={() => toggleStageExpand(stage.id)}>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="p-4 cursor-pointer hover:bg-muted/30 transition-colors">
+                  {/* Row 1: Expand arrow + Stage number + Stage name */}
+                  <div className="flex items-center gap-2">
+                    <ChevronRight className={`w-5 h-5 text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                    <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                      {stageIndex + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-base font-semibold truncate">{stage.name}</CardTitle>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg">{stage.name}</CardTitle>
-                    {stage.description && (
-                      <CardDescription className="text-sm">{stage.description}</CardDescription>
-                    )}
+                  
+                  {/* Row 2: Progress bar + Stats - always on new row for mobile */}
+                  <div className="flex items-center gap-3 mt-3 pl-9">
+                    <Progress value={stageProgress} className="h-2 flex-1" />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {completedTasks}/{stageTasks.length}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] px-1.5 shrink-0">
+                      {stageProgress}%
+                    </Badge>
                   </div>
-                </div>
-                <div className="text-right flex items-center gap-4">
-                  <div>
-                    <div className="text-sm font-medium">{completedTasks}/{stageTasks.length} task</div>
-                    <Progress value={stageProgress} className="h-1.5 w-24 mt-1" />
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    {stageProgress}%
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            
-            {isExpanded && (
-              <CardContent>
-                {stageTasks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Chưa có task trong giai đoạn này
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {stageTasks.map((task, taskIndex) => {
-                      const config = getStatusConfig(task.status, task.deadline);
-                      const StatusIcon = config.icon;
-                      const isTaskExpanded = expandedTasks.has(task.id);
-                      const taskCode = `${stageIndex + 1}.${taskIndex + 1}`;
-                      const overdueStatus = isOverdue(task.deadline) && task.status !== 'DONE' && task.status !== 'VERIFIED';
-                      
-                      return (
-                        <div key={task.id} className="space-y-2">
-                          <div
-                            className={`flex items-center gap-2 p-3 rounded-lg border transition-colors cursor-pointer hover:bg-muted/50 ${
-                              overdueStatus ? 'border-destructive/40 bg-destructive/5' : 'bg-card'
-                            }`}
-                            onClick={() => toggleTaskExpand(task.id)}
-                          >
-                            {/* Status indicator bar */}
-                            <div className={`w-1 h-10 rounded-full shrink-0 ${
-                              overdueStatus ? 'bg-destructive' : 
-                              task.status === 'VERIFIED' ? 'bg-success' :
-                              task.status === 'DONE' ? 'bg-primary' :
-                              task.status === 'IN_PROGRESS' ? 'bg-warning' : 'bg-muted-foreground/30'
-                            }`} />
-                            
-                            {/* Task code */}
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 font-mono font-semibold bg-primary/5 border-primary/20 text-primary shrink-0">
-                              {taskCode}
-                            </Badge>
-                            
-                            <StatusIcon className={`w-4 h-4 shrink-0 ${
-                              config.label === 'Quá hạn' ? 'text-destructive' :
-                              config.label === 'Hoàn thành' || config.label === 'Đã duyệt' ? 'text-success' :
-                              config.label === 'Đang làm' ? 'text-warning' : 'text-muted-foreground'
-                            }`} />
-                            
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm truncate">{task.title}</div>
-                              {task.deadline && (
-                                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                  <Calendar className="w-3 h-3" />
-                                  {formatDeadlineVN(task.deadline)}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Submission link button */}
-                            {task.submission_link && renderSubmissionLinks(task.submission_link)}
-
-                            <Badge className={`${config.color} text-[10px] px-1.5 py-0.5 shrink-0`}>
-                              {config.label}
-                            </Badge>
-
-                            {/* Assignees */}
-                            {task.task_assignments && task.task_assignments.length > 0 && (
-                              <div className="hidden md:flex -space-x-1.5">
-                                {task.task_assignments.slice(0, 2).map((assignment: TaskAssignment) => (
-                                  <Avatar key={assignment.id} className="w-6 h-6 border-2 border-background">
-                                    <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                                      {assignment.profiles ? getInitials(assignment.profiles.full_name) : '?'}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                ))}
-                                {task.task_assignments.length > 2 && (
-                                  <span className="text-[10px] text-muted-foreground ml-1">
-                                    +{task.task_assignments.length - 2}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${
-                              isTaskExpanded ? 'rotate-90' : ''
-                            }`} />
-                          </div>
-
-                          {/* Expanded Task Detail */}
-                          {isTaskExpanded && (
-                            <Card className="ml-6 border-l-4 border-l-primary/30 bg-muted/30">
-                              <CardContent className="p-4 space-y-3">
-                                {task.description && (
-                                  <div>
-                                    <span className="text-sm font-medium">Mô tả:</span>
-                                    <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
-                                  </div>
-                                )}
-                                
-                                {task.deadline && (
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                                    <span className="text-sm">
-                                      Deadline: {formatDeadlineVN(task.deadline)}
-                                    </span>
-                                  </div>
-                                )}
-                                
-                                {task.submission_link && (
-                                  <div className="flex items-center gap-2">
-                                    <LinkIcon className="w-4 h-4 text-muted-foreground" />
-                                    <span className="text-sm">Bài nộp:</span>
-                                    {renderSubmissionLinks(task.submission_link)}
-                                  </div>
-                                )}
-
-                                {task.task_assignments && task.task_assignments.length > 0 && (
-                                  <div>
-                                    <div className="text-sm font-medium mb-2">Người phụ trách:</div>
-                                    <div className="flex flex-wrap gap-2">
-                                      {task.task_assignments.map((assignment: TaskAssignment) => (
-                                        <Badge key={assignment.id} variant="secondary" className="gap-1.5">
-                                          <Avatar className="w-4 h-4">
-                                            <AvatarFallback className="text-[10px]">
-                                              {assignment.profiles?.full_name?.charAt(0) || '?'}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                          {assignment.profiles?.full_name || 'Unknown'}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            )}
+                </CardHeader>
+              </CollapsibleTrigger>
+              
+              <CollapsibleContent>
+                <CardContent className="pt-0 pb-4 px-4">
+                  {stageTasks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6 bg-muted/30 rounded-lg">
+                      Chưa có task trong giai đoạn này
+                    </p>
+                  ) : viewMode === 'compact' ? (
+                    <div className="space-y-2">
+                      {stageTasks.map((task, taskIndex) => (
+                        <CompactTaskItem 
+                          key={task.id} 
+                          task={task} 
+                          taskCode={`${stageIndex + 1}.${taskIndex + 1}`}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {stageTasks.map((task, taskIndex) => (
+                        <DetailedTaskItem 
+                          key={task.id} 
+                          task={task} 
+                          taskCode={`${stageIndex + 1}.${taskIndex + 1}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </CollapsibleContent>
+            </Collapsible>
           </Card>
         );
       })}
@@ -375,82 +404,40 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
       {/* Unstaged Tasks */}
       {tasks.filter(t => !t.stage_id).length > 0 && (
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg text-muted-foreground">Chưa phân giai đoạn</CardTitle>
+          <CardHeader className="p-4">
+            <CardTitle className="text-base text-muted-foreground">Chưa phân giai đoạn</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {tasks.filter(t => !t.stage_id).map(task => {
-                const config = getStatusConfig(task.status, task.deadline);
-                const StatusIcon = config.icon;
-                const isTaskExpanded = expandedTasks.has(task.id);
-                
-                return (
-                  <div key={task.id} className="space-y-2">
-                    <div
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => toggleTaskExpand(task.id)}
-                    >
-                      <StatusIcon className={`w-4 h-4 shrink-0 ${
-                        config.label === 'Quá hạn' ? 'text-destructive' :
-                        config.label === 'Hoàn thành' || config.label === 'Đã duyệt' ? 'text-success' :
-                        config.label === 'Đang làm' ? 'text-warning' : 'text-muted-foreground'
-                      }`} />
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{task.title}</div>
-                        {task.deadline && (
-                          <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <Calendar className="w-3 h-3" />
-                            {formatDeadlineVN(task.deadline)}
-                          </div>
-                        )}
-                      </div>
-
-                      {task.submission_link && renderSubmissionLinks(task.submission_link)}
-                      <Badge className={config.color}>{config.label}</Badge>
-                      <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${
-                        isTaskExpanded ? 'rotate-90' : ''
-                      }`} />
-                    </div>
-
-                    {isTaskExpanded && (
-                      <Card className="ml-4 border-l-4 border-l-muted bg-muted/30">
-                        <CardContent className="p-4 space-y-3">
-                          {task.description && (
-                            <p className="text-sm text-muted-foreground">{task.description}</p>
-                          )}
-                          {task.deadline && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Calendar className="w-4 h-4" />
-                              Deadline: {formatDeadlineVN(task.deadline)}
-                            </div>
-                          )}
-                          {task.submission_link && (
-                            <div className="flex items-center gap-2">
-                              <LinkIcon className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-sm">Bài nộp:</span>
-                              {renderSubmissionLinks(task.submission_link)}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          <CardContent className="pt-0 pb-4 px-4">
+            {viewMode === 'compact' ? (
+              <div className="space-y-2">
+                {tasks.filter(t => !t.stage_id).map((task, index) => (
+                  <CompactTaskItem 
+                    key={task.id} 
+                    task={task} 
+                    taskCode={`?.${index + 1}`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {tasks.filter(t => !t.stage_id).map((task, index) => (
+                  <DetailedTaskItem 
+                    key={task.id} 
+                    task={task} 
+                    taskCode={`?.${index + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Empty state */}
+      {/* Empty State */}
       {stages.length === 0 && tasks.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Layers className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Chưa có giai đoạn hoặc task nào</p>
-          </CardContent>
+        <Card className="p-8 text-center">
+          <Layers className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+          <p className="text-muted-foreground">Chưa có task hoặc giai đoạn nào</p>
         </Card>
       )}
     </div>
