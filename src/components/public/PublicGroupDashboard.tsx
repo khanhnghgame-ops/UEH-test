@@ -41,49 +41,48 @@ export default function PublicGroupDashboard({ group, tasks, stages, members }: 
   const progressPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Stats Grid - Consolidated with Progress */}
+    <div className="space-y-4 sm:space-y-6">
+      {/* Stats Grid - Mobile optimized */}
       <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+        <CardHeader className="p-4 pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" />
               Tiến độ Project
             </CardTitle>
-            <div className="text-right">
-              <span className="text-3xl font-bold text-primary">{progressPercent}%</span>
-              <p className="text-xs text-muted-foreground">hoàn thành</p>
+            <div className="flex items-center gap-2">
+              <Progress value={progressPercent} className="h-2 w-24 sm:w-32" />
+              <span className="text-xl sm:text-2xl font-bold text-primary">{progressPercent}%</span>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Progress value={progressPercent} className="h-3" />
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-muted/50 text-center border">
-              <div className="text-2xl font-bold">{totalTasks}</div>
-              <div className="text-sm text-muted-foreground">Tổng task</div>
+        <CardContent className="p-4 pt-0">
+          {/* 2x2 grid on mobile, 4 cols on desktop */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            <div className="p-3 rounded-lg bg-muted/50 border">
+              <div className="text-xl sm:text-2xl font-bold text-center">{totalTasks}</div>
+              <div className="text-[11px] sm:text-xs text-muted-foreground text-center">Tổng task</div>
             </div>
-            <div className="p-4 rounded-xl bg-success/10 text-center border border-success/20">
-              <div className="flex items-center justify-center gap-1.5">
-                <CheckCircle className="w-5 h-5 text-success" />
-                <span className="text-2xl font-bold text-success">{doneTasks}</span>
+            <div className="p-3 rounded-lg bg-success/10 border border-success/20">
+              <div className="flex items-center justify-center gap-1">
+                <CheckCircle className="w-4 h-4 text-success" />
+                <span className="text-xl sm:text-2xl font-bold text-success">{doneTasks}</span>
               </div>
-              <div className="text-sm text-muted-foreground">Hoàn thành</div>
+              <div className="text-[11px] sm:text-xs text-muted-foreground text-center">Hoàn thành</div>
             </div>
-            <div className="p-4 rounded-xl bg-warning/10 text-center border border-warning/20">
-              <div className="flex items-center justify-center gap-1.5">
-                <Clock className="w-5 h-5 text-warning" />
-                <span className="text-2xl font-bold text-warning">{inProgressTasks}</span>
+            <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
+              <div className="flex items-center justify-center gap-1">
+                <Clock className="w-4 h-4 text-warning" />
+                <span className="text-xl sm:text-2xl font-bold text-warning">{inProgressTasks}</span>
               </div>
-              <div className="text-sm text-muted-foreground">Đang làm</div>
+              <div className="text-[11px] sm:text-xs text-muted-foreground text-center">Đang làm</div>
             </div>
-            <div className="p-4 rounded-xl bg-destructive/10 text-center border border-destructive/20">
-              <div className="flex items-center justify-center gap-1.5">
-                <AlertCircle className="w-5 h-5 text-destructive" />
-                <span className="text-2xl font-bold text-destructive">{overdueTasks}</span>
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <div className="flex items-center justify-center gap-1">
+                <AlertCircle className="w-4 h-4 text-destructive" />
+                <span className="text-xl sm:text-2xl font-bold text-destructive">{overdueTasks}</span>
               </div>
-              <div className="text-sm text-muted-foreground">Quá hạn</div>
+              <div className="text-[11px] sm:text-xs text-muted-foreground text-center">Quá hạn</div>
             </div>
           </div>
         </CardContent>
@@ -177,40 +176,40 @@ export default function PublicGroupDashboard({ group, tasks, stages, members }: 
         </Card>
       </div>
 
-      {/* Quick Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-primary/5 to-transparent border-primary/20">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10">
-              <Layers className="w-5 h-5 text-primary" />
+      {/* Quick Stats Row - Simplified for mobile */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <Card className="border-primary/20">
+          <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
-            <div>
-              <div className="text-2xl font-bold">{stages.length}</div>
-              <div className="text-sm text-muted-foreground">Giai đoạn</div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-success/5 to-transparent border-success/20">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-success/10">
-              <Users className="w-5 h-5 text-success" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{members.length}</div>
-              <div className="text-sm text-muted-foreground">Thành viên</div>
+            <div className="text-center sm:text-left">
+              <div className="text-lg sm:text-2xl font-bold">{stages.length}</div>
+              <div className="text-[10px] sm:text-sm text-muted-foreground">Giai đoạn</div>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-gradient-to-br from-muted/50 to-transparent col-span-2 md:col-span-1">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-muted">
-              <Target className="w-5 h-5 text-muted-foreground" />
+        <Card className="border-success/20">
+          <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+            <div className="p-2 rounded-lg bg-success/10">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
             </div>
-            <div>
-              <div className="text-2xl font-bold">{todoTasks}</div>
-              <div className="text-sm text-muted-foreground">Chờ thực hiện</div>
+            <div className="text-center sm:text-left">
+              <div className="text-lg sm:text-2xl font-bold">{members.length}</div>
+              <div className="text-[10px] sm:text-sm text-muted-foreground">Thành viên</div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+            <div className="p-2 rounded-lg bg-muted">
+              <Target className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+            </div>
+            <div className="text-center sm:text-left">
+              <div className="text-lg sm:text-2xl font-bold">{todoTasks}</div>
+              <div className="text-[10px] sm:text-sm text-muted-foreground">Chờ làm</div>
             </div>
           </CardContent>
         </Card>
