@@ -140,37 +140,45 @@ export default function FilePreview() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header - Mobile optimized */}
       <header className="bg-primary text-primary-foreground shadow-lg sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="px-3 md:px-4 py-2 md:py-3">
+          <div className="flex items-center justify-between gap-2">
+            {/* Left: Back button + Logo */}
+            <div className="flex items-center gap-2 shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleGoBack}
-                className="text-primary-foreground hover:bg-primary-foreground/10"
+                className="text-primary-foreground hover:bg-primary-foreground/10 h-8 px-2 md:px-3"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Quay lại
+                <ArrowLeft className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Quay lại</span>
               </Button>
-              <div className="flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-2">
                 <img
                   src={uehLogo}
                   alt="Logo"
-                  className="h-8 w-auto drop-shadow-md"
+                  className="h-7 md:h-8 w-auto drop-shadow-md"
                   loading="lazy"
                 />
-                <span className="font-semibold hidden sm:block">Xem trước file</span>
+                <span className="font-semibold hidden lg:block">Xem trước file</span>
               </div>
             </div>
+            
+            {/* Center: File name on mobile */}
+            <div className="flex-1 min-w-0 mx-2">
+              <p className="text-sm font-medium truncate text-center sm:hidden">{fileName}</p>
+            </div>
+            
+            {/* Right: Download button */}
             <Button
               variant="secondary"
               size="sm"
               onClick={handleDownload}
               disabled={!fileUrl}
-              className="gap-2"
+              className="gap-1.5 h-8 px-2 md:px-3 shrink-0"
             >
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline">Tải xuống</span>
@@ -180,71 +188,79 @@ export default function FilePreview() {
       </header>
 
       {/* Content */}
-      <main className="container mx-auto px-4 py-6">
+      <main className="flex-1 px-2 md:px-4 py-3 md:py-6">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Đang tải file...</p>
+            <Loader2 className="w-10 md:w-12 h-10 md:h-12 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground text-sm md:text-base">Đang tải file...</p>
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <AlertCircle className="w-16 h-16 text-destructive mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Không thể tải file</h2>
-            <p className="text-muted-foreground">{error}</p>
+          <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+            <AlertCircle className="w-12 md:w-16 h-12 md:h-16 text-destructive mb-4" />
+            <h2 className="text-lg md:text-xl font-semibold mb-2 text-center">Không thể tải file</h2>
+            <p className="text-muted-foreground text-sm md:text-base text-center">{error}</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* File Info Card */}
-            <Card className="p-4">
-              <div className="flex items-center gap-4">
+          <div className="space-y-3 md:space-y-4">
+            {/* File Info Card - Responsive */}
+            <Card className="p-3 md:p-4">
+              <div className="flex items-center gap-3 md:gap-4">
                 {getFileIcon(fileName, 'sm')}
                 <div className="flex-1 min-w-0">
-                  <h1 className="font-semibold truncate">{fileName}</h1>
-                  <p className="text-sm text-muted-foreground">
+                  <h1 className="font-semibold text-sm md:text-base truncate">{fileName}</h1>
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     {formatFileSize(fileSize)}
                   </p>
                 </div>
-                <Button onClick={handleDownload} className="gap-2 shrink-0">
+                <Button onClick={handleDownload} size="sm" className="gap-1.5 shrink-0 h-8 md:h-9">
                   <Download className="w-4 h-4" />
-                  Tải xuống
+                  <span className="hidden sm:inline">Tải xuống</span>
                 </Button>
               </div>
             </Card>
 
-            {/* Preview Area */}
+            {/* Preview Area - Mobile optimized with full scroll */}
             <Card className="overflow-hidden">
               {canPreview ? (
                 <div className="bg-muted/30">
                   {isPreviewableImage(fileName) ? (
-                    <div className="flex items-center justify-center p-4 min-h-[60vh]">
+                    <div className="flex items-center justify-center p-2 md:p-4 min-h-[50vh] md:min-h-[60vh]">
                       <img
                         src={fileUrl!}
                         alt={fileName}
-                        className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                        className="max-w-full max-h-[60vh] md:max-h-[70vh] object-contain rounded-lg shadow-lg"
                         onError={() => setError('Không thể hiển thị ảnh')}
                       />
                     </div>
                   ) : isPDF(fileName) ? (
-                    <iframe
-                      src={`${fileUrl}#toolbar=0`}
-                      className="w-full h-[80vh] border-0"
-                      title={fileName}
-                    />
+                    // PDF with better mobile support - taller viewport, scrollable
+                    <div className="w-full" style={{ height: 'calc(100vh - 140px)', minHeight: '400px' }}>
+                      <iframe
+                        src={`${fileUrl}#toolbar=0&navpanes=0&scrollbar=1`}
+                        className="w-full h-full border-0"
+                        title={fileName}
+                        style={{ minHeight: '100%' }}
+                      />
+                    </div>
                   ) : isOfficeDoc(fileName) && fileUrl ? (
-                    <iframe
-                      src={getOfficeViewerUrl(fileUrl)}
-                      className="w-full h-[80vh] border-0"
-                      title={fileName}
-                    />
+                    // Office docs with better mobile support
+                    <div className="w-full" style={{ height: 'calc(100vh - 140px)', minHeight: '400px' }}>
+                      <iframe
+                        src={getOfficeViewerUrl(fileUrl)}
+                        className="w-full h-full border-0"
+                        title={fileName}
+                        style={{ minHeight: '100%' }}
+                      />
+                    </div>
                   ) : null}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center p-12 min-h-[40vh] text-center">
+                <div className="flex flex-col items-center justify-center p-6 md:p-12 min-h-[40vh] text-center">
                   {getFileIcon(fileName)}
-                  <h2 className="text-xl font-semibold mt-6 mb-2">
+                  <h2 className="text-lg md:text-xl font-semibold mt-4 md:mt-6 mb-2">
                     Không thể xem trước file này
                   </h2>
-                  <p className="text-muted-foreground mb-6 max-w-md">
+                  <p className="text-muted-foreground mb-4 md:mb-6 max-w-md text-sm md:text-base px-4">
                     Định dạng file này không hỗ trợ xem trước trực tiếp. 
                     Vui lòng tải file về để xem nội dung.
                   </p>
