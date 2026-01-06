@@ -79,16 +79,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Fixed Top Navigation Bar */}
-      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-primary shadow-lg">
-        <div className="h-full max-w-[1600px] mx-auto px-4 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 z-50 h-14 md:h-16 bg-primary shadow-lg">
+        <div className="h-full max-w-[1600px] mx-auto px-2 md:px-4 flex items-center justify-between">
           {/* Left: Logo & Brand */}
-          <Link to="/dashboard" className="flex items-center gap-3 group">
-            <img src={uehLogo} alt="UEH Logo" className="h-10 w-auto drop-shadow-md group-hover:scale-105 transition-transform" />
-            <span className="font-bold text-lg text-primary-foreground hidden sm:block">TaskFlow</span>
+          <Link to="/dashboard" className="flex items-center gap-2 md:gap-3 group">
+            <img src={uehLogo} alt="UEH Logo" className="h-8 md:h-10 w-auto drop-shadow-md group-hover:scale-105 transition-transform" />
+            <span className="font-bold text-base md:text-lg text-primary-foreground hidden sm:block">TaskFlow</span>
           </Link>
 
-          {/* Center: Navigation Menu */}
-          <nav className="hidden md:flex items-center gap-1">
+          {/* Center: Navigation Menu - Hidden on mobile */}
+          <nav className="hidden lg:flex items-center gap-1">
             {navigation
               .filter(item => !item.requiresAdmin || isAdmin)
               .map((item) => {
@@ -98,7 +98,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all text-sm ${
                       isActive 
                         ? 'bg-white/20 text-white' 
                         : 'text-white/80 hover:bg-white/10 hover:text-white'
@@ -112,7 +112,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </nav>
 
           {/* Right: Notification Bell & User Info */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2">
             <NotificationBell />
             
             <DropdownMenu>
@@ -162,7 +162,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="md:hidden text-white hover:bg-white/10"
+              className="lg:hidden text-white hover:bg-white/10 h-9 w-9"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -172,8 +172,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Mobile Navigation Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-16 left-0 right-0 bg-primary border-t border-white/10 shadow-lg">
-            <nav className="p-4 space-y-2">
+          <div className="lg:hidden absolute top-14 md:top-16 left-0 right-0 bg-primary border-t border-white/10 shadow-lg max-h-[calc(100vh-3.5rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto">
+            <nav className="p-3 md:p-4 space-y-1 md:space-y-2">
               {navigation
                 .filter(item => !item.requiresAdmin || isAdmin)
                 .map((item) => {
@@ -183,10 +183,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       key={item.name}
                       to={item.href}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
+                      className={`flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-lg font-medium transition-all text-sm md:text-base ${
                         isActive 
                           ? 'bg-white/20 text-white' 
-                          : 'text-white/80 hover:bg-white/10 hover:text-white'
+                          : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/20'
                       }`}
                     >
                       <item.icon className="w-5 h-5" />
@@ -200,8 +200,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </header>
 
       {/* Main Content - with top padding for fixed header */}
-      <main className="flex-1 pt-16">
-        <div className="max-w-[1600px] mx-auto p-6">
+      <main className="flex-1 pt-14 md:pt-16">
+        <div className="max-w-[1600px] mx-auto p-3 md:p-6">
           {children}
         </div>
       </main>
