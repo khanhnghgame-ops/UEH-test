@@ -48,7 +48,9 @@ import {
   Search,
   Shield,
   UserCheck,
+  Download,
 } from 'lucide-react';
+import { exportMembersToExcel, getRoleDisplayName } from '@/lib/excelExport';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -383,6 +385,23 @@ export default function MemberManagementCard({
             </CardTitle>
             {isLeaderInGroup && (
               <div className="flex items-center gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={() => {
+                    const exportData = members.map(m => ({
+                      fullName: m.profiles?.full_name || '',
+                      studentId: m.profiles?.student_id || '',
+                      email: m.profiles?.email || '',
+                      role: getRoleDisplayName(m.role)
+                    }));
+                    exportMembersToExcel(exportData, `danh-sach-thanh-vien-project`);
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Xuất Excel</span>
+                </Button>
                 <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" variant="outline" className="gap-2">
                   <UserPlus className="w-4 h-4" />
                   Tạo mới

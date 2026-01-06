@@ -455,6 +455,7 @@ export type Database = {
           group_id: string
           id: string
           is_read_by: Json | null
+          reply_to: string | null
           source_comment_id: string | null
           source_task_id: string | null
           source_type: string
@@ -467,6 +468,7 @@ export type Database = {
           group_id: string
           id?: string
           is_read_by?: Json | null
+          reply_to?: string | null
           source_comment_id?: string | null
           source_task_id?: string | null
           source_type?: string
@@ -479,6 +481,7 @@ export type Database = {
           group_id?: string
           id?: string
           is_read_by?: Json | null
+          reply_to?: string | null
           source_comment_id?: string | null
           source_task_id?: string | null
           source_type?: string
@@ -491,6 +494,13 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_messages_reply_to_fkey"
+            columns: ["reply_to"]
+            isOneToOne: false
+            referencedRelation: "project_messages"
             referencedColumns: ["id"]
           },
           {

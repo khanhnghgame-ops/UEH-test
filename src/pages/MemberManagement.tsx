@@ -34,9 +34,11 @@ import {
   MoreVertical,
   Shield,
   UserCheck,
-  Info
+  Info,
+  Download
 } from 'lucide-react';
 import type { Profile } from '@/types/database';
+import { exportMembersToExcel, getRoleDisplayName } from '@/lib/excelExport';
 
 export default function MemberManagement() {
   const navigate = useNavigate();
@@ -410,13 +412,31 @@ export default function MemberManagement() {
             </p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="font-semibold gap-2">
-                <UserPlus className="w-4 h-4" />
-                Tạo tài khoản mới
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              className="font-semibold gap-2"
+              onClick={() => {
+                const exportData = filteredMembers.map(m => ({
+                  fullName: m.full_name,
+                  studentId: m.student_id,
+                  email: m.email,
+                  role: isMemberAdmin(m.id) ? 'Admin' : (memberRoles[m.id]?.includes('leader') ? 'Leader' : 'Thành viên')
+                }));
+                exportMembersToExcel(exportData, 'danh-sach-thanh-vien-he-thong');
+              }}
+            >
+              <Download className="w-4 h-4" />
+              Xuất Excel
+            </Button>
+            
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="font-semibold gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  Tạo tài khoản mới
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -486,7 +506,8 @@ export default function MemberManagement() {
                 </DialogFooter>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         {/* Info Card */}

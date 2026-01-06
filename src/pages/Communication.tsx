@@ -54,6 +54,9 @@ interface Message {
   user_name?: string;
   user_avatar?: string;
   mentions?: ParsedMention[];
+  reply_to?: string;
+  reply_to_content?: string;
+  reply_to_user_name?: string;
 }
 
 interface MentionItem {
@@ -83,6 +86,7 @@ export default function Communication() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [messageInput, setMessageInput] = useState('');
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
   // Project members for mentions
   const [projectMembers, setProjectMembers] = useState<{ id: string; name: string }[]>([]);
@@ -229,14 +233,31 @@ export default function Communication() {
         }]));
       }
 
+      // Build message map for reply lookups
+      const messageMap = new Map((data || []).map(m => [m.id, m]));
+
       const messagesWithParsed = (data || []).map((msg: any) => {
         const taskInfo = msg.source_task_id ? taskMap.get(msg.source_task_id) : null;
+        
+        // Get reply info if exists
+        let replyToContent: string | undefined;
+        let replyToUserName: string | undefined;
+        if (msg.reply_to) {
+          const parentMsg = messageMap.get(msg.reply_to);
+          if (parentMsg) {
+            replyToContent = parentMsg.content?.substring(0, 100) + (parentMsg.content?.length > 100 ? '...' : '');
+            replyToUserName = profileMap.get(parentMsg.user_id) || 'Unknown';
+          }
+        }
+        
         return {
           ...msg,
           user_name: profileMap.get(msg.user_id) || 'Unknown',
           source_task_title: taskInfo?.title,
           source_task_stage: taskInfo?.stageOrder,
-          mentions: parseMessageContent(msg.content).mentions
+          mentions: parseMessageContent(msg.content).mentions,
+          reply_to_content: replyToContent,
+          reply_to_user_name: replyToUserName
         };
       });
 
@@ -440,14 +461,15 @@ export default function Communication() {
       // Parse mentions from content
       const parsed = parseMessageContent(content);
 
-      // Insert message
+      // Insert message with reply_to if replying
       const { data: newMessage, error: msgError } = await supabase
         .from('project_messages')
         .insert({
           group_id: selectedProject.id,
           user_id: user.id,
           content,
-          source_type: 'direct'
+          source_type: 'direct',
+          reply_to: replyingTo?.id || null
         })
         .select()
         .single();
@@ -501,6 +523,7 @@ export default function Communication() {
       }
 
       setMessageInput('');
+      setReplyingTo(null); // Clear reply state
       fetchMessages();
       fetchProjects(); // Update unread counts
     } catch (error) {
@@ -880,6 +903,7 @@ export default function Communication() {
                         isOwn={msg.user_id === user?.id}
                         onTaskClick={handleNavigateToTask}
                         onDelete={handleDeleteMessage}
+                        onReply={(message) => setReplyingTo(message)}
                       />
                     ))}
                   </div>
@@ -899,13 +923,35 @@ export default function Communication() {
 
               {/* Message Input */}
               <div className="p-4 border-t bg-muted/30">
+                {/* Reply Preview */}
+                {replyingTo && (
+                  <div className="mb-3 p-3 bg-muted/50 rounded-lg border flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">
+                        Trả lời {replyingTo.user_name}
+                      </p>
+                      <p className="text-sm line-clamp-2 text-foreground/80">
+                        {replyingTo.content}
+                      </p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 shrink-0"
+                      onClick={() => setReplyingTo(null)}
+                    >
+                      <span className="sr-only">Hủy trả lời</span>
+                      ×
+                    </Button>
+                  </div>
+                )}
                 <MentionInput
                   value={messageInput}
                   onChange={setMessageInput}
                   onSend={handleSendMessage}
                   members={projectMembers}
                   tasks={projectTasks}
-                  placeholder="Nhập tin nhắn... Dùng @ để tag, # để tham chiếu task"
+                  placeholder={replyingTo ? `Trả lời ${replyingTo.user_name}...` : "Nhập tin nhắn... Dùng @ để tag, # để tham chiếu task"}
                   isSending={isSending}
                 />
               </div>
