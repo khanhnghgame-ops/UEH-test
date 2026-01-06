@@ -198,12 +198,12 @@ function TaskRow({
 
   return (
     <div 
-      className={`group flex items-center gap-2 p-3 bg-card rounded-lg border transition-all hover:shadow-sm hover:border-primary/30 ${
+      className={`group flex items-center gap-1.5 md:gap-2 p-2 md:p-3 bg-card rounded-lg border transition-all hover:shadow-sm hover:border-primary/30 active:bg-muted/50 ${
         taskIsOverdue ? 'border-destructive/40 bg-destructive/5' : 'border-border'
       }`}
     >
       {/* Status indicator */}
-      <div className={`w-1 h-10 rounded-full shrink-0 ${
+      <div className={`w-1 h-8 md:h-10 rounded-full shrink-0 ${
         taskIsOverdue ? 'bg-destructive' : 
         task.status === 'VERIFIED' ? 'bg-success' :
         task.status === 'DONE' ? 'bg-primary' :
@@ -212,7 +212,7 @@ function TaskRow({
       
       {/* Task Code */}
       {taskCode && (
-        <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0.5 font-mono font-semibold bg-primary/5 border-primary/20 text-primary">
+        <Badge variant="outline" className="hidden sm:flex shrink-0 text-[9px] md:text-[10px] px-1 md:px-1.5 py-0.5 font-mono font-semibold bg-primary/5 border-primary/20 text-primary">
           {taskCode}
         </Badge>
       )}
@@ -222,11 +222,11 @@ function TaskRow({
         className={`flex-1 min-w-0 ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
         onClick={() => isLeaderInGroup && onEditTask(task)}
       >
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 md:gap-1.5">
           {taskIsOverdue && (
-            <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+            <AlertTriangle className="w-3 h-3 md:w-3.5 md:h-3.5 text-destructive shrink-0" />
           )}
-          <h4 className={`font-medium text-sm truncate ${
+          <h4 className={`font-medium text-xs md:text-sm truncate ${
             isLeaderInGroup ? 'group-hover:text-primary transition-colors' : ''
           }`}>
             {task.title}
@@ -234,7 +234,7 @@ function TaskRow({
         </div>
         {/* Main assignee name */}
         {mainAssignee && (
-          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+          <p className="text-[10px] md:text-[11px] text-muted-foreground truncate mt-0.5">
             → {mainAssignee}
           </p>
         )}
@@ -242,12 +242,12 @@ function TaskRow({
       
       {/* Deadline */}
       {task.deadline && (
-        <div className={`hidden sm:flex items-center gap-1 text-xs px-2 py-1 rounded-md shrink-0 ${
+        <div className={`hidden sm:flex items-center gap-1 text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-md shrink-0 ${
           taskIsOverdue 
             ? 'bg-destructive/10 text-destructive' 
             : 'bg-muted text-muted-foreground'
         }`}>
-          <Calendar className="w-3 h-3" />
+          <Calendar className="w-2.5 h-2.5 md:w-3 md:h-3" />
           {formatDate(task.deadline)}
         </div>
       )}
@@ -285,13 +285,13 @@ function TaskRow({
       
       {/* Status badge */}
       <Badge 
-        className={`${getStatusColor(task.status, taskIsOverdue)} text-[10px] px-1.5 py-0.5 border shrink-0`}
+        className={`${getStatusColor(task.status, taskIsOverdue)} text-[9px] md:text-[10px] px-1 md:px-1.5 py-0.5 border shrink-0`}
       >
         {getStatusLabel(task.status, taskIsOverdue)}
       </Badge>
       
       {/* Actions */}
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
         {/* History popup - compact */}
         <SubmissionHistoryPopup 
           taskId={task.id}
@@ -300,21 +300,23 @@ function TaskRow({
           currentSubmissionLink={task.submission_link}
         />
 
-        {/* Submission Link Button - Using shared component */}
-        <SubmissionButton 
-          submissionLink={task.submission_link} 
-          variant="compact"
-          onStopPropagation={true}
-          taskId={task.id}
-          groupId={groupId}
-        />
+        {/* Submission Link Button - Using shared component - hidden on mobile */}
+        <div className="hidden sm:block">
+          <SubmissionButton 
+            submissionLink={task.submission_link} 
+            variant="compact"
+            onStopPropagation={true}
+            taskId={task.id}
+            groupId={groupId}
+          />
+        </div>
         
         {/* Submit Button */}
         {(isAssignee || isLeaderInGroup) && (
           <Button
             variant={task.submission_link ? "outline" : "default"}
             size="sm"
-            className="h-7 text-xs px-2 gap-1"
+            className="h-6 md:h-7 text-[10px] md:text-xs px-1.5 md:px-2 gap-0.5 md:gap-1"
             onClick={(e) => {
               e.stopPropagation();
               openSubmissionDialog(task);
@@ -322,12 +324,13 @@ function TaskRow({
           >
             {task.submission_link ? (
               <>
-                <Edit className="w-3 h-3" />
-                Chỉnh sửa
+                <Edit className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                <span className="hidden md:inline">Chỉnh sửa</span>
+                <span className="md:hidden">Sửa</span>
               </>
             ) : (
               <>
-                <Send className="w-3 h-3" />
+                <Send className="w-2.5 h-2.5 md:w-3 md:h-3" />
                 Nộp
               </>
             )}
@@ -338,17 +341,17 @@ function TaskRow({
         {isLeaderInGroup && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <MoreVertical className="w-3.5 h-3.5" />
+              <Button variant="ghost" size="icon" className="h-6 w-6 md:h-7 md:w-7">
+                <MoreVertical className="w-3 h-3 md:w-3.5 md:h-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover min-w-[140px]">
-              <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
+            <DropdownMenuContent align="end" className="bg-popover min-w-[140px] z-50">
+              <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs py-2.5">
                 <Edit className="w-3.5 h-3.5 mr-2" />
                 Chỉnh sửa
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
+              <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs py-2.5">
                 <Trash2 className="w-3.5 h-3.5 mr-2" />
                 Xóa
               </DropdownMenuItem>

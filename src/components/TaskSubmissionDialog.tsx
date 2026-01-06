@@ -421,66 +421,66 @@ export default function TaskSubmissionDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-[1400px] h-[85vh] max-h-[800px] p-0 overflow-hidden flex flex-col">
+      <DialogContent className="max-w-[98vw] md:max-w-[95vw] w-full md:w-[1400px] h-[95vh] md:h-[85vh] max-h-[95vh] md:max-h-[800px] p-0 overflow-hidden flex flex-col">
         {/* Header */}
-        <DialogHeader className="px-6 py-3 border-b bg-gradient-to-r from-primary/10 to-transparent shrink-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/20 border border-primary/30">
-                <Send className="w-5 h-5 text-primary" />
+        <DialogHeader className="px-4 md:px-6 py-2 md:py-3 border-b bg-gradient-to-r from-primary/10 to-transparent shrink-0">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-2 md:p-2.5 rounded-xl bg-primary/20 border border-primary/30">
+                <Send className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               </div>
               <div>
-                <DialogTitle className="text-lg font-bold">Nộp bài</DialogTitle>
-                <DialogDescription className="text-xs mt-0.5">
+                <DialogTitle className="text-base md:text-lg font-bold">Nộp bài</DialogTitle>
+                <DialogDescription className="text-[10px] md:text-xs mt-0.5">
                   Xem yêu cầu task và nộp bài làm
                 </DialogDescription>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
               {isSubmittingOnBehalf && (
-                <Badge variant="secondary" className="gap-1 text-xs">
-                  <User className="w-3 h-3" />
+                <Badge variant="secondary" className="gap-1 text-[10px] md:text-xs">
+                  <User className="w-2.5 h-2.5 md:w-3 md:h-3" />
                   Nộp thay
                 </Badge>
               )}
               {timeStatus && (
                 <Badge 
                   variant={timeStatus.isOverdue ? "destructive" : "secondary"}
-                  className="gap-1 text-xs"
+                  className="gap-1 text-[10px] md:text-xs"
                 >
-                  <Clock className="w-3 h-3" />
+                  <Clock className="w-2.5 h-2.5 md:w-3 md:h-3" />
                   {timeStatus.text}
                 </Badge>
               )}
-              <Badge className={`${statusConfig.color} gap-1 border text-xs`}>
-                <StatusIcon className="w-3 h-3" />
+              <Badge className={`${statusConfig.color} gap-1 border text-[10px] md:text-xs`}>
+                <StatusIcon className="w-2.5 h-2.5 md:w-3 md:h-3" />
                 {statusConfig.label}
               </Badge>
             </div>
           </div>
         </DialogHeader>
         
-        {/* Content - 5:5 Two column layout */}
-        <div className="flex-1 p-5 overflow-hidden">
-          <div className="grid grid-cols-2 gap-5 h-full">
+        {/* Content - Two column layout on desktop, single column on mobile */}
+        <div className="flex-1 p-3 md:p-5 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 min-h-0">
             {/* Left Column - Task Requirements (50%) - Information display, subtle */}
-            <div className="flex flex-col gap-3 overflow-y-auto pr-2">
+            <div className="flex flex-col gap-2 md:gap-3 pr-0 md:pr-2">
               {/* Task Requirements - subdued, informational */}
-              <div className="p-4 rounded-xl border border-border/40 bg-muted/20">
-                <h3 className="text-sm font-semibold text-primary flex items-center gap-2 mb-3 uppercase tracking-wide">
-                  <Target className="w-4 h-4 text-primary" />
+              <div className="p-3 md:p-4 rounded-xl border border-border/40 bg-muted/20">
+                <h3 className="text-xs md:text-sm font-semibold text-primary flex items-center gap-2 mb-2 md:mb-3 uppercase tracking-wide">
+                  <Target className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
                   Yêu cầu Task
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3">
                   <div>
-                    <Label className="text-[10px] text-muted-foreground/70 uppercase">Tiêu đề</Label>
-                    <p className="text-base font-medium mt-0.5 text-foreground/90">{task?.title}</p>
+                    <Label className="text-[9px] md:text-[10px] text-muted-foreground/70 uppercase">Tiêu đề</Label>
+                    <p className="text-sm md:text-base font-medium mt-0.5 text-foreground/90">{task?.title}</p>
                   </div>
                   {task?.description && (
                     <div>
-                      <Label className="text-[10px] text-muted-foreground/70 uppercase">Mô tả</Label>
-                      <div className="mt-1 p-3 rounded-lg bg-background/60 border border-border/30">
-                        <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{task.description}</p>
+                      <Label className="text-[9px] md:text-[10px] text-muted-foreground/70 uppercase">Mô tả</Label>
+                      <div className="mt-1 p-2 md:p-3 rounded-lg bg-background/60 border border-border/30">
+                        <p className="text-[11px] md:text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{task.description}</p>
                       </div>
                     </div>
                   )}
@@ -488,66 +488,68 @@ export default function TaskSubmissionDialog({
               </div>
               
               {/* Info Cards Row - also subdued */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 md:gap-3">
                 {/* Deadline Card */}
-                <div className={`p-3 rounded-lg border ${isOverdue ? 'border-destructive/20 bg-destructive/5' : 'border-border/40 bg-muted/20'}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Calendar className={`w-4 h-4 ${isOverdue ? 'text-destructive/70' : 'text-muted-foreground/60'}`} />
-                    <span className={`text-[10px] font-medium uppercase ${isOverdue ? 'text-destructive/70' : 'text-muted-foreground/60'}`}>Thời hạn</span>
+                <div className={`p-2 md:p-3 rounded-lg border ${isOverdue ? 'border-destructive/20 bg-destructive/5' : 'border-border/40 bg-muted/20'}`}>
+                  <div className="flex items-center gap-1.5 md:gap-2 mb-1.5 md:mb-2">
+                    <Calendar className={`w-3.5 h-3.5 md:w-4 md:h-4 ${isOverdue ? 'text-destructive/70' : 'text-muted-foreground/60'}`} />
+                    <span className={`text-[9px] md:text-[10px] font-medium uppercase ${isOverdue ? 'text-destructive/70' : 'text-muted-foreground/60'}`}>Thời hạn</span>
                   </div>
                   {deadlineDate ? (
                     <div>
-                      <p className={`text-sm font-medium ${isOverdue ? 'text-destructive' : 'text-foreground/80'}`}>
+                      <p className={`text-xs md:text-sm font-medium ${isOverdue ? 'text-destructive' : 'text-foreground/80'}`}>
                         {format(deadlineDate, "dd/MM/yyyy", { locale: vi })}
                       </p>
-                      <p className={`text-xs ${isOverdue ? 'text-destructive/70' : 'text-muted-foreground'}`}>
+                      <p className={`text-[10px] md:text-xs ${isOverdue ? 'text-destructive/70' : 'text-muted-foreground'}`}>
                         {format(deadlineDate, "HH:mm", { locale: vi })}
                       </p>
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground/60">Không có</p>
+                    <p className="text-[10px] md:text-xs text-muted-foreground/60">Không có</p>
                   )}
                 </div>
 
                 {/* Assignees Card */}
-                <div className="p-3 rounded-lg border border-border/40 bg-muted/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Users className="w-4 h-4 text-muted-foreground/60" />
-                    <span className="text-[10px] font-medium text-muted-foreground/60 uppercase">Thực hiện</span>
+                <div className="p-2 md:p-3 rounded-lg border border-border/40 bg-muted/20">
+                  <div className="flex items-center gap-1.5 md:gap-2 mb-1.5 md:mb-2">
+                    <Users className="w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground/60" />
+                    <span className="text-[9px] md:text-[10px] font-medium text-muted-foreground/60 uppercase">Thực hiện</span>
                   </div>
                   {taskAssignees.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
                       {taskAssignees.map((name, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-[10px] py-0 h-5 bg-background/60">
+                        <Badge key={idx} variant="secondary" className="text-[9px] md:text-[10px] py-0 h-4 md:h-5 bg-background/60">
                           {name}
                         </Badge>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground/60">Chưa phân công</p>
+                    <p className="text-[10px] md:text-xs text-muted-foreground/60">Chưa phân công</p>
                   )}
                 </div>
               </div>
 
-              {/* Task Comments Section */}
+              {/* Task Comments Section - hidden on mobile to save space */}
               {task && (
-                <TaskComments 
-                  taskId={task.id} 
-                  groupId={task.group_id} 
-                  className="flex-shrink-0 max-h-[280px]"
-                />
+                <div className="hidden md:block">
+                  <TaskComments 
+                    taskId={task.id} 
+                    groupId={task.group_id} 
+                    className="flex-shrink-0 max-h-[280px]"
+                  />
+                </div>
               )}
             </div>
             
             {/* Right Column - Submission Area (50%) - Main action area, prominent */}
             <div className="flex flex-col overflow-hidden">
               {/* Unified submission container - visually prominent */}
-              <div className="flex-1 flex flex-col rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/8 via-primary/4 to-background shadow-xl shadow-primary/10 overflow-hidden ring-1 ring-primary/10">
+              <div className="flex-1 flex flex-col rounded-xl md:rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/8 via-primary/4 to-background shadow-xl shadow-primary/10 overflow-hidden ring-1 ring-primary/10">
                 {/* Header - strong visual indicator */}
-                <div className="px-5 py-3 bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border-b border-primary/20 shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-primary/20 border border-primary/30 shadow-sm">
-                      <Send className="w-5 h-5 text-primary" />
+                <div className="px-3 md:px-5 py-2 md:py-3 bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border-b border-primary/20 shrink-0">
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="p-2 md:p-2.5 rounded-xl bg-primary/20 border border-primary/30 shadow-sm">
+                      <Send className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-foreground">Nộp bài tại đây</h3>
