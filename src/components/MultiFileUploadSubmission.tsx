@@ -271,7 +271,8 @@ export default function MultiFileUploadSubmission({
     const params = new URLSearchParams({
       path: file.file_path,
       name: file.file_name,
-      size: file.file_size.toString()
+      size: file.file_size.toString(),
+      taskId: taskId
     });
     navigate(`/file-preview?${params.toString()}`);
   };

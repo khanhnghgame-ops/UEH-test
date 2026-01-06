@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +29,8 @@ import {
   MoreHorizontal, 
   Trash2, 
   Clock,
-  ArrowRight
+  ArrowRight,
+  User
 } from 'lucide-react';
 
 interface Message {
@@ -77,72 +79,109 @@ export default function MessageItem({ message, isOwn, onTaskClick, onDelete }: M
   return (
     <>
       <div className={cn(
-        'flex gap-3 mb-5 group',
+        'flex gap-3 mb-4 group',
         isOwn && 'flex-row-reverse'
       )}>
         {/* Avatar */}
-        <div className="flex flex-col items-center gap-1">
-          <Avatar className={cn(
-            "w-10 h-10 shrink-0 transition-transform group-hover:scale-105 shadow-md",
+        <Avatar className={cn(
+          "w-9 h-9 shrink-0 shadow-sm",
+          isOwn 
+            ? "ring-2 ring-primary/30" 
+            : "ring-2 ring-border"
+        )}>
+          <AvatarFallback className={cn(
+            'text-xs font-semibold',
             isOwn 
-              ? "ring-2 ring-primary/30" 
-              : "ring-2 ring-border"
+              ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground' 
+              : 'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground'
           )}>
-            <AvatarFallback className={cn(
-              'text-xs font-semibold',
-              isOwn 
-                ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground' 
-                : 'bg-gradient-to-br from-secondary to-secondary/80 text-secondary-foreground'
-            )}>
-              {getInitials(message.user_name || 'U')}
-            </AvatarFallback>
-          </Avatar>
-        </div>
+            {getInitials(message.user_name || 'U')}
+          </AvatarFallback>
+        </Avatar>
 
-        <div className={cn('flex flex-col max-w-[75%]', isOwn && 'items-end')}>
-          {/* Header: Sender name + Time */}
+        {/* Message Card - Unified Box */}
+        <Card className={cn(
+          'flex-1 max-w-[80%] overflow-hidden transition-all duration-200 group-hover:shadow-md',
+          isOwn 
+            ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border-primary/30' 
+            : 'bg-card border-border/80'
+        )}>
+          {/* Header: Sender + Time + Actions */}
           <div className={cn(
-            "flex items-center gap-2 mb-1.5 px-1",
-            isOwn && "flex-row-reverse"
+            "flex items-center justify-between gap-2 px-3 py-2 border-b",
+            isOwn ? "border-primary-foreground/10" : "border-border/50 bg-muted/30"
           )}>
-            <span className={cn(
-              "text-sm font-semibold",
-              isOwn ? "text-primary" : "text-foreground"
-            )}>
-              {isOwn ? 'Bạn' : message.user_name}
-            </span>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="w-3 h-3" />
-              <span title={formattedDateTime}>{formattedTime}</span>
-              <span>·</span>
-              <span>{formattedDate}</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <User className={cn(
+                "w-3.5 h-3.5 shrink-0",
+                isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
+              )} />
+              <span className={cn(
+                "text-sm font-semibold truncate",
+                isOwn ? "text-primary-foreground" : "text-foreground"
+              )}>
+                {isOwn ? 'Bạn' : message.user_name}
+              </span>
+              <div className={cn(
+                "flex items-center gap-1 text-[11px]",
+                isOwn ? "text-primary-foreground/60" : "text-muted-foreground"
+              )}>
+                <Clock className="w-3 h-3" />
+                <span title={formattedDateTime}>{formattedTime} · {formattedDate}</span>
+              </div>
             </div>
+
+            {/* Actions Menu (only for own messages) */}
+            {isOwn && onDelete && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn(
+                      "h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity",
+                      "hover:bg-primary-foreground/20"
+                    )}
+                  >
+                    <MoreHorizontal className="w-3.5 h-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40 bg-popover">
+                  <DropdownMenuItem 
+                    className="text-destructive focus:text-destructive cursor-pointer"
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Xóa tin nhắn
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           {/* Source label for messages from tasks */}
           {message.source_type === 'from_task' && message.source_task_title && (
-            <Badge 
-              variant="outline" 
-              className={cn(
-                "text-[11px] px-2.5 py-1 mb-2 gap-1.5",
-                "bg-accent/5 text-accent border-accent/20",
-                isOwn && "self-end"
-              )}
-            >
-              <MessageSquare className="w-3 h-3" />
-              Từ Task: {message.source_task_title}
-            </Badge>
+            <div className={cn(
+              "px-3 py-1.5 border-b flex items-center gap-1.5",
+              isOwn 
+                ? "bg-primary-foreground/5 border-primary-foreground/10" 
+                : "bg-accent/5 border-accent/10"
+            )}>
+              <MessageSquare className={cn(
+                "w-3 h-3",
+                isOwn ? "text-primary-foreground/70" : "text-accent"
+              )} />
+              <span className={cn(
+                "text-[11px] font-medium",
+                isOwn ? "text-primary-foreground/80" : "text-accent"
+              )}>
+                Từ Task: {message.source_task_title}
+              </span>
+            </div>
           )}
 
-          {/* Message Bubble */}
-          <div className={cn(
-            'relative px-4 py-3 rounded-2xl shadow-sm transition-all duration-200',
-            'group-hover:shadow-md',
-            isOwn 
-              ? 'bg-gradient-to-br from-primary via-primary to-primary/90 text-primary-foreground rounded-tr-md' 
-              : 'bg-card border border-border/80 rounded-tl-md'
-          )}>
-            {/* Message Content */}
+          {/* Message Content */}
+          <div className="px-3 py-2.5">
             <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
               {segments.map((segment, idx) => {
                 if (segment.type === 'user-mention' || segment.type === 'assignee-mention') {
@@ -152,7 +191,7 @@ export default function MessageItem({ message, isOwn, onTaskClick, onDelete }: M
                       className={cn(
                         'font-semibold px-1.5 py-0.5 rounded-md mx-0.5 inline-block',
                         isOwn 
-                          ? 'text-primary-foreground bg-white/20' 
+                          ? 'text-primary-foreground bg-primary-foreground/20' 
                           : 'text-primary bg-primary/10'
                       )}
                     >
@@ -179,55 +218,32 @@ export default function MessageItem({ message, isOwn, onTaskClick, onDelete }: M
                 return <span key={idx}>{segment.content}</span>;
               })}
             </p>
-
-            {/* Actions Menu (only for own messages) */}
-            {isOwn && onDelete && (
-              <div className={cn(
-                "absolute -left-8 top-1/2 -translate-y-1/2",
-                "opacity-0 group-hover:opacity-100 transition-opacity"
-              )}>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 rounded-full bg-background/80 shadow-sm hover:bg-background"
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem 
-                      className="text-destructive focus:text-destructive cursor-pointer"
-                      onClick={() => setShowDeleteDialog(true)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Xóa tin nhắn
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
           </div>
 
           {/* Footer: Quick action to task */}
           {message.source_type === 'from_task' && message.source_task_id && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "mt-2 h-8 px-3 text-xs gap-1.5 rounded-lg",
-                "text-muted-foreground hover:text-accent hover:bg-accent/10",
-                isOwn && "self-end"
-              )}
-              onClick={() => onTaskClick?.(message.source_task_id!)}
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              Mở Task
-              <ArrowRight className="w-3 h-3" />
-            </Button>
+            <div className={cn(
+              "px-3 py-2 border-t",
+              isOwn ? "border-primary-foreground/10" : "border-border/50 bg-muted/20"
+            )}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-7 px-2.5 text-xs gap-1.5 rounded-md w-full justify-center",
+                  isOwn 
+                    ? "text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10" 
+                    : "text-accent hover:text-accent hover:bg-accent/10"
+                )}
+                onClick={() => onTaskClick?.(message.source_task_id!)}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Mở Task
+                <ArrowRight className="w-3 h-3" />
+              </Button>
+            </div>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* Delete Confirmation Dialog */}

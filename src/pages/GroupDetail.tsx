@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -43,6 +43,7 @@ interface ExtendedGroup extends Group {
 
 export default function GroupDetail() {
   const { groupId } = useParams<{ groupId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
@@ -73,12 +74,15 @@ export default function GroupDetail() {
     setCurrentTab(tabId);
   };
   
-  // Initialize tab on mount
+  // Initialize tab on mount - check URL params first
   useEffect(() => {
-    if (!currentTab || !availableTabs.includes(currentTab)) {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl && availableTabs.includes(tabFromUrl)) {
+      setCurrentTab(tabFromUrl);
+    } else if (!currentTab || !availableTabs.includes(currentTab)) {
       setCurrentTab('overview');
     }
-  }, [currentTab, availableTabs, setCurrentTab]);
+  }, [searchParams, currentTab, availableTabs, setCurrentTab]);
   
   const handleGoBack = () => {
     goBack(availableTabs);
@@ -434,13 +438,13 @@ export default function GroupDetail() {
                             </div>
                             
                             {/* Right Column - Assignees (1/3 width) */}
-                            <div className="col-span-1">
-                              <div className="p-5 rounded-xl border-2 border-success/20 bg-gradient-to-br from-success/5 to-transparent h-full flex flex-col">
-                                <h3 className="text-sm font-bold text-success flex items-center gap-2 mb-4 uppercase tracking-wide">
+                            <div className="col-span-1 flex flex-col min-h-0">
+                              <div className="p-5 rounded-xl border-2 border-success/20 bg-gradient-to-br from-success/5 to-transparent flex flex-col min-h-0 max-h-full">
+                                <h3 className="text-sm font-bold text-success flex items-center gap-2 mb-4 uppercase tracking-wide shrink-0">
                                   <div className="w-2 h-2 rounded-full bg-success" />
                                   Người phụ trách
                                 </h3>
-                                <div className="border rounded-xl bg-background/50 p-2 flex-1 overflow-y-auto">
+                                <div className="border rounded-xl bg-background/50 p-2 flex-1 overflow-y-auto min-h-0 max-h-[calc(85vh-280px)]">
                                   {members.length === 0 ? (
                                     <div className="text-center py-8 text-muted-foreground text-sm">
                                       Chưa có thành viên trong project
@@ -486,7 +490,7 @@ export default function GroupDetail() {
                                   )}
                                 </div>
                                 {newTaskAssignees.length > 0 && (
-                                  <p className="text-xs text-muted-foreground mt-3 text-center">
+                                  <p className="text-xs text-muted-foreground mt-3 text-center shrink-0">
                                     Đã chọn <span className="font-bold text-success">{newTaskAssignees.length}</span> thành viên
                                   </p>
                                 )}

@@ -74,6 +74,17 @@ export default function FilePreview() {
   const filePath = searchParams.get('path');
   const fileName = searchParams.get('name') || 'file';
   const fileSize = parseInt(searchParams.get('size') || '0');
+  const taskId = searchParams.get('taskId');
+  const groupId = searchParams.get('groupId');
+
+  const handleGoBack = () => {
+    // Navigate to the correct project task page if we have group info
+    if (groupId) {
+      navigate(`/groups/${groupId}?tab=tasks${taskId ? `&task=${taskId}` : ''}`);
+    } else {
+      navigate(-1);
+    }
+  };
 
   useEffect(() => {
     if (filePath) {
@@ -138,7 +149,7 @@ export default function FilePreview() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate(-1)}
+                onClick={handleGoBack}
                 className="text-primary-foreground hover:bg-primary-foreground/10"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
