@@ -195,16 +195,15 @@ export default function PublicProjectView() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Fixed Top Navigation Bar - Mobile optimized */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-lg">
-        {/* Main header row */}
-        <div className="h-14 md:h-16 max-w-[1600px] mx-auto px-3 md:px-4 flex items-center justify-between gap-2">
-          {/* Left: Logo only on mobile, Logo + project name on desktop */}
-          <div className="flex items-center gap-2 md:gap-3 shrink-0">
-            <img src={uehLogo} alt="UEH Logo" className="h-8 md:h-10 w-auto drop-shadow-md" />
-            <div className="hidden lg:block h-6 w-px bg-white/20" />
-            <div className="hidden lg:flex flex-col max-w-[200px]">
-              <span className="font-bold text-sm text-white truncate">{group.name}</span>
+      {/* Fixed Top Navigation Bar - Same style as internal system */}
+      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-primary shadow-lg">
+        <div className="h-full max-w-[1600px] mx-auto px-4 flex items-center justify-between">
+          {/* Left: Logo & Brand */}
+          <div className="flex items-center gap-3">
+            <img src={uehLogo} alt="UEH Logo" className="h-10 w-auto drop-shadow-md" />
+            <div className="h-6 w-px bg-white/20" />
+            <div className="hidden sm:flex flex-col">
+              <span className="font-bold text-sm text-white">{group.name}</span>
               <Badge variant="outline" className="w-fit text-[10px] px-1.5 py-0 bg-white/10 text-white/90 border-white/20">
                 <Eye className="w-2.5 h-2.5 mr-1" />
                 Chỉ xem
@@ -212,40 +211,40 @@ export default function PublicProjectView() {
             </div>
           </div>
 
-          {/* Center: Navigation Menu - Desktop only */}
-          <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
+          {/* Center: Navigation Menu - Same style as DashboardLayout */}
+          <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-2 px-3 lg:px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                     isActive 
                       ? 'bg-white/20 text-white' 
                       : 'text-white/80 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   <item.icon className="w-4 h-4" />
-                  <span className="hidden lg:inline">{item.name}</span>
+                  <span>{item.name}</span>
                 </button>
               );
             })}
           </nav>
 
-          {/* Right: Buttons - compact on mobile */}
-          <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-            {/* Read-only badge - large screens only */}
-            <Badge variant="outline" className="hidden xl:flex gap-1.5 px-3 py-1.5 bg-warning/20 text-warning border-warning/30">
+          {/* Right: Login Button & Read-only Badge */}
+          <div className="flex items-center gap-2">
+            {/* Read-only badge - visible on larger screens */}
+            <Badge variant="outline" className="hidden lg:flex gap-1.5 px-3 py-1.5 bg-warning/20 text-warning border-warning/30">
               <Eye className="w-3.5 h-3.5" />
-              Chỉ xem
+              Chỉ xem – không chỉnh sửa
             </Badge>
             
             {/* Login button */}
-            <Button asChild variant="ghost" size="sm" className="gap-1.5 text-white hover:bg-white/10 hover:text-white h-8 md:h-9 px-2 md:px-3">
+            <Button asChild variant="ghost" size="sm" className="gap-1.5 text-white hover:bg-white/10 hover:text-white">
               <Link to="/auth">
                 <LogIn className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Đăng nhập</span>
+                <span className="hidden sm:inline">Đăng nhập</span>
               </Link>
             </Button>
 
@@ -253,7 +252,7 @@ export default function PublicProjectView() {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="md:hidden text-white hover:bg-white/10 h-8 w-8"
+              className="md:hidden text-white hover:bg-white/10"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -261,21 +260,10 @@ export default function PublicProjectView() {
           </div>
         </div>
 
-        {/* Mobile: Project name row - separate line */}
-        <div className="md:hidden px-3 pb-2 flex items-center gap-2">
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-medium text-sm truncate">{group.name}</p>
-          </div>
-          <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0 bg-white/10 text-white/90 border-white/20">
-            <Eye className="w-2.5 h-2.5 mr-1" />
-            Chỉ xem
-          </Badge>
-        </div>
-
-        {/* Mobile Navigation Menu Dropdown */}
+        {/* Mobile Navigation Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 right-0 bg-primary border-t border-white/10 shadow-lg max-h-[70vh] overflow-y-auto">
-            <nav className="p-3 space-y-1">
+          <div className="md:hidden absolute top-16 left-0 right-0 bg-primary border-t border-white/10 shadow-lg">
+            <nav className="p-4 space-y-2">
               {navItems.map((item) => {
                 const isActive = activeTab === item.id;
                 return (
@@ -285,54 +273,49 @@ export default function PublicProjectView() {
                       setActiveTab(item.id);
                       setIsMobileMenuOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all min-h-[48px] ${
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
                       isActive 
                         ? 'bg-white/20 text-white' 
                         : 'text-white/80 hover:bg-white/10 hover:text-white'
                     }`}
                   >
-                    <item.icon className="w-5 h-5 shrink-0" />
+                    <item.icon className="w-5 h-5" />
                     <span>{item.name}</span>
                   </button>
                 );
               })}
             </nav>
-            {/* Mobile description */}
-            {group.description && (
-              <div className="px-4 pb-3 border-t border-white/10 pt-3">
-                <p className="text-white/60 text-xs line-clamp-2">{group.description}</p>
-              </div>
-            )}
+            {/* Mobile project name */}
+            <div className="px-4 pb-4 border-t border-white/10 pt-4">
+              <p className="text-white font-medium text-sm">{group.name}</p>
+              <p className="text-white/60 text-xs mt-1">{group.description}</p>
+            </div>
           </div>
         )}
       </header>
 
-      {/* Main Content - adjusted padding for mobile header */}
-      <main className="flex-1 pt-[72px] md:pt-16">
-        <div className="max-w-[1600px] mx-auto p-3 md:p-6">
-          {/* Project Header - Responsive */}
-          <div className="mb-4 md:mb-6">
-            <h1 className="text-xl md:text-3xl font-bold line-clamp-2">{group.name}</h1>
-            {group.description && (
-              <p className="text-muted-foreground mt-1 text-sm md:text-base line-clamp-3 md:line-clamp-none">
-                {group.description}
-              </p>
-            )}
-            <div className="flex flex-wrap gap-1.5 md:gap-2 mt-2 md:mt-3">
+      {/* Main Content - with top padding for fixed header */}
+      <main className="flex-1 pt-16">
+        <div className="max-w-[1600px] mx-auto p-6">
+          {/* Project Header - Similar to GroupDetail */}
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold">{group.name}</h1>
+            {group.description && <p className="text-muted-foreground mt-1">{group.description}</p>}
+            <div className="flex flex-wrap gap-2 mt-3">
               {group.class_code && (
-                <Badge variant="secondary" className="gap-1 text-xs">
+                <Badge variant="secondary" className="gap-1.5">
                   <BookOpen className="w-3 h-3" />
                   {group.class_code}
                 </Badge>
               )}
               {group.instructor_name && (
-                <Badge variant="secondary" className="gap-1 text-xs">
+                <Badge variant="secondary" className="gap-1.5">
                   <User className="w-3 h-3" />
                   GV: {group.instructor_name}
                 </Badge>
               )}
               {group.instructor_email && (
-                <Badge variant="outline" className="gap-1 text-xs hidden sm:flex">
+                <Badge variant="outline" className="gap-1.5">
                   <Mail className="w-3 h-3" />
                   {group.instructor_email}
                 </Badge>

@@ -228,41 +228,41 @@ export default function TaskEditDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[98vw] md:max-w-[95vw] w-full md:w-[1400px] h-[95vh] md:h-[85vh] max-h-[95vh] md:max-h-[800px] p-0 overflow-hidden flex flex-col">
+      <DialogContent className="max-w-[95vw] w-[1400px] h-[85vh] max-h-[800px] p-0 overflow-hidden flex flex-col">
         {/* Header - Match Create Task style */}
-        <DialogHeader className="px-4 md:px-6 py-2 md:py-3 border-b bg-gradient-to-r from-primary/10 to-transparent shrink-0">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-3">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-2 md:p-2.5 rounded-xl bg-primary/20 border border-primary/30">
+        <DialogHeader className="px-6 py-3 border-b bg-gradient-to-r from-primary/10 to-transparent shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/20 border border-primary/30">
                 {canEditDetails ? (
-                  <Edit className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                  <Edit className="w-5 h-5 text-primary" />
                 ) : (
-                  <Eye className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                  <Eye className="w-5 h-5 text-primary" />
                 )}
               </div>
               <div>
-                <DialogTitle className="text-base md:text-lg font-bold">
+                <DialogTitle className="text-lg font-bold">
                   {canEditDetails ? 'Chỉnh sửa task' : 'Chi tiết task'}
                 </DialogTitle>
-                <DialogDescription className="text-[10px] md:text-xs mt-0.5">
+                <DialogDescription className="text-xs mt-0.5">
                   {canEditDetails ? 'Cập nhật thông tin task' : 'Xem thông tin chi tiết task'}
                 </DialogDescription>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
               {!isLeaderOrAdmin && (
-                <Badge variant="secondary" className="gap-1 text-[10px] md:text-xs">
-                  <Eye className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                <Badge variant="secondary" className="gap-1 text-xs">
+                  <Eye className="w-3 h-3" />
                   Chế độ xem
                 </Badge>
               )}
               {isOverdue && (
-                <Badge variant="destructive" className="gap-1 text-[10px] md:text-xs">
-                  <AlertTriangle className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                <Badge variant="destructive" className="gap-1 text-xs">
+                  <AlertTriangle className="w-3 h-3" />
                   Quá deadline
                 </Badge>
               )}
-              <Badge className={`${statusConfig.color} border text-[10px] md:text-xs`}>
+              <Badge className={`${statusConfig.color} border text-xs`}>
                 {statusConfig.label}
               </Badge>
             </div>
@@ -270,44 +270,44 @@ export default function TaskEditDialog({
         </DialogHeader>
         
         {/* Content - Match Create Task layout */}
-        <div className="flex-1 p-3 md:p-5 overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 min-h-0">
-            {/* Left Column - Basic Info (2/3 width on desktop) */}
-            <div className="md:col-span-2 flex flex-col gap-3 md:gap-4">
+        <div className="flex-1 p-5 overflow-hidden">
+          <div className="grid grid-cols-3 gap-5 h-full">
+            {/* Left Column - Basic Info (2/3 width) */}
+            <div className="col-span-2 flex flex-col gap-4">
               {/* Task Title & Description Card */}
-              <div className="p-3 md:p-5 rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent flex flex-col">
-                <h3 className="text-xs md:text-sm font-bold text-primary flex items-center gap-2 mb-3 md:mb-4 uppercase tracking-wide">
+              <div className="p-5 rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent flex-1 flex flex-col">
+                <h3 className="text-sm font-bold text-primary flex items-center gap-2 mb-4 uppercase tracking-wide">
                   <div className="w-2 h-2 rounded-full bg-primary" />
                   Thông tin cơ bản
                 </h3>
-                <div className="space-y-3 md:space-y-4 flex flex-col">
-                  <div className="space-y-1.5 md:space-y-2">
-                    <Label className="text-xs md:text-sm font-medium">Tên task {canEditDetails && <span className="text-destructive">*</span>}</Label>
+                <div className="space-y-4 flex-1 flex flex-col">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Tên task {canEditDetails && <span className="text-destructive">*</span>}</Label>
                     {canEditDetails ? (
                       <Input
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="VD: Hoàn thành báo cáo chương 1"
-                        className="h-9 md:h-10 text-sm"
+                        className="h-10"
                       />
                     ) : (
-                      <div className="p-2 md:p-2.5 rounded-lg bg-background/50 border">
-                        <p className="font-medium text-sm">{task?.title}</p>
+                      <div className="p-2.5 rounded-lg bg-background/50 border">
+                        <p className="font-medium">{task?.title}</p>
                       </div>
                     )}
                   </div>
-                  <div className="space-y-1.5 md:space-y-2 flex flex-col">
-                    <Label className="text-xs md:text-sm font-medium">Mô tả chi tiết</Label>
+                  <div className="space-y-2 flex-1 flex flex-col">
+                    <Label className="text-sm font-medium">Mô tả chi tiết</Label>
                     {canEditDetails ? (
                       <Textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         placeholder="Mô tả công việc cần thực hiện, yêu cầu cụ thể, tài liệu tham khảo..."
-                        className="resize-none min-h-[80px] md:min-h-[120px] text-sm"
+                        className="resize-none flex-1 min-h-[120px]"
                       />
                     ) : (
-                      <div className="p-2 md:p-2.5 rounded-lg bg-background/50 border min-h-[80px] md:min-h-[120px]">
-                        <p className="text-muted-foreground text-xs md:text-sm whitespace-pre-wrap">
+                      <div className="p-2.5 rounded-lg bg-background/50 border flex-1 min-h-[120px]">
+                        <p className="text-muted-foreground text-sm whitespace-pre-wrap">
                           {task?.description || 'Không có mô tả'}
                         </p>
                       </div>
@@ -317,17 +317,17 @@ export default function TaskEditDialog({
               </div>
               
               {/* Stage & Deadline Card */}
-              <div className="p-3 md:p-5 rounded-xl border-2 border-warning/20 bg-gradient-to-br from-warning/5 to-transparent">
-                <h3 className="text-xs md:text-sm font-bold text-warning flex items-center gap-2 mb-3 md:mb-4 uppercase tracking-wide">
+              <div className="p-5 rounded-xl border-2 border-warning/20 bg-gradient-to-br from-warning/5 to-transparent">
+                <h3 className="text-sm font-bold text-warning flex items-center gap-2 mb-4 uppercase tracking-wide">
                   <div className="w-2 h-2 rounded-full bg-warning" />
                   Thời gian & Giai đoạn
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-                  <div className="space-y-1.5 md:space-y-2">
-                    <Label className="text-xs md:text-sm font-medium">Giai đoạn</Label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Giai đoạn</Label>
                     {canEditDetails ? (
                       <Select value={stageId} onValueChange={setStageId}>
-                        <SelectTrigger className="h-9 md:h-10 text-sm">
+                        <SelectTrigger className="h-10">
                           <SelectValue placeholder="Chọn giai đoạn" />
                         </SelectTrigger>
                         <SelectContent>
@@ -339,14 +339,14 @@ export default function TaskEditDialog({
                         </SelectContent>
                       </Select>
                     ) : (
-                      <div className="p-2 md:p-2.5 rounded-lg bg-background/50 border text-xs md:text-sm">
+                      <div className="p-2.5 rounded-lg bg-background/50 border text-sm">
                         {stages.find(s => s.id === task?.stage_id)?.name || 'Chưa phân'}
                       </div>
                     )}
                   </div>
 
-                  <div className="space-y-1.5 md:space-y-2">
-                    <Label className="text-xs md:text-sm font-medium">Deadline</Label>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Deadline</Label>
                     {canEditDetails ? (
                       <DeadlineHourPicker
                         value={deadline}
@@ -354,7 +354,7 @@ export default function TaskEditDialog({
                         placeholder="Chọn ngày..."
                       />
                     ) : (
-                      <div className={`p-2 md:p-2.5 rounded-lg border text-xs md:text-sm ${isOverdue ? 'bg-destructive/10 border-destructive/30' : 'bg-background/50'}`}>
+                      <div className={`p-2.5 rounded-lg border text-sm ${isOverdue ? 'bg-destructive/10 border-destructive/30' : 'bg-background/50'}`}>
                         {task?.deadline ? (
                           <span className={isOverdue ? 'text-destructive font-medium' : ''}>
                             {formatDeadlineVN(task.deadline)}
@@ -366,15 +366,15 @@ export default function TaskEditDialog({
                     )}
                   </div>
 
-                  <div className="space-y-1.5 md:space-y-2">
-                    <Label className="text-xs md:text-sm font-medium">Giới hạn upload</Label>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Giới hạn upload</Label>
                     {canEditDetails ? (
                       <FileSizeLimitSelector
                         value={maxFileSize}
                         onChange={setMaxFileSize}
                       />
                     ) : (
-                      <div className="p-2 md:p-2.5 rounded-lg bg-background/50 border text-xs md:text-sm">
+                      <div className="p-2.5 rounded-lg bg-background/50 border text-sm">
                         {formatFileSizeMB(maxFileSize)}
                       </div>
                     )}
@@ -383,19 +383,19 @@ export default function TaskEditDialog({
               </div>
             </div>
             
-            {/* Right Column - Assignees (1/3 width on desktop) */}
-            <div className="md:col-span-1 flex flex-col min-h-0">
-              <div className="p-3 md:p-5 rounded-xl border-2 border-success/20 bg-gradient-to-br from-success/5 to-transparent flex flex-col min-h-0">
-                <h3 className="text-xs md:text-sm font-bold text-success flex items-center gap-2 mb-3 md:mb-4 uppercase tracking-wide shrink-0">
+            {/* Right Column - Assignees (1/3 width) */}
+            <div className="col-span-1 flex flex-col min-h-0">
+              <div className="p-5 rounded-xl border-2 border-success/20 bg-gradient-to-br from-success/5 to-transparent flex flex-col min-h-0 max-h-full">
+                <h3 className="text-sm font-bold text-success flex items-center gap-2 mb-4 uppercase tracking-wide shrink-0">
                   <div className="w-2 h-2 rounded-full bg-success" />
                   Người phụ trách
                 </h3>
                 
                 {canEditDetails ? (
                   <>
-                    <div className="border rounded-xl bg-background/50 p-1.5 md:p-2 overflow-y-auto min-h-0 max-h-[200px] md:max-h-[calc(85vh-280px)]">
+                    <div className="border rounded-xl bg-background/50 p-2 flex-1 overflow-y-auto min-h-0 max-h-[calc(85vh-280px)]">
                       {members.length === 0 ? (
-                        <div className="text-center py-6 md:py-8 text-muted-foreground text-xs md:text-sm">
+                        <div className="text-center py-8 text-muted-foreground text-sm">
                           Chưa có thành viên trong project
                         </div>
                       ) : (
@@ -403,10 +403,10 @@ export default function TaskEditDialog({
                           {members.map((member) => (
                             <div 
                               key={member.id} 
-                              className={`flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-lg cursor-pointer transition-all ${
+                              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
                                 assignees.includes(member.user_id) 
                                   ? 'bg-success/10 border-2 border-success/40 shadow-sm' 
-                                  : 'hover:bg-muted/50 active:bg-muted/70 border-2 border-transparent'
+                                  : 'hover:bg-muted/50 border-2 border-transparent'
                               }`}
                               onClick={() => {
                                 if (assignees.includes(member.user_id)) {
@@ -426,16 +426,16 @@ export default function TaskEditDialog({
                                     setAssignees(assignees.filter((id) => id !== member.user_id));
                                   }
                                 }}
-                                className="h-4 w-4 md:h-5 md:w-5"
+                                className="h-5 w-5"
                               />
                               <div className="flex-1 min-w-0">
-                                <label htmlFor={`assignee-${member.user_id}`} className="text-xs md:text-sm font-medium cursor-pointer block truncate">
+                                <label htmlFor={`assignee-${member.user_id}`} className="text-sm font-medium cursor-pointer block truncate">
                                   {member.profiles?.full_name}
                                 </label>
-                                <p className="text-[10px] md:text-xs text-muted-foreground">{member.profiles?.student_id}</p>
+                                <p className="text-xs text-muted-foreground">{member.profiles?.student_id}</p>
                               </div>
                               {member.role === 'leader' && (
-                                <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-full bg-warning/20 text-warning font-medium shrink-0">
+                                <span className="text-xs px-2 py-1 rounded-full bg-warning/20 text-warning font-medium shrink-0">
                                   Leader
                                 </span>
                               )}
@@ -445,26 +445,26 @@ export default function TaskEditDialog({
                       )}
                     </div>
                     {assignees.length > 0 && (
-                      <p className="text-[10px] md:text-xs text-muted-foreground mt-2 md:mt-3 text-center">
+                      <p className="text-xs text-muted-foreground mt-3 text-center">
                         Đã chọn <span className="font-bold text-success">{assignees.length}</span> thành viên
                       </p>
                     )}
                   </>
                 ) : (
-                  <div className="border rounded-xl bg-background/50 p-2 md:p-3 overflow-y-auto max-h-[200px] md:max-h-[calc(85vh-280px)]">
+                  <div className="border rounded-xl bg-background/50 p-3 flex-1 overflow-y-auto">
                     {task?.task_assignments && task.task_assignments.length > 0 ? (
-                      <div className="space-y-1.5 md:space-y-2">
+                      <div className="space-y-2">
                         {task.task_assignments.map((assignment) => (
-                          <div key={assignment.id} className="flex items-center gap-2 md:gap-3 p-1.5 md:p-2 rounded-lg bg-success/5 border border-success/20">
-                            <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-success/20 flex items-center justify-center text-[10px] md:text-xs font-bold text-success">
+                          <div key={assignment.id} className="flex items-center gap-3 p-2 rounded-lg bg-success/5 border border-success/20">
+                            <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center text-xs font-bold text-success">
                               {assignment.profiles?.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                             </div>
-                            <span className="text-xs md:text-sm font-medium truncate">{assignment.profiles?.full_name}</span>
+                            <span className="text-sm font-medium">{assignment.profiles?.full_name}</span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-6 md:py-8 text-muted-foreground text-xs md:text-sm">
+                      <div className="text-center py-8 text-muted-foreground text-sm">
                         Chưa có người được giao
                       </div>
                     )}
@@ -476,20 +476,20 @@ export default function TaskEditDialog({
         </div>
 
         {/* Footer - Match Create Task style */}
-        <DialogFooter className="px-3 md:px-5 py-2 md:py-3 border-t bg-muted/30 gap-2 shrink-0 flex-col-reverse sm:flex-row">
-          <Button variant="outline" onClick={onClose} className="h-9 md:h-10 min-w-20 md:min-w-24 text-sm">
+        <DialogFooter className="px-5 py-3 border-t bg-muted/30 gap-2 shrink-0">
+          <Button variant="outline" onClick={onClose} className="h-10 min-w-24">
             {canEditDetails ? 'Hủy' : 'Đóng'}
           </Button>
           {canEditDetails && (
-            <Button onClick={handleSave} disabled={isLoading} className="h-9 md:h-10 min-w-28 md:min-w-32 gap-2 text-sm">
+            <Button onClick={handleSave} disabled={isLoading} className="h-10 min-w-32 gap-2">
               {isLoading ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Đang lưu...
                 </>
               ) : (
                 <>
-                  <Edit className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  <Edit className="w-4 h-4" />
                   Lưu thay đổi
                 </>
               )}
