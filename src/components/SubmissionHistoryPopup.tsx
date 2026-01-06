@@ -46,6 +46,7 @@ interface SubmissionHistoryEntry {
 
 interface SubmissionHistoryPopupProps {
   taskId: string;
+  groupId?: string;
   taskDeadline?: string | null;
   submissionCount?: number;
   currentSubmissionLink?: string | null;
@@ -86,7 +87,8 @@ const formatFileSize = (bytes: number) => {
 };
 
 export default function SubmissionHistoryPopup({ 
-  taskId, 
+  taskId,
+  groupId,
   taskDeadline,
   currentSubmissionLink 
 }: SubmissionHistoryPopupProps) {
@@ -152,7 +154,9 @@ export default function SubmissionHistoryPopup({
     const params = new URLSearchParams({
       path: filePath,
       name: fileName,
-      size: fileSize.toString()
+      size: fileSize.toString(),
+      taskId: taskId,
+      ...(groupId && { groupId })
     });
     navigate(`/file-preview?${params.toString()}`);
     setIsOpen(false);

@@ -31,6 +31,8 @@ interface SubmissionButtonProps {
   submissionLink: string | null;
   variant?: 'default' | 'compact';
   onStopPropagation?: boolean;
+  taskId?: string;
+  groupId?: string;
 }
 
 const getFileIcon = (fileName: string) => {
@@ -79,7 +81,9 @@ export function parseSubmissionLinks(submissionLink: string | null): SubmissionI
 export default function SubmissionButton({ 
   submissionLink, 
   variant = 'default',
-  onStopPropagation = true 
+  onStopPropagation = true,
+  taskId,
+  groupId
 }: SubmissionButtonProps) {
   const navigate = useNavigate();
   
@@ -106,7 +110,9 @@ export default function SubmissionButton({
       const params = new URLSearchParams({
         path: item.file_path,
         name: item.file_name || 'file',
-        size: (item.file_size || 0).toString()
+        size: (item.file_size || 0).toString(),
+        ...(taskId && { taskId }),
+        ...(groupId && { groupId })
       });
       navigate(`/file-preview?${params.toString()}`);
     } else if (item.url) {

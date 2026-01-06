@@ -173,6 +173,7 @@ interface TaskRowProps {
   stageColor: ReturnType<typeof getStageColor>;
   isLeaderInGroup: boolean;
   isAssignee: boolean;
+  groupId: string;
   onEditTask: (task: Task) => void;
   openSubmissionDialog: (task: Task) => void;
   setTaskToDelete: (task: Task) => void;
@@ -184,6 +185,7 @@ function TaskRow({
   stageColor,
   isLeaderInGroup,
   isAssignee,
+  groupId,
   onEditTask,
   openSubmissionDialog,
   setTaskToDelete,
@@ -292,7 +294,8 @@ function TaskRow({
       <div className="flex items-center gap-1 shrink-0">
         {/* History popup - compact */}
         <SubmissionHistoryPopup 
-          taskId={task.id} 
+          taskId={task.id}
+          groupId={groupId}
           taskDeadline={task.deadline}
           currentSubmissionLink={task.submission_link}
         />
@@ -302,6 +305,8 @@ function TaskRow({
           submissionLink={task.submission_link} 
           variant="compact"
           onStopPropagation={true}
+          taskId={task.id}
+          groupId={groupId}
         />
         
         {/* Submit Button */}
@@ -596,6 +601,7 @@ export default function TaskListView({
                             stageColor={stageColor}
                             isLeaderInGroup={isLeaderInGroup}
                             isAssignee={isUserAssignee(task)}
+                            groupId={groupId}
                             onEditTask={onEditTask}
                             openSubmissionDialog={openSubmissionDialog}
                             setTaskToDelete={setTaskToDelete}
@@ -644,6 +650,7 @@ export default function TaskListView({
                       stageColor={{ bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-muted', dot: 'bg-muted-foreground/50', accent: 'bg-muted/50' }}
                       isLeaderInGroup={isLeaderInGroup}
                       isAssignee={isUserAssignee(task)}
+                      groupId={groupId}
                       onEditTask={onEditTask}
                       openSubmissionDialog={openSubmissionDialog}
                       setTaskToDelete={setTaskToDelete}
