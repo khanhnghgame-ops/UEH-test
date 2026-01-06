@@ -216,26 +216,40 @@ export default function FilePreview() {
               {canPreview ? (
                 <div className="bg-muted/30">
                   {isPreviewableImage(fileName) ? (
-                    <div className="flex items-center justify-center p-4 min-h-[60vh]">
+                    <div className="flex items-center justify-center p-2 sm:p-4 min-h-[50vh] sm:min-h-[60vh]">
                       <img
                         src={fileUrl!}
                         alt={fileName}
-                        className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                        className="max-w-full max-h-[60vh] sm:max-h-[70vh] object-contain rounded-lg shadow-lg"
                         onError={() => setError('Không thể hiển thị ảnh')}
                       />
                     </div>
                   ) : isPDF(fileName) ? (
-                    <iframe
-                      src={`${fileUrl}#toolbar=0`}
-                      className="w-full h-[80vh] border-0"
-                      title={fileName}
-                    />
+                    <div className="w-full" style={{ height: 'calc(100vh - 180px)', minHeight: '400px' }}>
+                      <iframe
+                        src={`${fileUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
+                        className="w-full h-full border-0"
+                        title={fileName}
+                        style={{ 
+                          WebkitOverflowScrolling: 'touch',
+                          overflow: 'auto'
+                        }}
+                        allow="fullscreen"
+                      />
+                    </div>
                   ) : isOfficeDoc(fileName) && fileUrl ? (
-                    <iframe
-                      src={getOfficeViewerUrl(fileUrl)}
-                      className="w-full h-[80vh] border-0"
-                      title={fileName}
-                    />
+                    <div className="w-full" style={{ height: 'calc(100vh - 180px)', minHeight: '400px' }}>
+                      <iframe
+                        src={getOfficeViewerUrl(fileUrl)}
+                        className="w-full h-full border-0"
+                        title={fileName}
+                        style={{ 
+                          WebkitOverflowScrolling: 'touch',
+                          overflow: 'auto'
+                        }}
+                        allow="fullscreen"
+                      />
+                    </div>
                   ) : null}
                 </div>
               ) : (
