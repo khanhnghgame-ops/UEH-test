@@ -396,7 +396,9 @@ export default function TaskListView({
   const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
 
   const getTasksByStage = (stageId: string | null) => {
-    return tasks.filter((task) => task.stage_id === stageId);
+    return tasks
+      .filter((task) => task.stage_id === stageId)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   };
 
   const isUserAssignee = (task: Task) => {

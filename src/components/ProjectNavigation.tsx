@@ -38,7 +38,7 @@ export default function ProjectNavigation({
   return (
     <div className="w-full bg-gradient-to-r from-primary/8 via-primary/5 to-primary/8 border-b border-primary/15">
       <div className="max-w-7xl mx-auto">
-        <nav className="flex items-center overflow-x-auto scrollbar-hide">
+        <nav className="flex items-center justify-center overflow-x-auto scrollbar-hide">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
