@@ -26,6 +26,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Users, Loader2, ArrowLeft, Layers, Trash2 } from 'lucide-react';
 import ProjectNavigation from '@/components/ProjectNavigation';
+import ProcessScores from '@/components/scores/ProcessScores';
 import type { Group, GroupMember, Task, Profile, Stage } from '@/types/database';
 import { DeadlineHourPicker } from '@/components/DeadlineHourPicker';
 import { notifyTaskAssigned } from '@/lib/notifications';
@@ -64,6 +65,7 @@ export default function GroupDetail() {
     'overview',
     'tasks',
     'members',
+    'scores',
     'logs',
     ...(isLeaderInGroup && group?.created_by === user?.id ? ['settings'] : [])
   ];
@@ -297,6 +299,7 @@ export default function GroupDetail() {
               <TabsTrigger value="overview">Tổng quan</TabsTrigger>
               <TabsTrigger value="tasks">Task</TabsTrigger>
               <TabsTrigger value="members">Thành viên</TabsTrigger>
+              <TabsTrigger value="scores">Điểm quá trình</TabsTrigger>
               <TabsTrigger value="logs">Nhật ký</TabsTrigger>
               <TabsTrigger value="settings">Cài đặt</TabsTrigger>
             </TabsList>
@@ -529,6 +532,16 @@ export default function GroupDetail() {
 
             <TabsContent value="members" className="mt-6">
               <MemberManagementCard members={members} availableProfiles={availableProfiles} isLeaderInGroup={isLeaderInGroup} isGroupCreator={isGroupCreator} groupId={groupId!} currentUserId={user?.id || ''} groupCreatorId={group.created_by} onRefresh={fetchGroupData} />
+            </TabsContent>
+
+            <TabsContent value="scores" className="mt-6">
+              <ProcessScores 
+                groupId={groupId!} 
+                stages={stages} 
+                members={members} 
+                tasks={tasks} 
+                isLeader={isLeaderInGroup} 
+              />
             </TabsContent>
 
             <TabsContent value="logs" className="mt-6">
