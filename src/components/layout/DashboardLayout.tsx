@@ -41,12 +41,12 @@ interface NavItem {
 }
 
 const navigation: NavItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Projects', href: '/groups', icon: FolderKanban },
-  { name: 'Trao đổi', href: '/communication', icon: MessageSquare },
-  { name: 'Góp ý & Cải tiến', href: '/feedback', icon: Lightbulb },
-  { name: 'Thành viên hệ thống', href: '/members', icon: Users, requiresAdmin: true },
-  { name: 'Sao lưu & Khôi phục', href: '/admin/backup', icon: FolderArchive, requiresAdmin: true },
+  { name: 'DASHBOARD', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'PROJECTS', href: '/groups', icon: FolderKanban },
+  { name: 'TRAO ĐỔI', href: '/communication', icon: MessageSquare },
+  { name: 'GÓP Ý', href: '/feedback', icon: Lightbulb },
+  { name: 'THÀNH VIÊN', href: '/members', icon: Users, requiresAdmin: true },
+  { name: 'SAO LƯU', href: '/admin/backup', icon: FolderArchive, requiresAdmin: true },
 ];
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -98,15 +98,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                      isActive 
-                        ? 'bg-white/20 text-white' 
-                        : 'text-white/80 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    <span>{item.name}</span>
-                  </Link>
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold tracking-wider transition-all ${
+                    isActive 
+                      ? 'bg-white/20 text-white' 
+                      : 'text-white/80 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <item.icon className="w-4 h-4" />
+                  <span>{item.name}</span>
+                </Link>
                 );
               })}
           </nav>
@@ -183,16 +183,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       key={item.name}
                       to={item.href}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                        isActive 
-                          ? 'bg-white/20 text-white' 
-                          : 'text-white/80 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <item.icon className="w-5 h-5" />
-                      <span>{item.name}</span>
-                    </Link>
-                  );
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-bold tracking-wider transition-all ${
+                      isActive 
+                        ? 'bg-white/20 text-white' 
+                        : 'text-white/80 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span>{item.name}</span>
+                  </Link>
+                );
                 })}
             </nav>
           </div>
