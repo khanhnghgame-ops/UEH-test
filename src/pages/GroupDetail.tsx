@@ -280,17 +280,8 @@ export default function GroupDetail() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-0">
-        {/* Header Section */}
-        <div className="px-4 py-4 md:px-6">
-          <Link to="/groups" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2">
-            <ArrowLeft className="w-4 h-4 mr-1" />Quay lại
-          </Link>
-          <h1 className="text-2xl md:text-3xl font-bold">{group.name}</h1>
-          {group.description && <p className="text-muted-foreground mt-1">{group.description}</p>}
-        </div>
-
-        {/* Project Navigation Bar */}
+      <div className="space-y-0 -mx-6 -mt-6">
+        {/* Project Navigation Bar - immediately below main nav */}
         <ProjectNavigation
           activeTab={activeTab}
           onTabChange={handleTabChange}
@@ -517,6 +508,15 @@ export default function GroupDetail() {
 
           <div className="px-4 md:px-6">
             <TabsContent value="overview" className="mt-6">
+              {/* Project Header - moved inside Overview tab */}
+              <div className="mb-6">
+                <Link to="/groups" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2">
+                  <ArrowLeft className="w-4 h-4 mr-1" />Quay lại danh sách
+                </Link>
+                <h1 className="text-2xl md:text-3xl font-bold">{group.name}</h1>
+                {group.description && <p className="text-muted-foreground mt-1">{group.description}</p>}
+              </div>
+              
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2"><GroupDashboard tasks={tasks} members={members} stages={stages} /></div>
                 <div><GroupInfoCard group={group} canEdit={isLeaderInGroup} onUpdate={fetchGroupData} /></div>
