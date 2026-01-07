@@ -58,6 +58,44 @@ export type Database = {
           },
         ]
       }
+      appeal_attachments: {
+        Row: {
+          appeal_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string | null
+          id: string
+        }
+        Insert: {
+          appeal_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type?: string | null
+          id?: string
+        }
+        Update: {
+          appeal_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appeal_attachments_appeal_id_fkey"
+            columns: ["appeal_id"]
+            isOneToOne: false
+            referencedRelation: "score_appeals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback_comments: {
         Row: {
           content: string
@@ -215,9 +253,63 @@ export type Database = {
         }
         Relationships: []
       }
+      member_final_scores: {
+        Row: {
+          adjusted_at: string | null
+          adjusted_by: string | null
+          adjustment: number | null
+          adjustment_reason: string | null
+          calculated_score: number | null
+          created_at: string
+          final_score: number | null
+          group_id: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          adjusted_at?: string | null
+          adjusted_by?: string | null
+          adjustment?: number | null
+          adjustment_reason?: string | null
+          calculated_score?: number | null
+          created_at?: string
+          final_score?: number | null
+          group_id: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          adjusted_at?: string | null
+          adjusted_by?: string | null
+          adjustment?: number | null
+          adjustment_reason?: string | null
+          calculated_score?: number | null
+          created_at?: string
+          final_score?: number | null
+          group_id?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_final_scores_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_stage_scores: {
         Row: {
+          adjusted_at: string | null
+          adjusted_by: string | null
           adjusted_score: number | null
+          adjustment: number | null
+          adjustment_reason: string | null
           average_score: number | null
           bug_hunter_bonus: boolean
           created_at: string
@@ -231,7 +323,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          adjusted_at?: string | null
+          adjusted_by?: string | null
           adjusted_score?: number | null
+          adjustment?: number | null
+          adjustment_reason?: string | null
           average_score?: number | null
           bug_hunter_bonus?: boolean
           created_at?: string
@@ -245,7 +341,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          adjusted_at?: string | null
+          adjusted_by?: string | null
           adjusted_score?: number | null
+          adjustment?: number | null
+          adjustment_reason?: string | null
           average_score?: number | null
           bug_hunter_bonus?: boolean
           created_at?: string
@@ -519,6 +619,175 @@ export type Database = {
           },
         ]
       }
+      score_adjustment_history: {
+        Row: {
+          adjusted_by: string
+          adjustment: number
+          adjustment_type: string
+          created_at: string
+          final_score_id: string | null
+          id: string
+          new_score: number | null
+          previous_score: number | null
+          reason: string
+          stage_score_id: string | null
+          task_score_id: string | null
+          user_id: string
+        }
+        Insert: {
+          adjusted_by: string
+          adjustment: number
+          adjustment_type: string
+          created_at?: string
+          final_score_id?: string | null
+          id?: string
+          new_score?: number | null
+          previous_score?: number | null
+          reason: string
+          stage_score_id?: string | null
+          task_score_id?: string | null
+          user_id: string
+        }
+        Update: {
+          adjusted_by?: string
+          adjustment?: number
+          adjustment_type?: string
+          created_at?: string
+          final_score_id?: string | null
+          id?: string
+          new_score?: number | null
+          previous_score?: number | null
+          reason?: string
+          stage_score_id?: string | null
+          task_score_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "score_adjustment_history_final_score_id_fkey"
+            columns: ["final_score_id"]
+            isOneToOne: false
+            referencedRelation: "member_final_scores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "score_adjustment_history_stage_score_id_fkey"
+            columns: ["stage_score_id"]
+            isOneToOne: false
+            referencedRelation: "member_stage_scores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "score_adjustment_history_task_score_id_fkey"
+            columns: ["task_score_id"]
+            isOneToOne: false
+            referencedRelation: "task_scores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      score_appeals: {
+        Row: {
+          appeal_type: string
+          content: string
+          created_at: string
+          final_score_id: string | null
+          id: string
+          responded_at: string | null
+          responded_by: string | null
+          response: string | null
+          stage_score_id: string | null
+          status: string
+          task_score_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appeal_type: string
+          content: string
+          created_at?: string
+          final_score_id?: string | null
+          id?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          response?: string | null
+          stage_score_id?: string | null
+          status?: string
+          task_score_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appeal_type?: string
+          content?: string
+          created_at?: string
+          final_score_id?: string | null
+          id?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          response?: string | null
+          stage_score_id?: string | null
+          status?: string
+          task_score_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "score_appeals_final_score_id_fkey"
+            columns: ["final_score_id"]
+            isOneToOne: false
+            referencedRelation: "member_final_scores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "score_appeals_stage_score_id_fkey"
+            columns: ["stage_score_id"]
+            isOneToOne: false
+            referencedRelation: "member_stage_scores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "score_appeals_task_score_id_fkey"
+            columns: ["task_score_id"]
+            isOneToOne: false
+            referencedRelation: "task_scores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stage_weights: {
+        Row: {
+          created_at: string
+          id: string
+          stage_id: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          stage_id: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          stage_id?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stage_weights_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: true
+            referencedRelation: "stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stages: {
         Row: {
           created_at: string
@@ -676,6 +945,10 @@ export type Database = {
       }
       task_scores: {
         Row: {
+          adjusted_at: string | null
+          adjusted_by: string | null
+          adjustment: number | null
+          adjustment_reason: string | null
           base_score: number
           bug_hunter_bonus: boolean
           created_at: string
@@ -690,6 +963,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          adjusted_at?: string | null
+          adjusted_by?: string | null
+          adjustment?: number | null
+          adjustment_reason?: string | null
           base_score?: number
           bug_hunter_bonus?: boolean
           created_at?: string
@@ -704,6 +981,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          adjusted_at?: string | null
+          adjusted_by?: string | null
+          adjustment?: number | null
+          adjustment_reason?: string | null
           base_score?: number
           bug_hunter_bonus?: boolean
           created_at?: string
