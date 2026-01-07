@@ -24,7 +24,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Loader2, ArrowLeft, Layers, LayoutDashboard, Trash2, Settings, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Users, Loader2, ArrowLeft, Layers, Trash2 } from 'lucide-react';
+import ProjectNavigation from '@/components/ProjectNavigation';
 import type { Group, GroupMember, Task, Profile, Stage } from '@/types/database';
 import { DeadlineHourPicker } from '@/components/DeadlineHourPicker';
 import { notifyTaskAssigned } from '@/lib/notifications';
@@ -279,51 +280,39 @@ export default function GroupDetail() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <Link to="/groups" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2"><ArrowLeft className="w-4 h-4 mr-1" />Quay lại</Link>
-            <h1 className="text-3xl font-bold">{group.name}</h1>
-            {group.description && <p className="text-muted-foreground mt-1">{group.description}</p>}
-          </div>
+      <div className="space-y-0">
+        {/* Header Section */}
+        <div className="px-4 py-4 md:px-6">
+          <Link to="/groups" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2">
+            <ArrowLeft className="w-4 h-4 mr-1" />Quay lại
+          </Link>
+          <h1 className="text-2xl md:text-3xl font-bold">{group.name}</h1>
+          {group.description && <p className="text-muted-foreground mt-1">{group.description}</p>}
         </div>
 
-        <Tabs defaultValue="overview" value={activeTab} onValueChange={handleTabChange}>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              {/* Back Button */}
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleGoBack}
-                disabled={isFirstTab(availableTabs)}
-                title="Lùi"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              
-              <TabsList>
-                <TabsTrigger value="overview" className="gap-2"><LayoutDashboard className="w-4 h-4" />Tổng quan</TabsTrigger>
-                <TabsTrigger value="tasks" className="gap-2"><Layers className="w-4 h-4" />Task & Giai đoạn</TabsTrigger>
-                <TabsTrigger value="members" className="gap-2"><Users className="w-4 h-4" />Thành viên ({members.length})</TabsTrigger>
-                <TabsTrigger value="logs" className="gap-2"><Activity className="w-4 h-4" />Nhật ký</TabsTrigger>
-                {isLeaderInGroup && group.created_by === user?.id && <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" />Cài đặt</TabsTrigger>}
-              </TabsList>
-              
-              {/* Next Button */}
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleGoNext}
-                disabled={isLastTab(availableTabs)}
-                title="Tới"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
+        {/* Project Navigation Bar */}
+        <ProjectNavigation
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          isLeaderInGroup={isLeaderInGroup}
+          isGroupCreator={group.created_by === user?.id}
+          membersCount={members.length}
+        />
 
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-0">
+          {/* Hidden TabsList - using ProjectNavigation instead */}
+          <div className="sr-only">
+            <TabsList>
+              <TabsTrigger value="overview">Tổng quan</TabsTrigger>
+              <TabsTrigger value="tasks">Task</TabsTrigger>
+              <TabsTrigger value="members">Thành viên</TabsTrigger>
+              <TabsTrigger value="logs">Nhật ký</TabsTrigger>
+              <TabsTrigger value="settings">Cài đặt</TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* Contextual Action Buttons */}
+          <div className="px-4 md:px-6 pt-4">
             {/* Contextual Action Buttons for Leader */}
             {isLeaderInGroup && (
               <div className="flex gap-2">
@@ -526,41 +515,43 @@ export default function GroupDetail() {
             )}
           </div>
 
-          <TabsContent value="overview" className="mt-6">
-            <div className="grid lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2"><GroupDashboard tasks={tasks} members={members} stages={stages} /></div>
-              <div><GroupInfoCard group={group} canEdit={isLeaderInGroup} onUpdate={fetchGroupData} /></div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="tasks" className="mt-6">
-            <TaskListView stages={stages} tasks={tasks} members={members} isLeaderInGroup={isLeaderInGroup} groupId={groupId!} onRefresh={fetchGroupData} onEditTask={setEditingTask} onCreateTask={(stageId) => { setNewTaskStageId(stageId); setIsTaskDialogOpen(true); }} onEditStage={setEditingStage} onDeleteStage={setStageToDelete} />
-          </TabsContent>
-
-          <TabsContent value="members" className="mt-6">
-            <MemberManagementCard members={members} availableProfiles={availableProfiles} isLeaderInGroup={isLeaderInGroup} isGroupCreator={isGroupCreator} groupId={groupId!} currentUserId={user?.id || ''} groupCreatorId={group.created_by} onRefresh={fetchGroupData} />
-          </TabsContent>
-
-          <TabsContent value="logs" className="mt-6">
-            <ProjectActivityLog groupId={groupId!} />
-          </TabsContent>
-
-          {isLeaderInGroup && group.created_by === user?.id && (
-            <TabsContent value="settings" className="mt-6 space-y-6">
-              <ShareSettingsCard
-                groupId={groupId!}
-                isPublic={group.is_public || false}
-                shareToken={group.share_token || null}
-                showMembersPublic={group.show_members_public ?? true}
-                showActivityPublic={group.show_activity_public ?? true}
-                onUpdate={fetchGroupData}
-              />
-              <Card>
-                <CardHeader><CardTitle className="text-destructive flex items-center gap-2"><Trash2 className="w-5 h-5" />Xóa project</CardTitle><CardDescription>Hành động này không thể hoàn tác.</CardDescription></CardHeader>
-                <CardContent><Button variant="destructive" onClick={() => setIsDeleteGroupDialogOpen(true)}><Trash2 className="w-4 h-4 mr-2" />Xóa project này</Button></CardContent>
-              </Card>
+          <div className="px-4 md:px-6">
+            <TabsContent value="overview" className="mt-6">
+              <div className="grid lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2"><GroupDashboard tasks={tasks} members={members} stages={stages} /></div>
+                <div><GroupInfoCard group={group} canEdit={isLeaderInGroup} onUpdate={fetchGroupData} /></div>
+              </div>
             </TabsContent>
-          )}
+
+            <TabsContent value="tasks" className="mt-6">
+              <TaskListView stages={stages} tasks={tasks} members={members} isLeaderInGroup={isLeaderInGroup} groupId={groupId!} onRefresh={fetchGroupData} onEditTask={setEditingTask} onCreateTask={(stageId) => { setNewTaskStageId(stageId); setIsTaskDialogOpen(true); }} onEditStage={setEditingStage} onDeleteStage={setStageToDelete} />
+            </TabsContent>
+
+            <TabsContent value="members" className="mt-6">
+              <MemberManagementCard members={members} availableProfiles={availableProfiles} isLeaderInGroup={isLeaderInGroup} isGroupCreator={isGroupCreator} groupId={groupId!} currentUserId={user?.id || ''} groupCreatorId={group.created_by} onRefresh={fetchGroupData} />
+            </TabsContent>
+
+            <TabsContent value="logs" className="mt-6">
+              <ProjectActivityLog groupId={groupId!} />
+            </TabsContent>
+
+            {isLeaderInGroup && group.created_by === user?.id && (
+              <TabsContent value="settings" className="mt-6 space-y-6">
+                <ShareSettingsCard
+                  groupId={groupId!}
+                  isPublic={group.is_public || false}
+                  shareToken={group.share_token || null}
+                  showMembersPublic={group.show_members_public ?? true}
+                  showActivityPublic={group.show_activity_public ?? true}
+                  onUpdate={fetchGroupData}
+                />
+                <Card>
+                  <CardHeader><CardTitle className="text-destructive flex items-center gap-2"><Trash2 className="w-5 h-5" />Xóa project</CardTitle><CardDescription>Hành động này không thể hoàn tác.</CardDescription></CardHeader>
+                  <CardContent><Button variant="destructive" onClick={() => setIsDeleteGroupDialogOpen(true)}><Trash2 className="w-4 h-4 mr-2" />Xóa project này</Button></CardContent>
+                </Card>
+              </TabsContent>
+            )}
+          </div>
         </Tabs>
       </div>
 
