@@ -37,8 +37,12 @@ export default function ProjectNavigation({
 
   return (
     <div className="w-full bg-gradient-to-r from-primary/8 via-primary/5 to-primary/8 border-b border-primary/15">
-      <div className="max-w-7xl mx-auto">
-        <nav className="flex items-center justify-center overflow-x-auto scrollbar-hide">
+      <div className="max-w-[1600px] mx-auto px-4 flex items-center justify-between">
+        {/* Spacer to match logo area width */}
+        <div className="hidden md:block w-[140px] shrink-0" />
+        
+        {/* Center: Navigation tabs */}
+        <nav className="flex-1 flex items-center justify-center overflow-x-auto scrollbar-hide">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -82,6 +86,9 @@ export default function ProjectNavigation({
             );
           })}
         </nav>
+        
+        {/* Spacer to match user area width */}
+        <div className="hidden md:block w-[140px] shrink-0" />
       </div>
     </div>
   );
