@@ -343,7 +343,8 @@ export default function PublicProjectView() {
           {activeTab === 'tasks' && (
             <PublicTaskListView 
               stages={stages} 
-              tasks={tasks} 
+              tasks={tasks}
+              groupId={group.id}
             />
           )}
           

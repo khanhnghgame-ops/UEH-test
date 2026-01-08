@@ -5,13 +5,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -432,159 +425,205 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
           </div>
         ) : (
           <>
-            {/* Version Selector */}
-            <div className="flex items-center gap-2">
-              <Select value={selectedNoteId || ''} onValueChange={setSelectedNoteId}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Chọn phiên bản" />
-                </SelectTrigger>
-                <SelectContent>
-                  {notes.map(note => (
-                    <SelectItem key={note.id} value={note.id}>
-                      {note.version_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              {selectedNote && (
-                <div className="flex items-center gap-1">
+            {/* Notes List - Visible list of all saved notes */}
+            <div className="space-y-2">
+              <span className="text-sm font-medium text-muted-foreground">
+                Danh sách ghi chú ({notes.length})
+              </span>
+              <ScrollArea className="max-h-32">
+                <div className="space-y-1">
+                  {notes.map(note => {
+                    const isSelected = note.id === selectedNoteId;
+                    const noteAttachmentCount = allAttachments.filter(a => a.note_id === note.id).length;
+                    return (
+                      <div
+                        key={note.id}
+                        onClick={() => setSelectedNoteId(note.id)}
+                        className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${
+                          isSelected 
+                            ? 'bg-primary/10 border border-primary/30' 
+                            : 'bg-muted/50 hover:bg-muted border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <FileText className={`w-4 h-4 shrink-0 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <span className={`text-sm truncate ${isSelected ? 'font-medium' : ''}`}>
+                            {note.version_name}
+                          </span>
+                          {noteAttachmentCount > 0 && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">
+                              <Paperclip className="w-2.5 h-2.5 mr-0.5" />
+                              {noteAttachmentCount}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-6 w-6"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedNoteId(note.id);
+                              setEditingName(note.version_name);
+                              setIsEditingName(true);
+                            }}
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </Button>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setNoteToDelete(note.id);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Selected Note Editor */}
+            {selectedNote && (
+              <div className="flex-1 flex flex-col space-y-3 border-t pt-3">
+                {/* Version Name Editor */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Đang chỉnh sửa:</span>
                   {isEditingName ? (
-                    <>
+                    <div className="flex items-center gap-1 flex-1">
                       <Input
                         value={editingName}
                         onChange={(e) => setEditingName(e.target.value)}
-                        className="h-9 w-32"
+                        className="h-8 flex-1"
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') saveVersionName();
                           if (e.key === 'Escape') setIsEditingName(false);
                         }}
                       />
-                      <Button size="icon" variant="ghost" onClick={saveVersionName}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveVersionName}>
                         <Check className="w-4 h-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => setIsEditingName(false)}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setIsEditingName(false)}>
                         <X className="w-4 h-4" />
                       </Button>
-                    </>
+                    </div>
                   ) : (
-                    <Button 
-                      size="icon" 
-                      variant="ghost"
-                      onClick={() => {
-                        setEditingName(selectedNote.version_name);
-                        setIsEditingName(true);
-                      }}
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </Button>
-                  )}
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="text-destructive"
-                    onClick={() => {
-                      setNoteToDelete(selectedNoteId);
-                      setShowDeleteDialog(true);
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Content Editor */}
-            <div className="flex-1 flex flex-col min-h-0">
-              <Textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Nhập nội dung ghi chú tại đây..."
-                className="flex-1 resize-none min-h-[150px]"
-              />
-            </div>
-
-            {/* Attachments */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium flex items-center gap-1">
-                  <Paperclip className="w-4 h-4" />
-                  File đính kèm
-                </span>
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                    disabled={isUploading}
-                  />
-                  <Button size="sm" variant="outline" asChild disabled={isUploading}>
-                    <span>
-                      {isUploading ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                      ) : (
-                        <Upload className="w-4 h-4 mr-1" />
-                      )}
-                      Tải file
-                    </span>
-                  </Button>
-                </label>
-              </div>
-              
-              {attachments.length > 0 ? (
-                <ScrollArea className="max-h-32">
-                  <div className="space-y-1">
-                    {attachments.map(attachment => (
-                      <div 
-                        key={attachment.id} 
-                        className="flex items-center justify-between p-2 bg-muted/50 rounded-md text-sm"
+                    <div className="flex items-center gap-1 flex-1">
+                      <Badge variant="secondary" className="text-sm">{selectedNote.version_name}</Badge>
+                      <Button 
+                        size="icon" 
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          setEditingName(selectedNote.version_name);
+                          setIsEditingName(true);
+                        }}
                       >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <File className="w-4 h-4 shrink-0 text-muted-foreground" />
-                          <span className="truncate">{attachment.file_name}</span>
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            ({formatFileSize(attachment.file_size)})
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            className="h-7 w-7"
-                            onClick={() => handleDownloadAttachment(attachment)}
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            className="h-7 w-7 text-destructive"
-                            onClick={() => handleDeleteAttachment(attachment)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              ) : (
-                <p className="text-xs text-muted-foreground text-center py-2">
-                  Chưa có file đính kèm
-                </p>
-              )}
-            </div>
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
 
-            {/* Save Button */}
-            <Button onClick={saveContent} disabled={isSaving} className="w-full">
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Lưu ghi chú
-            </Button>
+                {/* Content Editor */}
+                <Textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Nhập nội dung ghi chú tại đây..."
+                  className="flex-1 resize-none min-h-[120px]"
+                />
+
+                {/* Attachments */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium flex items-center gap-1">
+                      <Paperclip className="w-4 h-4" />
+                      File đính kèm
+                    </span>
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        disabled={isUploading}
+                      />
+                      <Button size="sm" variant="outline" asChild disabled={isUploading}>
+                        <span>
+                          {isUploading ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                          ) : (
+                            <Upload className="w-4 h-4 mr-1" />
+                          )}
+                          Tải file
+                        </span>
+                      </Button>
+                    </label>
+                  </div>
+                  
+                  {attachments.length > 0 ? (
+                    <ScrollArea className="max-h-32">
+                      <div className="space-y-1">
+                        {attachments.map(attachment => (
+                          <div 
+                            key={attachment.id} 
+                            className="flex items-center justify-between p-2 bg-muted/50 rounded-md text-sm"
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <File className="w-4 h-4 shrink-0 text-muted-foreground" />
+                              <span className="truncate">{attachment.file_name}</span>
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                ({formatFileSize(attachment.file_size)})
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-7 w-7"
+                                onClick={() => handleDownloadAttachment(attachment)}
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-7 w-7 text-destructive"
+                                onClick={() => handleDeleteAttachment(attachment)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      Chưa có file đính kèm
+                    </p>
+                  )}
+                </div>
+
+                {/* Save Button */}
+                <Button onClick={saveContent} disabled={isSaving} className="w-full">
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Lưu ghi chú
+                </Button>
+              </div>
+            )}
           </>
         )}
       </CardContent>

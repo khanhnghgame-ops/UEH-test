@@ -22,11 +22,12 @@ import type { Stage, Task, TaskAssignment } from '@/types/database';
 interface PublicTaskListViewProps {
   stages: Stage[];
   tasks: Task[];
+  groupId?: string;
 }
 
 type ViewMode = 'compact' | 'detailed';
 
-export default function PublicTaskListView({ stages, tasks }: PublicTaskListViewProps) {
+export default function PublicTaskListView({ stages, tasks, groupId }: PublicTaskListViewProps) {
   const navigate = useNavigate();
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set(stages.map(s => s.id)));
@@ -124,7 +125,7 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
     }
   };
 
-  const handleOpenItem = (item: any, e?: React.MouseEvent) => {
+  const handleOpenItem = (item: any, taskId?: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     
     if (item.type === 'file' && item.file_path) {
@@ -133,13 +134,15 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
         name: item.file_name || 'file',
         size: (item.file_size || 0).toString()
       });
+      if (taskId) params.set('taskId', taskId);
+      if (groupId) params.set('groupId', groupId);
       navigate(`/file-preview?${params.toString()}`);
     } else if (item.url) {
       window.open(item.url, '_blank', 'noopener,noreferrer');
     }
   };
 
-  const renderSubmissionButton = (submissionLink: string | null) => {
+  const renderSubmissionButton = (submissionLink: string | null, taskId?: string) => {
     const items = parseSubmissionLinks(submissionLink);
     if (items.length === 0) return null;
 
@@ -152,7 +155,7 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
           variant="outline"
           size="sm"
           className="h-8 text-xs gap-1.5 text-primary shrink-0"
-          onClick={(e) => handleOpenItem(item, e)}
+          onClick={(e) => handleOpenItem(item, taskId, e)}
         >
           {isFile ? <Eye className="w-3.5 h-3.5" /> : <ExternalLink className="w-3.5 h-3.5" />}
           <span className="hidden sm:inline">{isFile ? 'Xem file' : 'Xem bài'}</span>
@@ -180,7 +183,7 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
             return (
               <DropdownMenuItem 
                 key={i}
-                onClick={(e) => handleOpenItem(item, e)}
+                onClick={(e) => handleOpenItem(item, taskId, e)}
                 className="text-xs cursor-pointer gap-2"
               >
                 {isFile ? <File className="w-3.5 h-3.5" /> : <ExternalLink className="w-3.5 h-3.5" />}
@@ -256,7 +259,7 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
             
             {task.submission_link && (
               <div className="pt-1">
-                {renderSubmissionButton(task.submission_link)}
+                {renderSubmissionButton(task.submission_link, task.id)}
               </div>
             )}
           </div>
@@ -322,7 +325,7 @@ export default function PublicTaskListView({ stages, tasks }: PublicTaskListView
         {/* Action */}
         {task.submission_link && (
           <div className="pt-1 border-t">
-            {renderSubmissionButton(task.submission_link)}
+            {renderSubmissionButton(task.submission_link, task.id)}
           </div>
         )}
       </div>
