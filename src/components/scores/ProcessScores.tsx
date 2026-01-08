@@ -965,7 +965,7 @@ export default function ProcessScores({
     </Card>
   );
 
-  // Render Detail Tab for Leader (with all members)
+  // Render Detail Tab for Leader (Stage -> Task -> Assignees structure)
   const renderLeaderDetail = () => (
     <div className="space-y-4">
       {stages.length === 0 ? (
@@ -996,131 +996,117 @@ export default function ProcessScores({
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {members.map(member => {
-                    const profile = member.profiles;
-                    const stageScore = stageScores.find(
-                      ss => ss.stage_id === stage.id && ss.user_id === member.user_id
-                    );
-                    const memberTaskScores = taskScores.filter(
-                      ts => stageTasks.some(t => t.id === ts.task_id) && ts.user_id === member.user_id
-                    );
-
-                    if (memberTaskScores.length === 0) return null;
-
-                    const score = stageScore?.final_stage_score ?? 100;
-                    const adjustment = stageScore?.adjustment ?? 0;
-
-                    return (
-                      <div key={`${stage.id}-${member.user_id}`}>
-                        <div className={`flex items-center gap-3 p-3 rounded-lg border ${getScoreBgColor(score)}`}>
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                              {getInitials(profile?.full_name || '')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{profile?.full_name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {memberTaskScores.length} task
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {adjustment !== 0 && (
-                              <div 
-                                className="flex items-center gap-1 cursor-pointer hover:opacity-80"
-                                onClick={() => setAdjustmentDetailDialog({
-                                  isOpen: true,
-                                  type: 'stage',
-                                  title: `Chi tiết: ${profile?.full_name} - ${stage.name}`,
-                                  score,
-                                  baseScore: stageScore?.average_score ?? 100,
-                                  adjustment,
-                                  reason: stageScore?.adjustment_reason || null,
-                                  adjustedAt: stageScore?.adjusted_at || null,
-                                })}
-                              >
-                                {getAdjustmentBadge(adjustment)}
-                                <Eye className="w-3 h-3 text-muted-foreground" />
-                              </div>
+                  {stageTasks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Chưa có task nào trong giai đoạn này
+                    </p>
+                  ) : (
+                    stageTasks.map(task => {
+                      // Get all scores for this task
+                      const taskScoresForTask = taskScores.filter(ts => ts.task_id === task.id);
+                      
+                      return (
+                        <div key={task.id} className="border rounded-lg overflow-hidden">
+                          {/* Task Header */}
+                          <div className="flex items-center gap-3 p-3 bg-muted/50">
+                            <Target className="w-4 h-4 text-primary" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{task.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {taskScoresForTask.length} người được giao
+                              </p>
+                            </div>
+                            {task.status === 'DONE' && (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Hoàn thành
+                              </Badge>
                             )}
-                            <span className={`text-lg font-bold ${getScoreColor(score)}`}>
-                              {score.toFixed(1)}
-                            </span>
+                            {task.status === 'VERIFIED' && (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                <Star className="w-3 h-3 mr-1" />
+                                Đã duyệt
+                              </Badge>
+                            )}
                           </div>
-                          {stageScore && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setAdjustmentDialog({
-                                isOpen: true,
-                                type: 'stage',
-                                targetId: stageScore.id,
-                                memberId: member.user_id,
-                                memberName: profile?.full_name || '',
-                                currentScore: score,
+                          
+                          {/* Assignees with their scores */}
+                          {taskScoresForTask.length > 0 ? (
+                            <div className="divide-y">
+                              {taskScoresForTask.map(taskScore => {
+                                const member = members.find(m => m.user_id === taskScore.user_id);
+                                const profile = member?.profiles;
+                                const adjustment = taskScore.adjustment ?? 0;
+                                
+                                return (
+                                  <div 
+                                    key={taskScore.id}
+                                    className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors"
+                                  >
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                        {getInitials(profile?.full_name || '')}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium truncate">{profile?.full_name}</p>
+                                      <p className="text-xs text-muted-foreground">{profile?.student_id}</p>
+                                    </div>
+                                    
+                                    {/* Adjustment badge with click to view detail */}
+                                    {adjustment !== 0 && (
+                                      <div 
+                                        className="flex items-center gap-1 cursor-pointer hover:opacity-80"
+                                        onClick={() => setAdjustmentDetailDialog({
+                                          isOpen: true,
+                                          type: 'task',
+                                          title: `Chi tiết điểm: ${profile?.full_name} - ${task.title}`,
+                                          score: taskScore.final_score,
+                                          baseScore: 100,
+                                          adjustment,
+                                          reason: taskScore.adjustment_reason || null,
+                                          adjustedAt: taskScore.adjusted_at || null,
+                                        })}
+                                      >
+                                        {getAdjustmentBadge(adjustment)}
+                                        <Eye className="w-3 h-3 text-muted-foreground" />
+                                      </div>
+                                    )}
+                                    
+                                    {/* Score display */}
+                                    <span className={`text-lg font-bold ${getScoreColor(taskScore.final_score)}`}>
+                                      {taskScore.final_score.toFixed(1)}
+                                    </span>
+                                    
+                                    {/* Edit button for leader */}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => setAdjustmentDialog({
+                                        isOpen: true,
+                                        type: 'task',
+                                        targetId: taskScore.id,
+                                        memberId: taskScore.user_id,
+                                        memberName: profile?.full_name || '',
+                                        currentScore: taskScore.final_score,
+                                      })}
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                );
                               })}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
+                            </div>
+                          ) : (
+                            <div className="p-3 text-sm text-muted-foreground text-center">
+                              Chưa có điểm cho task này
+                            </div>
                           )}
                         </div>
-                        
-                        {/* Task details */}
-                        <div className="ml-8 mt-2 space-y-1">
-                          {memberTaskScores.map(taskScore => {
-                            const task = stageTasks.find(t => t.id === taskScore.task_id);
-                            const taskAdjustment = taskScore.adjustment ?? 0;
-                            
-                            return (
-                              <div 
-                                key={taskScore.id}
-                                className="flex items-center gap-3 p-2 rounded bg-muted/30 text-sm"
-                              >
-                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                                <span className="flex-1 truncate">{task?.title}</span>
-                                {taskAdjustment !== 0 && (
-                                  <div 
-                                    className="flex items-center gap-1 cursor-pointer hover:opacity-80"
-                                    onClick={() => setAdjustmentDetailDialog({
-                                      isOpen: true,
-                                      type: 'task',
-                                      title: `Chi tiết: ${task?.title}`,
-                                      score: taskScore.final_score,
-                                      baseScore: 100,
-                                      adjustment: taskAdjustment,
-                                      reason: taskScore.adjustment_reason || null,
-                                      adjustedAt: taskScore.adjusted_at || null,
-                                    })}
-                                  >
-                                    {getAdjustmentBadge(taskAdjustment)}
-                                    <Eye className="w-3 h-3 text-muted-foreground" />
-                                  </div>
-                                )}
-                                <span className={`font-medium ${getScoreColor(taskScore.final_score)}`}>
-                                  {taskScore.final_score.toFixed(1)}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 w-6 p-0"
-                                  onClick={() => setAdjustmentDialog({
-                                    isOpen: true,
-                                    type: 'task',
-                                    targetId: taskScore.id,
-                                    memberId: member.user_id,
-                                    memberName: profile?.full_name || '',
-                                    currentScore: taskScore.final_score,
-                                  })}
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               </CardContent>
             </Card>
