@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Download, 
@@ -12,13 +15,25 @@ import {
   Image as ImageIcon,
   File,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  FileEdit,
+  Eye
 } from 'lucide-react';
 import uehLogo from '@/assets/ueh-logo-new.png';
+import TaskNotes from '@/components/TaskNotes';
+
+interface TaskFile {
+  file_path: string;
+  file_name: string;
+  file_size: number;
+  storage_name: string;
+}
 
 const getFileIcon = (fileName: string, size: 'sm' | 'lg' = 'lg') => {
   const ext = fileName.split('.').pop()?.toLowerCase();
-  const iconClass = size === 'lg' ? 'w-16 h-16' : 'w-5 h-5';
+  const iconClass = size === 'lg' ? 'w-16 h-16' : 'w-4 h-4';
   
   switch (ext) {
     case 'pdf':
@@ -65,11 +80,15 @@ const isOfficeDoc = (fileName: string) => {
 };
 
 export default function FilePreview() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [taskFiles, setTaskFiles] = useState<TaskFile[]>([]);
+  const [taskTitle, setTaskTitle] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'preview' | 'notes'>('preview');
+  const [showNotesSidebar, setShowNotesSidebar] = useState(false);
 
   const filePath = searchParams.get('path');
   const fileName = searchParams.get('name') || 'file';
@@ -77,12 +96,52 @@ export default function FilePreview() {
   const taskId = searchParams.get('taskId');
   const groupId = searchParams.get('groupId');
 
+  const currentFileIndex = useMemo(() => {
+    if (!filePath || taskFiles.length === 0) return -1;
+    return taskFiles.findIndex(f => f.file_path === filePath);
+  }, [filePath, taskFiles]);
+
   const handleGoBack = () => {
-    // Navigate to the correct project task page if we have group info
     if (groupId) {
       navigate(`/groups/${groupId}?tab=tasks${taskId ? `&task=${taskId}` : ''}`);
     } else {
       navigate(-1);
+    }
+  };
+
+  // Fetch task files and title
+  useEffect(() => {
+    if (taskId) {
+      fetchTaskData();
+    }
+  }, [taskId]);
+
+  const fetchTaskData = async () => {
+    try {
+      const { data: task } = await supabase
+        .from('tasks')
+        .select('title, submission_link')
+        .eq('id', taskId)
+        .single();
+
+      if (task) {
+        setTaskTitle(task.title || '');
+        
+        // Parse files from submission_link
+        if (task.submission_link) {
+          try {
+            const parsed = JSON.parse(task.submission_link);
+            if (Array.isArray(parsed)) {
+              const files = parsed.filter((item: any) => item.file_path) as TaskFile[];
+              setTaskFiles(files);
+            }
+          } catch (e) {
+            console.error('Error parsing submission_link:', e);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching task data:', error);
     }
   };
 
@@ -96,6 +155,8 @@ export default function FilePreview() {
   }, [filePath]);
 
   const loadFile = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       const { data } = supabase.storage
         .from('task-submissions')
@@ -132,17 +193,36 @@ export default function FilePreview() {
     }
   };
 
+  const navigateToFile = (file: TaskFile) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('path', file.file_path);
+    params.set('name', file.file_name);
+    params.set('size', file.file_size.toString());
+    setSearchParams(params);
+  };
+
+  const goToPrevFile = () => {
+    if (currentFileIndex > 0) {
+      navigateToFile(taskFiles[currentFileIndex - 1]);
+    }
+  };
+
+  const goToNextFile = () => {
+    if (currentFileIndex < taskFiles.length - 1) {
+      navigateToFile(taskFiles[currentFileIndex + 1]);
+    }
+  };
+
   const canPreview = isPreviewableImage(fileName) || isPDF(fileName) || isOfficeDoc(fileName);
 
-  // Office Online Viewer URL
   const getOfficeViewerUrl = (url: string) => {
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-primary text-primary-foreground shadow-lg sticky top-0 z-50">
+      <header className="bg-primary text-primary-foreground shadow-lg sticky top-0 z-50 shrink-0">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -162,116 +242,246 @@ export default function FilePreview() {
                   className="h-8 w-auto drop-shadow-md"
                   loading="lazy"
                 />
-                <span className="font-semibold hidden sm:block">Xem trước file</span>
+                <div className="hidden sm:block">
+                  <span className="font-semibold">Xem trước file</span>
+                  {taskTitle && (
+                    <span className="text-primary-foreground/70 text-sm ml-2">• {taskTitle}</span>
+                  )}
+                </div>
               </div>
             </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleDownload}
-              disabled={!fileUrl}
-              className="gap-2"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Tải xuống</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              {taskId && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowNotesSidebar(!showNotesSidebar)}
+                  className="gap-2"
+                >
+                  <FileEdit className="w-4 h-4" />
+                  <span className="hidden sm:inline">Ghi chú</span>
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleDownload}
+                disabled={!fileUrl}
+                className="gap-2"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Tải xuống</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Content */}
-      <main className="container mx-auto px-4 py-6">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Đang tải file...</p>
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <AlertCircle className="w-16 h-16 text-destructive mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Không thể tải file</h2>
-            <p className="text-muted-foreground">{error}</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* File Info Card */}
-            <Card className="p-4">
-              <div className="flex items-center gap-4">
-                {getFileIcon(fileName, 'sm')}
-                <div className="flex-1 min-w-0">
-                  <h1 className="font-semibold truncate">{fileName}</h1>
-                  <p className="text-sm text-muted-foreground">
-                    {formatFileSize(fileSize)}
-                  </p>
+      {/* File Navigation Bar - only show if there are multiple files */}
+      {taskFiles.length > 1 && (
+        <div className="bg-muted/50 border-b shrink-0">
+          <div className="container mx-auto px-4 py-2">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={goToPrevFile}
+                disabled={currentFileIndex <= 0}
+                className="shrink-0"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              
+              <ScrollArea className="flex-1">
+                <div className="flex gap-2 py-1">
+                  {taskFiles.map((file, index) => (
+                    <button
+                      key={file.file_path}
+                      onClick={() => navigateToFile(file)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors shrink-0 ${
+                        index === currentFileIndex
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-background hover:bg-muted border'
+                      }`}
+                    >
+                      {getFileIcon(file.file_name, 'sm')}
+                      <span className="max-w-[120px] truncate">{file.file_name}</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5">
+                        {formatFileSize(file.file_size)}
+                      </Badge>
+                    </button>
+                  ))}
                 </div>
-                <Button onClick={handleDownload} className="gap-2 shrink-0">
-                  <Download className="w-4 h-4" />
-                  Tải xuống
-                </Button>
-              </div>
-            </Card>
+              </ScrollArea>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={goToNextFile}
+                disabled={currentFileIndex >= taskFiles.length - 1}
+                className="shrink-0"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+              
+              <span className="text-sm text-muted-foreground shrink-0">
+                {currentFileIndex + 1} / {taskFiles.length}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
-            {/* Preview Area */}
-            <Card className="overflow-hidden">
-              {canPreview ? (
-                <div className="bg-muted/30">
-                  {isPreviewableImage(fileName) ? (
-                    <div className="flex items-center justify-center p-2 sm:p-4 min-h-[50vh] sm:min-h-[60vh]">
-                      <img
-                        src={fileUrl!}
-                        alt={fileName}
-                        className="max-w-full max-h-[60vh] sm:max-h-[70vh] object-contain rounded-lg shadow-lg"
-                        onError={() => setError('Không thể hiển thị ảnh')}
-                      />
-                    </div>
-                  ) : isPDF(fileName) ? (
-                    <div className="w-full" style={{ height: 'calc(100vh - 180px)', minHeight: '400px' }}>
-                      <iframe
-                        src={`${fileUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
-                        className="w-full h-full border-0"
-                        title={fileName}
-                        style={{ 
-                          WebkitOverflowScrolling: 'touch',
-                          overflow: 'auto'
-                        }}
-                        allow="fullscreen"
-                      />
-                    </div>
-                  ) : isOfficeDoc(fileName) && fileUrl ? (
-                    <div className="w-full" style={{ height: 'calc(100vh - 180px)', minHeight: '400px' }}>
-                      <iframe
-                        src={getOfficeViewerUrl(fileUrl)}
-                        className="w-full h-full border-0"
-                        title={fileName}
-                        style={{ 
-                          WebkitOverflowScrolling: 'touch',
-                          overflow: 'auto'
-                        }}
-                        allow="fullscreen"
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-12 min-h-[40vh] text-center">
-                  {getFileIcon(fileName)}
-                  <h2 className="text-xl font-semibold mt-6 mb-2">
-                    Không thể xem trước file này
-                  </h2>
-                  <p className="text-muted-foreground mb-6 max-w-md">
-                    Định dạng file này không hỗ trợ xem trước trực tiếp. 
-                    Vui lòng tải file về để xem nội dung.
-                  </p>
-                  <Button onClick={handleDownload} className="gap-2">
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Preview Area */}
+        <main className={`flex-1 container mx-auto px-4 py-4 overflow-auto ${showNotesSidebar ? 'hidden md:block md:w-1/2 lg:w-2/3' : ''}`}>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh]">
+              <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Đang tải file...</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh]">
+              <AlertCircle className="w-16 h-16 text-destructive mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Không thể tải file</h2>
+              <p className="text-muted-foreground">{error}</p>
+            </div>
+          ) : (
+            <div className="space-y-4 h-full">
+              {/* File Info Card */}
+              <Card className="p-4">
+                <div className="flex items-center gap-4">
+                  {getFileIcon(fileName, 'sm')}
+                  <div className="flex-1 min-w-0">
+                    <h1 className="font-semibold truncate">{fileName}</h1>
+                    <p className="text-sm text-muted-foreground">
+                      {formatFileSize(fileSize)}
+                    </p>
+                  </div>
+                  <Button onClick={handleDownload} className="gap-2 shrink-0">
                     <Download className="w-4 h-4" />
                     Tải xuống
                   </Button>
                 </div>
-              )}
-            </Card>
-          </div>
+              </Card>
+
+              {/* Preview Area */}
+              <Card className="overflow-hidden flex-1">
+                {canPreview ? (
+                  <div className="bg-muted/30">
+                    {isPreviewableImage(fileName) ? (
+                      <div className="flex items-center justify-center p-2 sm:p-4 min-h-[50vh] sm:min-h-[60vh]">
+                        <img
+                          src={fileUrl!}
+                          alt={fileName}
+                          className="max-w-full max-h-[60vh] sm:max-h-[70vh] object-contain rounded-lg shadow-lg"
+                          onError={() => setError('Không thể hiển thị ảnh')}
+                        />
+                      </div>
+                    ) : isPDF(fileName) ? (
+                      <div className="w-full" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
+                        <iframe
+                          src={`${fileUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
+                          className="w-full h-full border-0"
+                          title={fileName}
+                          style={{ 
+                            WebkitOverflowScrolling: 'touch',
+                            overflow: 'auto'
+                          }}
+                          allow="fullscreen"
+                        />
+                      </div>
+                    ) : isOfficeDoc(fileName) && fileUrl ? (
+                      <div className="w-full" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
+                        <iframe
+                          src={getOfficeViewerUrl(fileUrl)}
+                          className="w-full h-full border-0"
+                          title={fileName}
+                          style={{ 
+                            WebkitOverflowScrolling: 'touch',
+                            overflow: 'auto'
+                          }}
+                          allow="fullscreen"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-12 min-h-[40vh] text-center">
+                    {getFileIcon(fileName)}
+                    <h2 className="text-xl font-semibold mt-6 mb-2">
+                      Không thể xem trước file này
+                    </h2>
+                    <p className="text-muted-foreground mb-6 max-w-md">
+                      Định dạng file này không hỗ trợ xem trước trực tiếp. 
+                      Vui lòng tải file về để xem nội dung.
+                    </p>
+                    <Button onClick={handleDownload} className="gap-2">
+                      <Download className="w-4 h-4" />
+                      Tải xuống
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            </div>
+          )}
+        </main>
+
+        {/* Notes Sidebar */}
+        {taskId && showNotesSidebar && (
+          <aside className="w-full md:w-1/2 lg:w-1/3 border-l bg-background overflow-hidden flex flex-col">
+            <div className="p-4 border-b shrink-0 flex items-center justify-between">
+              <h2 className="font-semibold flex items-center gap-2">
+                <FileEdit className="w-5 h-5 text-primary" />
+                Ghi chú Task
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowNotesSidebar(false)}
+                className="md:hidden"
+              >
+                <Eye className="w-4 h-4 mr-1" />
+                Xem file
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <TaskNotes taskId={taskId} compact />
+            </div>
+          </aside>
         )}
-      </main>
+      </div>
+
+      {/* Mobile Tabs - only show on mobile when notes sidebar is open */}
+      {taskId && showNotesSidebar && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t p-2">
+          <div className="flex gap-2">
+            <Button
+              variant={activeTab === 'preview' ? 'default' : 'outline'}
+              className="flex-1"
+              onClick={() => {
+                setActiveTab('preview');
+                setShowNotesSidebar(false);
+              }}
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Xem file
+            </Button>
+            <Button
+              variant={activeTab === 'notes' ? 'default' : 'outline'}
+              className="flex-1"
+              onClick={() => {
+                setActiveTab('notes');
+                setShowNotesSidebar(true);
+              }}
+            >
+              <FileEdit className="w-4 h-4 mr-2" />
+              Ghi chú
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

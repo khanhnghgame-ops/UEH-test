@@ -57,6 +57,7 @@ import { parseLocalDateTime } from '@/lib/datetime';
 import MultiFileUploadSubmission, { UploadedFile } from './MultiFileUploadSubmission';
 import { notifyTaskSubmitted, notifyTaskVerified } from '@/lib/notifications';
 import TaskComments from './communication/TaskComments';
+import TaskNotes from './TaskNotes';
 
 interface SubmissionLink {
   id?: string;
@@ -529,12 +530,21 @@ export default function TaskSubmissionDialog({
                 </div>
               </div>
 
+              {/* Task Notes Section */}
+              {task && (
+                <TaskNotes 
+                  taskId={task.id} 
+                  className="flex-shrink-0"
+                  compact
+                />
+              )}
+
               {/* Task Comments Section */}
               {task && (
                 <TaskComments 
                   taskId={task.id} 
                   groupId={task.group_id} 
-                  className="flex-shrink-0 max-h-[280px]"
+                  className="flex-shrink-0 max-h-[200px]"
                 />
               )}
             </div>
