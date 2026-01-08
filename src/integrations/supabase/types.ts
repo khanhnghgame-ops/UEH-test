@@ -943,6 +943,79 @@ export type Database = {
           },
         ]
       }
+      task_note_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          note_id: string
+          storage_name: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number
+          id?: string
+          note_id: string
+          storage_name: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          note_id?: string
+          storage_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_note_attachments_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "task_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_notes: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          task_id: string
+          updated_at: string
+          version_name: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          task_id: string
+          updated_at?: string
+          version_name?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          task_id?: string
+          updated_at?: string
+          version_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_notes_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_scores: {
         Row: {
           adjusted_at: string | null
