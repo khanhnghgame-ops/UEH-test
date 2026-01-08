@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Download, 
@@ -19,10 +18,12 @@ import {
   ChevronLeft,
   ChevronRight,
   FileEdit,
-  Eye
+  Eye,
+  FolderDown
 } from 'lucide-react';
 import uehLogo from '@/assets/ueh-logo-new.png';
 import TaskNotes from '@/components/TaskNotes';
+import JSZip from 'jszip';
 
 interface TaskFile {
   file_path: string;
@@ -193,6 +194,41 @@ export default function FilePreview() {
     }
   };
 
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+
+  const handleDownloadAll = async () => {
+    if (taskFiles.length === 0) return;
+    
+    setIsDownloadingAll(true);
+    try {
+      const zip = new JSZip();
+      
+      for (const file of taskFiles) {
+        const { data } = supabase.storage
+          .from('task-submissions')
+          .getPublicUrl(file.file_path);
+        
+        const response = await fetch(data.publicUrl);
+        const blob = await response.blob();
+        zip.file(file.file_name, blob);
+      }
+      
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${taskTitle || 'task-files'}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download all error:', err);
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  };
+
   const navigateToFile = (file: TaskFile) => {
     const params = new URLSearchParams(searchParams);
     params.set('path', file.file_path);
@@ -262,16 +298,22 @@ export default function FilePreview() {
                   <span className="hidden sm:inline">Ghi chú</span>
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleDownload}
-                disabled={!fileUrl}
-                className="gap-2"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Tải xuống</span>
-              </Button>
+              {taskFiles.length > 0 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleDownloadAll}
+                  disabled={isDownloadingAll}
+                  className="gap-2"
+                >
+                  {isDownloadingAll ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FolderDown className="w-4 h-4" />
+                  )}
+                  <span className="hidden sm:inline">Tải toàn bộ file</span>
+                </Button>
+              )}
             </div>
           </div>
         </div>
