@@ -4,16 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Progress } from '@/components/ui/progress';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
+import { 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription 
+} from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  Award, ChevronDown, ChevronRight, Scale, History, 
+  Award, Scale, History, 
   AlertCircle, CheckCircle, Clock, Edit2, MessageSquare,
-  TrendingUp, TrendingDown, Minus, FileText, Users, Loader2
+  TrendingUp, TrendingDown, Minus, FileText, Users, Loader2,
+  ChevronRight, Info, Target, BarChart3, Star, Eye
 } from 'lucide-react';
 import ScoreAdjustmentDialog from './ScoreAdjustmentDialog';
 import AppealDialog from './AppealDialog';
@@ -34,6 +37,17 @@ interface ProcessScoresProps {
   isLeader: boolean;
 }
 
+interface AdjustmentDetailDialog {
+  isOpen: boolean;
+  type: 'task' | 'stage' | 'final';
+  title: string;
+  score: number;
+  baseScore: number;
+  adjustment: number;
+  reason: string | null;
+  adjustedAt: string | null;
+}
+
 export default function ProcessScores({
   groupId,
   stages,
@@ -46,8 +60,6 @@ export default function ProcessScores({
   
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
-  const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
   
   // Data states
   const [taskScores, setTaskScores] = useState<TaskScore[]>([]);
@@ -83,6 +95,9 @@ export default function ProcessScores({
   
   const [weightDialog, setWeightDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Adjustment detail dialog for viewing reasons
+  const [adjustmentDetailDialog, setAdjustmentDetailDialog] = useState<AdjustmentDetailDialog | null>(null);
 
   // Fetch all score data
   useEffect(() => {
@@ -517,13 +532,34 @@ export default function ProcessScores({
     return 'text-destructive';
   };
 
-  const getAdjustmentIcon = (adjustment: number) => {
-    if (adjustment > 0) return <TrendingUp className="w-3 h-3 text-green-600" />;
-    if (adjustment < 0) return <TrendingDown className="w-3 h-3 text-destructive" />;
-    return <Minus className="w-3 h-3 text-muted-foreground" />;
+  const getScoreBgColor = (score: number) => {
+    if (score >= 90) return 'bg-green-100 border-green-200';
+    if (score >= 70) return 'bg-blue-100 border-blue-200';
+    if (score >= 50) return 'bg-yellow-100 border-yellow-200';
+    return 'bg-red-100 border-red-200';
+  };
+
+  const getAdjustmentBadge = (adjustment: number | null) => {
+    if (!adjustment || adjustment === 0) return null;
+    return (
+      <Badge 
+        variant={adjustment > 0 ? 'default' : 'destructive'} 
+        className={`text-xs font-semibold ${adjustment > 0 ? 'bg-green-500 hover:bg-green-600' : ''}`}
+      >
+        {adjustment > 0 ? '+' : ''}{adjustment}
+      </Badge>
+    );
   };
 
   const pendingAppealsCount = appeals.filter(a => a.status === 'pending').length;
+  
+  // Get current user data for member view
+  const currentUserMember = members.find(m => m.user_id === user?.id);
+  const currentUserProfile = currentUserMember?.profiles;
+  const currentUserFinalScore = finalScores.find(fs => fs.user_id === user?.id);
+  const currentUserStageScores = stageScores.filter(ss => ss.user_id === user?.id);
+  const currentUserTaskScores = taskScores.filter(ts => ts.user_id === user?.id);
+  const currentUserAppeals = appeals.filter(a => a.user_id === user?.id);
 
   // Get visible members (leader sees all, member sees only self)
   const visibleMembers = isLeader ? members : members.filter(m => m.user_id === user?.id);
@@ -536,6 +572,564 @@ export default function ProcessScores({
     );
   }
 
+  // Render Member Overview (Beautiful personal dashboard)
+  const renderMemberOverview = () => {
+    const finalScore = currentUserFinalScore?.final_score ?? 100;
+    const calculatedScore = currentUserFinalScore?.calculated_score ?? 100;
+    const adjustment = currentUserFinalScore?.adjustment ?? 0;
+    
+    return (
+      <div className="space-y-6">
+        {/* Personal Score Card */}
+        <Card className="overflow-hidden">
+          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16 border-4 border-background shadow-lg">
+                <AvatarFallback className="text-xl bg-primary text-primary-foreground">
+                  {getInitials(currentUserProfile?.full_name || '')}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold">{currentUserProfile?.full_name}</h2>
+                <p className="text-muted-foreground">{currentUserProfile?.student_id}</p>
+              </div>
+              
+              {/* Final Score Display */}
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground mb-1">Điểm quá trình</p>
+                <div className={`text-4xl font-bold ${getScoreColor(finalScore)}`}>
+                  {finalScore.toFixed(1)}
+                </div>
+                {adjustment !== 0 && (
+                  <div 
+                    className="flex items-center justify-end gap-1 mt-1 cursor-pointer hover:opacity-80"
+                    onClick={() => setAdjustmentDetailDialog({
+                      isOpen: true,
+                      type: 'final',
+                      title: 'Chi tiết điểm quá trình',
+                      score: finalScore,
+                      baseScore: calculatedScore,
+                      adjustment,
+                      reason: currentUserFinalScore?.adjustment_reason || null,
+                      adjustedAt: currentUserFinalScore?.adjusted_at || null,
+                    })}
+                  >
+                    {getAdjustmentBadge(adjustment)}
+                    <Info className="w-3 h-3 text-muted-foreground ml-1" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <CardContent className="pt-4">
+            {/* Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Mức độ hoàn thành</span>
+                <span className="font-medium">{finalScore.toFixed(0)}%</span>
+              </div>
+              <Progress value={Math.min(finalScore, 100)} className="h-2" />
+            </div>
+            
+            {/* Stats Grid */}
+            <div className="grid grid-cols-3 gap-4 mt-6">
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <Target className="w-5 h-5 mx-auto text-primary mb-1" />
+                <p className="text-2xl font-bold">{currentUserTaskScores.length}</p>
+                <p className="text-xs text-muted-foreground">Task</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <BarChart3 className="w-5 h-5 mx-auto text-primary mb-1" />
+                <p className="text-2xl font-bold">{currentUserStageScores.length}</p>
+                <p className="text-xs text-muted-foreground">Giai đoạn</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <MessageSquare className="w-5 h-5 mx-auto text-primary mb-1" />
+                <p className="text-2xl font-bold">{currentUserAppeals.length}</p>
+                <p className="text-xs text-muted-foreground">Phúc khảo</p>
+              </div>
+            </div>
+
+            {/* Appeal Button for Final Score */}
+            {currentUserFinalScore && (
+              <div className="mt-4 pt-4 border-t flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAppealDialog({
+                    isOpen: true,
+                    type: 'final',
+                    scoreId: currentUserFinalScore.id,
+                    currentScore: finalScore,
+                    adjustment,
+                    adjustmentReason: currentUserFinalScore.adjustment_reason,
+                  })}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Phúc khảo điểm tổng
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Stage Scores Detail */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              Điểm theo giai đoạn
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {stages.sort((a, b) => a.order_index - b.order_index).map(stage => {
+              const stageScore = currentUserStageScores.find(ss => ss.stage_id === stage.id);
+              const weight = stageWeights.find(w => w.stage_id === stage.id)?.weight ?? 1;
+              const score = stageScore?.final_stage_score ?? 100;
+              const baseScore = stageScore?.average_score ?? 100;
+              const adjustment = stageScore?.adjustment ?? 0;
+              const stageTasks = tasks.filter(t => t.stage_id === stage.id);
+              const stageTaskScores = currentUserTaskScores.filter(
+                ts => stageTasks.some(t => t.id === ts.task_id)
+              );
+
+              return (
+                <div 
+                  key={stage.id} 
+                  className={`p-4 rounded-lg border ${getScoreBgColor(score)}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-background">
+                          GĐ {stage.order_index + 1}
+                        </Badge>
+                        <span className="font-medium">{stage.name}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          x{weight}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {stageTaskScores.length} task đã chấm điểm
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      {adjustment !== 0 && (
+                        <div 
+                          className="flex items-center gap-1 cursor-pointer hover:opacity-80"
+                          onClick={() => setAdjustmentDetailDialog({
+                            isOpen: true,
+                            type: 'stage',
+                            title: `Chi tiết điểm ${stage.name}`,
+                            score,
+                            baseScore,
+                            adjustment,
+                            reason: stageScore?.adjustment_reason || null,
+                            adjustedAt: stageScore?.adjusted_at || null,
+                          })}
+                        >
+                          {getAdjustmentBadge(adjustment)}
+                          <Info className="w-3 h-3 text-muted-foreground" />
+                        </div>
+                      )}
+                      
+                      <span className={`text-2xl font-bold ${getScoreColor(score)}`}>
+                        {score.toFixed(1)}
+                      </span>
+                      
+                      {stageScore && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setAppealDialog({
+                            isOpen: true,
+                            type: 'stage',
+                            scoreId: stageScore.id,
+                            currentScore: score,
+                            adjustment,
+                            adjustmentReason: stageScore.adjustment_reason,
+                          })}
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {stages.length === 0 && (
+              <p className="text-center text-muted-foreground py-4">
+                Chưa có giai đoạn nào
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Task Scores Detail */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="w-5 h-5 text-primary" />
+              Điểm theo task
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {currentUserTaskScores.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">
+                Chưa có điểm task nào
+              </p>
+            ) : (
+              currentUserTaskScores.map(taskScore => {
+                const task = tasks.find(t => t.id === taskScore.task_id);
+                const stage = stages.find(s => s.id === task?.stage_id);
+                const adjustment = taskScore.adjustment ?? 0;
+                
+                return (
+                  <div 
+                    key={taskScore.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{task?.title || 'Task không xác định'}</p>
+                      {stage && (
+                        <p className="text-xs text-muted-foreground">
+                          {stage.name}
+                        </p>
+                      )}
+                    </div>
+                    
+                    {adjustment !== 0 && (
+                      <div 
+                        className="flex items-center gap-1 cursor-pointer hover:opacity-80"
+                        onClick={() => setAdjustmentDetailDialog({
+                          isOpen: true,
+                          type: 'task',
+                          title: `Chi tiết điểm: ${task?.title || 'Task'}`,
+                          score: taskScore.final_score,
+                          baseScore: 100,
+                          adjustment,
+                          reason: taskScore.adjustment_reason || null,
+                          adjustedAt: taskScore.adjusted_at || null,
+                        })}
+                      >
+                        {getAdjustmentBadge(adjustment)}
+                        <Info className="w-3 h-3 text-muted-foreground" />
+                      </div>
+                    )}
+                    
+                    <span className={`text-lg font-bold ${getScoreColor(taskScore.final_score)}`}>
+                      {taskScore.final_score.toFixed(1)}
+                    </span>
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAppealDialog({
+                        isOpen: true,
+                        type: 'task',
+                        scoreId: taskScore.id,
+                        currentScore: taskScore.final_score,
+                        adjustment,
+                        adjustmentReason: taskScore.adjustment_reason,
+                      })}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                    </Button>
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  // Render Leader Overview (All members table)
+  const renderLeaderOverview = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Users className="w-5 h-5 text-primary" />
+          Điểm quá trình thành viên
+        </CardTitle>
+        <CardDescription>
+          Tổng quan điểm của tất cả thành viên trong nhóm
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {members.map(member => {
+            const profile = member.profiles;
+            const finalScore = finalScores.find(fs => fs.user_id === member.user_id);
+            const memberStageScores = stageScores.filter(ss => ss.user_id === member.user_id);
+            const memberTaskScores = taskScores.filter(ts => ts.user_id === member.user_id);
+            const memberAppeals = appeals.filter(a => a.user_id === member.user_id && a.status === 'pending');
+            
+            const score = finalScore?.final_score ?? 100;
+            const adjustment = finalScore?.adjustment ?? 0;
+
+            return (
+              <div 
+                key={member.id}
+                className={`flex items-center gap-4 p-4 rounded-lg border transition-colors ${getScoreBgColor(score)}`}
+              >
+                <Avatar className="h-12 w-12">
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {getInitials(profile?.full_name || '')}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{profile?.full_name}</p>
+                  <p className="text-sm text-muted-foreground">{profile?.student_id}</p>
+                </div>
+
+                {/* Task & Stage counts */}
+                <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Target className="w-4 h-4" />
+                    {memberTaskScores.length}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <BarChart3 className="w-4 h-4" />
+                    {memberStageScores.length}
+                  </span>
+                </div>
+
+                {/* Pending appeals */}
+                {memberAppeals.length > 0 && (
+                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {memberAppeals.length} phúc khảo
+                  </Badge>
+                )}
+
+                {/* Score display with adjustment */}
+                <div className="flex items-center gap-2">
+                  {adjustment !== 0 && (
+                    <div 
+                      className="flex items-center gap-1 cursor-pointer hover:opacity-80"
+                      onClick={() => setAdjustmentDetailDialog({
+                        isOpen: true,
+                        type: 'final',
+                        title: `Chi tiết điểm: ${profile?.full_name}`,
+                        score,
+                        baseScore: finalScore?.calculated_score ?? 100,
+                        adjustment,
+                        reason: finalScore?.adjustment_reason || null,
+                        adjustedAt: finalScore?.adjusted_at || null,
+                      })}
+                    >
+                      {getAdjustmentBadge(adjustment)}
+                      <Eye className="w-3 h-3 text-muted-foreground" />
+                    </div>
+                  )}
+                  <span className={`text-2xl font-bold ${getScoreColor(score)}`}>
+                    {score.toFixed(1)}
+                  </span>
+                </div>
+
+                {/* Actions */}
+                {finalScore && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAdjustmentDialog({
+                      isOpen: true,
+                      type: 'final',
+                      targetId: finalScore.id,
+                      memberId: member.user_id,
+                      memberName: profile?.full_name || '',
+                      currentScore: score,
+                    })}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+
+          {members.length === 0 && (
+            <p className="text-center text-muted-foreground py-8">
+              Chưa có thành viên nào
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  // Render Detail Tab for Leader (with all members)
+  const renderLeaderDetail = () => (
+    <div className="space-y-4">
+      {stages.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <p className="text-muted-foreground">Chưa có giai đoạn nào</p>
+          </CardContent>
+        </Card>
+      ) : (
+        stages.sort((a, b) => a.order_index - b.order_index).map(stage => {
+          const stageTasks = tasks.filter(t => t.stage_id === stage.id);
+          const weight = stageWeights.find(w => w.stage_id === stage.id)?.weight ?? 1;
+
+          return (
+            <Card key={stage.id}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-primary">{stage.order_index + 1}</Badge>
+                    <div>
+                      <CardTitle className="text-lg">{stage.name}</CardTitle>
+                      <CardDescription>
+                        {stageTasks.length} task • Trọng số: x{weight}
+                      </CardDescription>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {members.map(member => {
+                    const profile = member.profiles;
+                    const stageScore = stageScores.find(
+                      ss => ss.stage_id === stage.id && ss.user_id === member.user_id
+                    );
+                    const memberTaskScores = taskScores.filter(
+                      ts => stageTasks.some(t => t.id === ts.task_id) && ts.user_id === member.user_id
+                    );
+
+                    if (memberTaskScores.length === 0) return null;
+
+                    const score = stageScore?.final_stage_score ?? 100;
+                    const adjustment = stageScore?.adjustment ?? 0;
+
+                    return (
+                      <div key={`${stage.id}-${member.user_id}`}>
+                        <div className={`flex items-center gap-3 p-3 rounded-lg border ${getScoreBgColor(score)}`}>
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                              {getInitials(profile?.full_name || '')}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{profile?.full_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {memberTaskScores.length} task
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {adjustment !== 0 && (
+                              <div 
+                                className="flex items-center gap-1 cursor-pointer hover:opacity-80"
+                                onClick={() => setAdjustmentDetailDialog({
+                                  isOpen: true,
+                                  type: 'stage',
+                                  title: `Chi tiết: ${profile?.full_name} - ${stage.name}`,
+                                  score,
+                                  baseScore: stageScore?.average_score ?? 100,
+                                  adjustment,
+                                  reason: stageScore?.adjustment_reason || null,
+                                  adjustedAt: stageScore?.adjusted_at || null,
+                                })}
+                              >
+                                {getAdjustmentBadge(adjustment)}
+                                <Eye className="w-3 h-3 text-muted-foreground" />
+                              </div>
+                            )}
+                            <span className={`text-lg font-bold ${getScoreColor(score)}`}>
+                              {score.toFixed(1)}
+                            </span>
+                          </div>
+                          {stageScore && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setAdjustmentDialog({
+                                isOpen: true,
+                                type: 'stage',
+                                targetId: stageScore.id,
+                                memberId: member.user_id,
+                                memberName: profile?.full_name || '',
+                                currentScore: score,
+                              })}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {/* Task details */}
+                        <div className="ml-8 mt-2 space-y-1">
+                          {memberTaskScores.map(taskScore => {
+                            const task = stageTasks.find(t => t.id === taskScore.task_id);
+                            const taskAdjustment = taskScore.adjustment ?? 0;
+                            
+                            return (
+                              <div 
+                                key={taskScore.id}
+                                className="flex items-center gap-3 p-2 rounded bg-muted/30 text-sm"
+                              >
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                <span className="flex-1 truncate">{task?.title}</span>
+                                {taskAdjustment !== 0 && (
+                                  <div 
+                                    className="flex items-center gap-1 cursor-pointer hover:opacity-80"
+                                    onClick={() => setAdjustmentDetailDialog({
+                                      isOpen: true,
+                                      type: 'task',
+                                      title: `Chi tiết: ${task?.title}`,
+                                      score: taskScore.final_score,
+                                      baseScore: 100,
+                                      adjustment: taskAdjustment,
+                                      reason: taskScore.adjustment_reason || null,
+                                      adjustedAt: taskScore.adjusted_at || null,
+                                    })}
+                                  >
+                                    {getAdjustmentBadge(taskAdjustment)}
+                                    <Eye className="w-3 h-3 text-muted-foreground" />
+                                  </div>
+                                )}
+                                <span className={`font-medium ${getScoreColor(taskScore.final_score)}`}>
+                                  {taskScore.final_score.toFixed(1)}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => setAdjustmentDialog({
+                                    isOpen: true,
+                                    type: 'task',
+                                    targetId: taskScore.id,
+                                    memberId: member.user_id,
+                                    memberName: profile?.full_name || '',
+                                    currentScore: taskScore.final_score,
+                                  })}
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -546,7 +1140,7 @@ export default function ProcessScores({
             Điểm quá trình
           </h2>
           <p className="text-muted-foreground mt-1">
-            Đánh giá mức độ đóng góp của thành viên
+            {isLeader ? 'Đánh giá mức độ đóng góp của thành viên' : 'Theo dõi điểm quá trình của bạn'}
           </p>
         </div>
 
@@ -608,443 +1202,133 @@ export default function ProcessScores({
         </Card>
       )}
 
-      {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Tổng quan
-          </TabsTrigger>
-          <TabsTrigger value="stages" className="flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            Chi tiết
-          </TabsTrigger>
-          <TabsTrigger value="appeals" className="flex items-center gap-2">
-            <MessageSquare className="w-4 h-4" />
-            Phúc khảo
-            {pendingAppealsCount > 0 && (
-              <Badge variant="destructive" className="ml-1 px-1.5 py-0.5 text-xs">
-                {pendingAppealsCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <History className="w-4 h-4" />
-            Lịch sử
-          </TabsTrigger>
-        </TabsList>
+      {/* Main Content */}
+      {isLeader ? (
+        // Leader view with tabs
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Tổng quan
+            </TabsTrigger>
+            <TabsTrigger value="stages" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Chi tiết
+            </TabsTrigger>
+            <TabsTrigger value="appeals" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Phúc khảo
+              {pendingAppealsCount > 0 && (
+                <Badge variant="destructive" className="ml-1 px-1.5 py-0.5 text-xs">
+                  {pendingAppealsCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              Lịch sử
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Điểm quá trình thành viên</CardTitle>
-              <CardDescription>
-                {isLeader ? 'Tổng quan điểm của tất cả thành viên' : 'Điểm quá trình của bạn'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {visibleMembers.map(member => {
-                  const profile = member.profiles;
-                  const finalScore = finalScores.find(fs => fs.user_id === member.user_id);
-                  const memberStageScores = stageScores.filter(ss => ss.user_id === member.user_id);
-                  const memberTaskScores = taskScores.filter(ts => ts.user_id === member.user_id);
-                  const memberAppeals = appeals.filter(a => a.user_id === member.user_id && a.status === 'pending');
-                  
-                  const score = finalScore?.final_score ?? 100;
-                  const adjustment = finalScore?.adjustment ?? 0;
+          <TabsContent value="overview" className="mt-6">
+            {renderLeaderOverview()}
+          </TabsContent>
 
-                  return (
-                    <div 
-                      key={member.id}
-                      className="flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                    >
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-primary/10 text-primary">
-                          {getInitials(profile?.full_name || '')}
-                        </AvatarFallback>
-                      </Avatar>
+          <TabsContent value="stages" className="mt-6">
+            {renderLeaderDetail()}
+          </TabsContent>
 
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{profile?.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{profile?.student_id}</p>
-                      </div>
-
-                      {/* Task & Stage counts */}
-                      <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>{memberTaskScores.length} task</span>
-                        <span>{memberStageScores.length} GĐ</span>
-                      </div>
-
-                      {/* Pending appeals */}
-                      {memberAppeals.length > 0 && (
-                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                          <Clock className="w-3 h-3 mr-1" />
-                          {memberAppeals.length}
-                        </Badge>
-                      )}
-
-                      {/* Score display */}
-                      <div className="flex items-center gap-2">
-                        {adjustment !== 0 && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <div className="flex items-center gap-1">
-                                  {getAdjustmentIcon(adjustment)}
-                                  <span className={`text-xs ${adjustment > 0 ? 'text-green-600' : 'text-destructive'}`}>
-                                    {adjustment > 0 ? '+' : ''}{adjustment}
-                                  </span>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{finalScore?.adjustment_reason || 'Điều chỉnh điểm'}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        <span className={`text-xl font-bold ${getScoreColor(score)}`}>
-                          {score.toFixed(1)}
-                        </span>
-                      </div>
-
-                      {/* Actions */}
-                      {isLeader && finalScore && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setAdjustmentDialog({
-                            isOpen: true,
-                            type: 'final',
-                            targetId: finalScore.id,
-                            memberId: member.user_id,
-                            memberName: profile?.full_name || '',
-                            currentScore: score,
-                          })}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                      )}
-
-                      {/* Appeal button for member */}
-                      {!isLeader && member.user_id === user?.id && adjustment < 0 && finalScore && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setAppealDialog({
-                            isOpen: true,
-                            type: 'final',
-                            scoreId: finalScore.id,
-                            currentScore: score,
-                            adjustment,
-                            adjustmentReason: finalScore.adjustment_reason,
-                          })}
-                        >
-                          <MessageSquare className="w-4 h-4 mr-1" />
-                          Phúc khảo
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {visibleMembers.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">
-                    Chưa có dữ liệu điểm
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Stages Detail Tab */}
-        <TabsContent value="stages" className="mt-6 space-y-4">
-          {stages.length === 0 ? (
+          <TabsContent value="appeals" className="mt-6">
             <Card>
-              <CardContent className="text-center py-12">
-                <p className="text-muted-foreground">Chưa có giai đoạn nào</p>
+              <CardHeader>
+                <CardTitle>Phúc khảo</CardTitle>
+                <CardDescription>
+                  Quản lý các yêu cầu phúc khảo từ thành viên
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {appeals.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Chưa có phúc khảo nào
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {appeals.map(appeal => {
+                      const profile = getMemberProfile(appeal.user_id);
+                      const typeLabel = appeal.appeal_type === 'task' ? 'Task' : 
+                                        appeal.appeal_type === 'stage' ? 'Giai đoạn' : 'Điểm cuối';
+                      
+                      return (
+                        <div 
+                          key={appeal.id}
+                          className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => setReviewDialog({ isOpen: true, appeal })}
+                        >
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className="bg-primary/10 text-primary">
+                              {getInitials(profile?.full_name || '')}
+                            </AvatarFallback>
+                          </Avatar>
+                          
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium">{profile?.full_name}</p>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {appeal.content}
+                            </p>
+                          </div>
+
+                          <Badge variant="outline">{typeLabel}</Badge>
+                          
+                          {appeal.attachments && appeal.attachments.length > 0 && (
+                            <Badge variant="secondary">
+                              <FileText className="w-3 h-3 mr-1" />
+                              {appeal.attachments.length}
+                            </Badge>
+                          )}
+
+                          {appeal.status === 'pending' && (
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Chờ xử lý
+                            </Badge>
+                          )}
+                          {appeal.status === 'approved' && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Chấp nhận
+                            </Badge>
+                          )}
+                          {appeal.status === 'rejected' && (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              Từ chối
+                            </Badge>
+                          )}
+
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(appeal.created_at).toLocaleDateString('vi-VN')}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
-          ) : (
-            stages.sort((a, b) => a.order_index - b.order_index).map(stage => {
-              const stageTasks = tasks.filter(t => t.stage_id === stage.id);
-              const isExpanded = expandedStages.has(stage.id);
-              const weight = stageWeights.find(w => w.stage_id === stage.id)?.weight ?? 1;
+          </TabsContent>
 
-              return (
-                <Card key={stage.id}>
-                  <Collapsible open={isExpanded} onOpenChange={(open) => {
-                    setExpandedStages(prev => {
-                      const next = new Set(prev);
-                      if (open) next.add(stage.id);
-                      else next.delete(stage.id);
-                      return next;
-                    });
-                  }}>
-                    <CollapsibleTrigger asChild>
-                      <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                            <div>
-                              <CardTitle className="text-lg">{stage.name}</CardTitle>
-                              <CardDescription>
-                                {stageTasks.length} task • Trọng số: {weight}
-                              </CardDescription>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">GĐ {stage.order_index + 1}</Badge>
-                        </div>
-                      </CardHeader>
-                    </CollapsibleTrigger>
-                    
-                    <CollapsibleContent>
-                      <CardContent className="pt-0">
-                        <div className="space-y-4">
-                          {/* Stage scores for each member */}
-                          {visibleMembers.map(member => {
-                            const profile = member.profiles;
-                            const stageScore = stageScores.find(
-                              ss => ss.stage_id === stage.id && ss.user_id === member.user_id
-                            );
-                            const memberTaskScores = taskScores.filter(
-                              ts => stageTasks.some(t => t.id === ts.task_id) && ts.user_id === member.user_id
-                            );
-
-                            if (memberTaskScores.length === 0) return null;
-
-                            const isMemberExpanded = expandedMembers.has(`${stage.id}-${member.user_id}`);
-
-                            return (
-                              <Collapsible 
-                                key={`${stage.id}-${member.user_id}`}
-                                open={isMemberExpanded}
-                                onOpenChange={(open) => {
-                                  setExpandedMembers(prev => {
-                                    const next = new Set(prev);
-                                    const key = `${stage.id}-${member.user_id}`;
-                                    if (open) next.add(key);
-                                    else next.delete(key);
-                                    return next;
-                                  });
-                                }}
-                              >
-                                <CollapsibleTrigger asChild>
-                                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors">
-                                    {isMemberExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                                    <Avatar className="h-8 w-8">
-                                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                        {getInitials(profile?.full_name || '')}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                      <p className="text-sm font-medium">{profile?.full_name}</p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {memberTaskScores.length} task
-                                      </p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      {stageScore?.adjustment !== 0 && stageScore?.adjustment && (
-                                        <span className={`text-xs ${stageScore.adjustment > 0 ? 'text-green-600' : 'text-destructive'}`}>
-                                          {stageScore.adjustment > 0 ? '+' : ''}{stageScore.adjustment}
-                                        </span>
-                                      )}
-                                      <span className={`font-bold ${getScoreColor(stageScore?.final_stage_score ?? 100)}`}>
-                                        {(stageScore?.final_stage_score ?? 100).toFixed(1)}
-                                      </span>
-                                    </div>
-                                    {isLeader && stageScore && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setAdjustmentDialog({
-                                            isOpen: true,
-                                            type: 'stage',
-                                            targetId: stageScore.id,
-                                            memberId: member.user_id,
-                                            memberName: profile?.full_name || '',
-                                            currentScore: stageScore.final_stage_score ?? 100,
-                                          });
-                                        }}
-                                      >
-                                        <Edit2 className="w-4 h-4" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </CollapsibleTrigger>
-                                
-                                <CollapsibleContent>
-                                  <div className="ml-8 mt-2 space-y-2">
-                                    {memberTaskScores.map(taskScore => {
-                                      const task = stageTasks.find(t => t.id === taskScore.task_id);
-                                      return (
-                                        <div 
-                                          key={taskScore.id}
-                                          className="flex items-center gap-3 p-2 rounded bg-background border text-sm"
-                                        >
-                                          <span className="flex-1 truncate">{task?.title}</span>
-                                          {taskScore.adjustment !== 0 && (
-                                            <TooltipProvider>
-                                              <Tooltip>
-                                                <TooltipTrigger>
-                                                  <span className={`text-xs ${taskScore.adjustment > 0 ? 'text-green-600' : 'text-destructive'}`}>
-                                                    {taskScore.adjustment > 0 ? '+' : ''}{taskScore.adjustment}
-                                                  </span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                  <p>{taskScore.adjustment_reason}</p>
-                                                </TooltipContent>
-                                              </Tooltip>
-                                            </TooltipProvider>
-                                          )}
-                                          <span className={`font-medium ${getScoreColor(taskScore.final_score)}`}>
-                                            {taskScore.final_score.toFixed(1)}
-                                          </span>
-                                          {isLeader && (
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-6 w-6 p-0"
-                                              onClick={() => setAdjustmentDialog({
-                                                isOpen: true,
-                                                type: 'task',
-                                                targetId: taskScore.id,
-                                                memberId: member.user_id,
-                                                memberName: profile?.full_name || '',
-                                                currentScore: taskScore.final_score,
-                                              })}
-                                            >
-                                              <Edit2 className="w-3 h-3" />
-                                            </Button>
-                                          )}
-                                          {!isLeader && member.user_id === user?.id && taskScore.adjustment < 0 && (
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-6"
-                                              onClick={() => setAppealDialog({
-                                                isOpen: true,
-                                                type: 'task',
-                                                scoreId: taskScore.id,
-                                                currentScore: taskScore.final_score,
-                                                adjustment: taskScore.adjustment,
-                                                adjustmentReason: taskScore.adjustment_reason,
-                                              })}
-                                            >
-                                              <MessageSquare className="w-3 h-3" />
-                                            </Button>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </CollapsibleContent>
-                              </Collapsible>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </Card>
-              );
-            })
-          )}
-        </TabsContent>
-
-        {/* Appeals Tab */}
-        <TabsContent value="appeals" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Phúc khảo</CardTitle>
-              <CardDescription>
-                {isLeader ? 'Quản lý các yêu cầu phúc khảo từ thành viên' : 'Các yêu cầu phúc khảo của bạn'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {appeals.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Chưa có phúc khảo nào
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {appeals.map(appeal => {
-                    const profile = getMemberProfile(appeal.user_id);
-                    const typeLabel = appeal.appeal_type === 'task' ? 'Task' : 
-                                      appeal.appeal_type === 'stage' ? 'Giai đoạn' : 'Điểm cuối';
-                    
-                    return (
-                      <div 
-                        key={appeal.id}
-                        className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
-                        onClick={() => setReviewDialog({ isOpen: true, appeal })}
-                      >
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className="bg-primary/10 text-primary">
-                            {getInitials(profile?.full_name || '')}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium">{profile?.full_name}</p>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {appeal.content}
-                          </p>
-                        </div>
-
-                        <Badge variant="outline">{typeLabel}</Badge>
-                        
-                        {appeal.attachments && appeal.attachments.length > 0 && (
-                          <Badge variant="secondary">
-                            <FileText className="w-3 h-3 mr-1" />
-                            {appeal.attachments.length}
-                          </Badge>
-                        )}
-
-                        {appeal.status === 'pending' && (
-                          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Chờ xử lý
-                          </Badge>
-                        )}
-                        {appeal.status === 'approved' && (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Chấp nhận
-                          </Badge>
-                        )}
-                        {appeal.status === 'rejected' && (
-                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                            <AlertCircle className="w-3 h-3 mr-1" />
-                            Từ chối
-                          </Badge>
-                        )}
-
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(appeal.created_at).toLocaleDateString('vi-VN')}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* History Tab */}
-        <TabsContent value="history" className="mt-6">
-          <ScoreHistoryPanel 
-            history={history} 
-            members={members}
-            isLeader={isLeader}
-          />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="history" className="mt-6">
+            <ScoreHistoryPanel 
+              history={history} 
+              members={members}
+              isLeader={isLeader}
+            />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        // Member view - Personal dashboard
+        renderMemberOverview()
+      )}
 
       {/* Dialogs */}
       {adjustmentDialog?.isOpen && (
@@ -1096,6 +1380,68 @@ export default function ProcessScores({
         currentWeights={stageWeights}
         isLoading={isProcessing}
       />
+
+      {/* Adjustment Detail Dialog */}
+      {adjustmentDetailDialog && (
+        <Dialog 
+          open={adjustmentDetailDialog.isOpen} 
+          onOpenChange={(open) => !open && setAdjustmentDetailDialog(null)}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Info className="w-5 h-5 text-primary" />
+                {adjustmentDetailDialog.title}
+              </DialogTitle>
+              <DialogDescription>
+                Chi tiết về điểm và điều chỉnh
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-lg bg-muted/50 text-center">
+                  <p className="text-sm text-muted-foreground mb-1">Điểm gốc</p>
+                  <p className="text-2xl font-bold">{adjustmentDetailDialog.baseScore.toFixed(1)}</p>
+                </div>
+                <div className={`p-4 rounded-lg text-center ${getScoreBgColor(adjustmentDetailDialog.score)}`}>
+                  <p className="text-sm text-muted-foreground mb-1">Điểm hiện tại</p>
+                  <p className={`text-2xl font-bold ${getScoreColor(adjustmentDetailDialog.score)}`}>
+                    {adjustmentDetailDialog.score.toFixed(1)}
+                  </p>
+                </div>
+              </div>
+
+              {adjustmentDetailDialog.adjustment !== 0 && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Điều chỉnh:</span>
+                      {getAdjustmentBadge(adjustmentDetailDialog.adjustment)}
+                    </div>
+                    
+                    {adjustmentDetailDialog.reason && (
+                      <div className={`p-4 rounded-lg ${adjustmentDetailDialog.adjustment < 0 ? 'bg-destructive/10 border border-destructive/20' : 'bg-green-50 border border-green-200'}`}>
+                        <p className="text-sm font-medium mb-1">
+                          {adjustmentDetailDialog.adjustment < 0 ? 'Lý do trừ điểm:' : 'Lý do cộng điểm:'}
+                        </p>
+                        <p className="text-sm">{adjustmentDetailDialog.reason}</p>
+                      </div>
+                    )}
+                    
+                    {adjustmentDetailDialog.adjustedAt && (
+                      <p className="text-xs text-muted-foreground text-right">
+                        Điều chỉnh lúc: {new Date(adjustmentDetailDialog.adjustedAt).toLocaleString('vi-VN')}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
