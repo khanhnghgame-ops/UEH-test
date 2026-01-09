@@ -16,13 +16,14 @@ import {
   Award, Scale, History, 
   AlertCircle, CheckCircle, Clock, Edit2, MessageSquare,
   TrendingUp, TrendingDown, Minus, FileText, Users, Loader2,
-  ChevronRight, Info, Target, BarChart3, Star, Eye
+  ChevronRight, Info, Target, BarChart3, Star, Eye, MoreHorizontal
 } from 'lucide-react';
 import ScoreAdjustmentDialog from './ScoreAdjustmentDialog';
 import AppealDialog from './AppealDialog';
 import AppealReviewDialog from './AppealReviewDialog';
 import StageWeightDialog from './StageWeightDialog';
 import ScoreHistoryPanel from './ScoreHistoryPanel';
+import TaskScoringDialog from './TaskScoringDialog';
 import type { Stage, Task, GroupMember, Profile } from '@/types/database';
 import type { 
   TaskScore, MemberStageScore, MemberFinalScore, 
@@ -95,6 +96,12 @@ export default function ProcessScores({
   
   const [weightDialog, setWeightDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Task scoring dialog for Leader
+  const [taskScoringDialog, setTaskScoringDialog] = useState<{
+    isOpen: boolean;
+    task: Task | null;
+  }>({ isOpen: false, task: null });
   
   // Adjustment detail dialog for viewing reasons
   const [adjustmentDetailDialog, setAdjustmentDetailDialog] = useState<AdjustmentDetailDialog | null>(null);
@@ -845,6 +852,96 @@ export default function ProcessScores({
             )}
           </CardContent>
         </Card>
+
+        {/* My Appeals Section */}
+        {currentUserAppeals.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                Phúc khảo của tôi
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {currentUserAppeals.map(appeal => {
+                const typeLabel = appeal.appeal_type === 'task' ? 'Task' : 
+                                  appeal.appeal_type === 'stage' ? 'Giai đoạn' : 'Điểm cuối';
+                
+                return (
+                  <div 
+                    key={appeal.id}
+                    className={`p-4 rounded-lg border transition-colors ${
+                      appeal.status === 'pending' 
+                        ? 'border-yellow-200 bg-yellow-50/50' 
+                        : appeal.status === 'approved'
+                          ? 'border-green-200 bg-green-50/50'
+                          : 'border-red-200 bg-red-50/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline">{typeLabel}</Badge>
+                          {appeal.status === 'pending' && (
+                            <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Chờ xử lý
+                            </Badge>
+                          )}
+                          {appeal.status === 'approved' && (
+                            <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Đã chấp nhận
+                            </Badge>
+                          )}
+                          {appeal.status === 'rejected' && (
+                            <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              Đã từ chối
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <p className="text-sm mb-2 line-clamp-2">{appeal.content}</p>
+                        
+                        <p className="text-xs text-muted-foreground">
+                          Gửi lúc: {new Date(appeal.created_at).toLocaleString('vi-VN')}
+                        </p>
+                      </div>
+                      
+                      {appeal.attachments && appeal.attachments.length > 0 && (
+                        <Badge variant="secondary" className="shrink-0">
+                          <FileText className="w-3 h-3 mr-1" />
+                          {appeal.attachments.length} file
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {/* Leader Response */}
+                    {appeal.response && (
+                      <div className={`mt-3 p-3 rounded-lg ${
+                        appeal.status === 'approved' 
+                          ? 'bg-green-100 border border-green-200' 
+                          : 'bg-red-100 border border-red-200'
+                      }`}>
+                        <p className="text-xs font-medium mb-1 flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          Phản hồi từ Leader:
+                        </p>
+                        <p className="text-sm">{appeal.response}</p>
+                        {appeal.responded_at && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Phản hồi lúc: {new Date(appeal.responded_at).toLocaleString('vi-VN')}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   };
@@ -965,7 +1062,7 @@ export default function ProcessScores({
     </Card>
   );
 
-  // Render Detail Tab for Leader (Stage -> Task -> Assignees structure)
+  // Render Detail Tab for Leader (Stage -> Task compact view with scoring popup)
   const renderLeaderDetail = () => (
     <div className="space-y-4">
       {stages.length === 0 ? (
@@ -995,114 +1092,85 @@ export default function ProcessScores({
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {stageTasks.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       Chưa có task nào trong giai đoạn này
                     </p>
                   ) : (
                     stageTasks.map(task => {
-                      // Get all scores for this task
+                      // Get assignee count and scored count
+                      const assigneeIds = task.task_assignments?.map((a: any) => a.user_id) || [];
                       const taskScoresForTask = taskScores.filter(ts => ts.task_id === task.id);
+                      const scoredCount = taskScoresForTask.length;
+                      const totalCount = assigneeIds.length;
+                      const isFullyScored = scoredCount === totalCount && totalCount > 0;
+                      const hasAdjustments = taskScoresForTask.some(ts => (ts.adjustment ?? 0) !== 0);
                       
                       return (
-                        <div key={task.id} className="border rounded-lg overflow-hidden">
-                          {/* Task Header */}
-                          <div className="flex items-center gap-3 p-3 bg-muted/50">
-                            <Target className="w-4 h-4 text-primary" />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">{task.title}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {taskScoresForTask.length} người được giao
-                              </p>
-                            </div>
-                            {task.status === 'DONE' && (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                Hoàn thành
-                              </Badge>
-                            )}
-                            {task.status === 'VERIFIED' && (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                <Star className="w-3 h-3 mr-1" />
-                                Đã duyệt
-                              </Badge>
-                            )}
-                          </div>
+                        <div 
+                          key={task.id} 
+                          className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => setTaskScoringDialog({ isOpen: true, task })}
+                        >
+                          <Target className="w-4 h-4 text-primary shrink-0" />
                           
-                          {/* Assignees with their scores */}
-                          {taskScoresForTask.length > 0 ? (
-                            <div className="divide-y">
-                              {taskScoresForTask.map(taskScore => {
-                                const member = members.find(m => m.user_id === taskScore.user_id);
-                                const profile = member?.profiles;
-                                const adjustment = taskScore.adjustment ?? 0;
-                                
-                                return (
-                                  <div 
-                                    key={taskScore.id}
-                                    className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors"
-                                  >
-                                    <Avatar className="h-8 w-8">
-                                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                        {getInitials(profile?.full_name || '')}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium truncate">{profile?.full_name}</p>
-                                      <p className="text-xs text-muted-foreground">{profile?.student_id}</p>
-                                    </div>
-                                    
-                                    {/* Adjustment badge with click to view detail */}
-                                    {adjustment !== 0 && (
-                                      <div 
-                                        className="flex items-center gap-1 cursor-pointer hover:opacity-80"
-                                        onClick={() => setAdjustmentDetailDialog({
-                                          isOpen: true,
-                                          type: 'task',
-                                          title: `Chi tiết điểm: ${profile?.full_name} - ${task.title}`,
-                                          score: taskScore.final_score,
-                                          baseScore: 100,
-                                          adjustment,
-                                          reason: taskScore.adjustment_reason || null,
-                                          adjustedAt: taskScore.adjusted_at || null,
-                                        })}
-                                      >
-                                        {getAdjustmentBadge(adjustment)}
-                                        <Eye className="w-3 h-3 text-muted-foreground" />
-                                      </div>
-                                    )}
-                                    
-                                    {/* Score display */}
-                                    <span className={`text-lg font-bold ${getScoreColor(taskScore.final_score)}`}>
-                                      {taskScore.final_score.toFixed(1)}
-                                    </span>
-                                    
-                                    {/* Edit button for leader */}
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 w-8 p-0"
-                                      onClick={() => setAdjustmentDialog({
-                                        isOpen: true,
-                                        type: 'task',
-                                        targetId: taskScore.id,
-                                        memberId: taskScore.user_id,
-                                        memberName: profile?.full_name || '',
-                                        currentScore: taskScore.final_score,
-                                      })}
-                                    >
-                                      <Edit2 className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                );
-                              })}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{task.title}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs text-muted-foreground">
+                                {totalCount} người thực hiện
+                              </span>
                             </div>
-                          ) : (
-                            <div className="p-3 text-sm text-muted-foreground text-center">
-                              Chưa có điểm cho task này
-                            </div>
+                          </div>
+
+                          {/* Task Status */}
+                          {task.status === 'DONE' && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 shrink-0">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Xong
+                            </Badge>
                           )}
+                          {task.status === 'VERIFIED' && (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shrink-0">
+                              <Star className="w-3 h-3 mr-1" />
+                              Duyệt
+                            </Badge>
+                          )}
+
+                          {/* Scoring Status Badge */}
+                          {totalCount > 0 && (
+                            isFullyScored ? (
+                              <Badge className="bg-green-500 shrink-0 gap-1">
+                                <CheckCircle className="w-3 h-3" />
+                                Đã chấm
+                                {hasAdjustments && <span className="ml-0.5">•</span>}
+                              </Badge>
+                            ) : scoredCount > 0 ? (
+                              <Badge variant="secondary" className="shrink-0 gap-1">
+                                <Clock className="w-3 h-3" />
+                                {scoredCount}/{totalCount}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="shrink-0 gap-1 text-muted-foreground">
+                                <AlertCircle className="w-3 h-3" />
+                                Chưa chấm
+                              </Badge>
+                            )
+                          )}
+
+                          {/* Action Button */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTaskScoringDialog({ isOpen: true, task });
+                            }}
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
                         </div>
                       );
                     })
@@ -1365,6 +1433,16 @@ export default function ProcessScores({
         stages={stages}
         currentWeights={stageWeights}
         isLoading={isProcessing}
+      />
+
+      {/* Task Scoring Dialog for Leader */}
+      <TaskScoringDialog
+        isOpen={taskScoringDialog.isOpen}
+        onClose={() => setTaskScoringDialog({ isOpen: false, task: null })}
+        task={taskScoringDialog.task}
+        members={members}
+        taskScores={taskScores}
+        onScoreUpdated={fetchScoreData}
       />
 
       {/* Adjustment Detail Dialog */}
