@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,7 +51,10 @@ import {
   History,
   Clock,
   Target,
+  GripVertical,
+  Users,
 } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -166,7 +169,7 @@ const getTaskCode = (task: Task, allTasks: Task[], stages: Stage[]) => {
 
 const isOverdue = (deadline: string | null) => isDeadlineOverdue(deadline);
 
-// Horizontal TaskRow component
+// Horizontal TaskRow component with CSS Grid layout
 interface TaskRowProps {
   task: Task;
   taskCode: string | null;
@@ -177,6 +180,8 @@ interface TaskRowProps {
   onEditTask: (task: Task) => void;
   openSubmissionDialog: (task: Task) => void;
   setTaskToDelete: (task: Task) => void;
+  dragHandleProps?: any;
+  isDragging?: boolean;
 }
 
 function TaskRow({
@@ -189,172 +194,199 @@ function TaskRow({
   onEditTask,
   openSubmissionDialog,
   setTaskToDelete,
+  dragHandleProps,
+  isDragging,
 }: TaskRowProps) {
   const overdueStatus = isOverdue(task.deadline);
   const taskIsOverdue = overdueStatus && task.status !== 'DONE' && task.status !== 'VERIFIED';
-  // Assignee can always submit (even if overdue), leader can also submit
   const canSubmit = isAssignee || isLeaderInGroup;
-  const mainAssignee = getMainAssignee(task);
+  const assignments = task.task_assignments || [];
+  const hasMultipleAssignees = assignments.length > 1;
 
   return (
     <div 
-      className={`group flex items-center gap-2 p-3 bg-card rounded-lg border transition-all hover:shadow-sm hover:border-primary/30 ${
+      className={`group bg-card rounded-lg border transition-all hover:shadow-sm hover:border-primary/30 ${
         taskIsOverdue ? 'border-destructive/40 bg-destructive/5' : 'border-border'
-      }`}
+      } ${isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
     >
-      {/* Status indicator */}
-      <div className={`w-1 h-10 rounded-full shrink-0 ${
-        taskIsOverdue ? 'bg-destructive' : 
-        task.status === 'VERIFIED' ? 'bg-success' :
-        task.status === 'DONE' ? 'bg-primary' :
-        task.status === 'IN_PROGRESS' ? 'bg-warning' : 'bg-muted-foreground/30'
-      }`} />
-      
-      {/* Task Code */}
-      {taskCode && (
-        <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0.5 font-mono font-semibold bg-primary/5 border-primary/20 text-primary">
-          {taskCode}
-        </Badge>
-      )}
-      
-      {/* Title & Main Assignee */}
-      <div 
-        className={`flex-1 min-w-0 ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
-        onClick={() => isLeaderInGroup && onEditTask(task)}
-      >
-        <div className="flex items-center gap-1.5">
-          {taskIsOverdue && (
-            <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+      {/* CSS Grid Layout: Left (title) | Right (metadata + actions) */}
+      <div className="grid grid-cols-[1fr_auto] gap-3 p-3 items-start">
+        {/* Left side: Status + Title + Assignees */}
+        <div className="flex items-start gap-2 min-w-0">
+          {/* Drag handle for leaders */}
+          {isLeaderInGroup && dragHandleProps && (
+            <div 
+              {...dragHandleProps}
+              className="shrink-0 cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted rounded touch-none"
+            >
+              <GripVertical className="w-4 h-4 text-muted-foreground" />
+            </div>
           )}
-          <h4 className={`font-medium text-sm truncate ${
-            isLeaderInGroup ? 'group-hover:text-primary transition-colors' : ''
-          }`}>
-            {task.title}
-          </h4>
-        </div>
-        {/* Main assignee name */}
-        {mainAssignee && (
-          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-            → {mainAssignee}
-          </p>
-        )}
-      </div>
-      
-      {/* Deadline */}
-      {task.deadline && (
-        <div className={`hidden sm:flex items-center gap-1 text-xs px-2 py-1 rounded-md shrink-0 ${
-          taskIsOverdue 
-            ? 'bg-destructive/10 text-destructive' 
-            : 'bg-muted text-muted-foreground'
-        }`}>
-          <Calendar className="w-3 h-3" />
-          {formatDate(task.deadline)}
-        </div>
-      )}
-      
-      {/* Assignees - compact */}
-      {task.task_assignments && task.task_assignments.length > 0 && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <div className="hidden md:flex items-center gap-0.5">
-                <div className="flex -space-x-1.5">
-                  {task.task_assignments.slice(0, 2).map((assignment) => (
-                    <Avatar key={assignment.id} className="w-6 h-6 border-2 border-background">
-                      <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                        {assignment.profiles ? getInitials(assignment.profiles.full_name) : '?'}
-                      </AvatarFallback>
-                    </Avatar>
-                  ))}
-                </div>
-                {task.task_assignments.length > 2 && (
-                  <span className="text-[10px] text-muted-foreground ml-0.5">
-                    +{task.task_assignments.length - 2}
+          
+          {/* Status indicator */}
+          <div className={`w-1 h-full min-h-[40px] rounded-full shrink-0 self-stretch ${
+            taskIsOverdue ? 'bg-destructive' : 
+            task.status === 'VERIFIED' ? 'bg-success' :
+            task.status === 'DONE' ? 'bg-primary' :
+            task.status === 'IN_PROGRESS' ? 'bg-warning' : 'bg-muted-foreground/30'
+          }`} />
+          
+          {/* Task Code */}
+          {taskCode && (
+            <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0.5 font-mono font-semibold bg-primary/5 border-primary/20 text-primary mt-0.5">
+              {taskCode}
+            </Badge>
+          )}
+          
+          {/* Title & Assignees - flexible width with line clamp */}
+          <div 
+            className={`flex-1 min-w-0 ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
+            onClick={() => isLeaderInGroup && onEditTask(task)}
+          >
+            <div className="flex items-start gap-1.5">
+              {taskIsOverdue && (
+                <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
+              )}
+              <h4 className={`font-medium text-sm line-clamp-2 ${
+                isLeaderInGroup ? 'group-hover:text-primary transition-colors' : ''
+              }`}>
+                {task.title}
+              </h4>
+            </div>
+            
+            {/* Assignees display - show all members */}
+            {assignments.length > 0 && (
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                <Users className="w-3 h-3 text-muted-foreground shrink-0" />
+                {hasMultipleAssignees ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1">
+                          <div className="flex -space-x-1.5">
+                            {assignments.slice(0, 3).map((assignment) => (
+                              <Avatar key={assignment.id} className="w-5 h-5 border border-background">
+                                <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
+                                  {assignment.profiles ? getInitials(assignment.profiles.full_name) : '?'}
+                                </AvatarFallback>
+                              </Avatar>
+                            ))}
+                          </div>
+                          <span className="text-[11px] text-muted-foreground">
+                            {assignments.length} thành viên
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs">
+                        <div className="space-y-1">
+                          {assignments.map((a, idx) => (
+                            <div key={a.id} className="flex items-center gap-2 text-xs">
+                              <span className="font-medium">{idx + 1}.</span>
+                              <span>{a.profiles?.full_name || 'Unknown'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground truncate">
+                    {assignments[0]?.profiles?.full_name || 'Unknown'}
                   </span>
                 )}
               </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <div className="text-xs">
-                {task.task_assignments.map(a => a.profiles?.full_name).join(', ')}
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-      
-      {/* Status badge */}
-      <Badge 
-        className={`${getStatusColor(task.status, taskIsOverdue)} text-[10px] px-1.5 py-0.5 border shrink-0`}
-      >
-        {getStatusLabel(task.status, taskIsOverdue)}
-      </Badge>
-      
-      {/* Actions */}
-      <div className="flex items-center gap-1 shrink-0">
-        {/* History popup - compact */}
-        <SubmissionHistoryPopup 
-          taskId={task.id}
-          groupId={groupId}
-          taskDeadline={task.deadline}
-          currentSubmissionLink={task.submission_link}
-        />
-
-        {/* Submission Link Button - Using shared component */}
-        <SubmissionButton 
-          submissionLink={task.submission_link} 
-          variant="compact"
-          onStopPropagation={true}
-          taskId={task.id}
-          groupId={groupId}
-        />
-        
-        {/* Submit Button */}
-        {(isAssignee || isLeaderInGroup) && (
-          <Button
-            variant={task.submission_link ? "outline" : "default"}
-            size="sm"
-            className="h-7 text-xs px-2 gap-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              openSubmissionDialog(task);
-            }}
-          >
-            {task.submission_link ? (
-              <>
-                <Edit className="w-3 h-3" />
-                Chỉnh sửa
-              </>
-            ) : (
-              <>
-                <Send className="w-3 h-3" />
-                Nộp
-              </>
             )}
-          </Button>
-        )}
+          </div>
+        </div>
+        
+        {/* Right side: Metadata + Actions - fixed width alignment */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Deadline */}
+          {task.deadline && (
+            <div className={`hidden sm:flex items-center gap-1 text-xs px-2 py-1 rounded-md shrink-0 whitespace-nowrap ${
+              taskIsOverdue 
+                ? 'bg-destructive/10 text-destructive' 
+                : 'bg-muted text-muted-foreground'
+            }`}>
+              <Calendar className="w-3 h-3" />
+              {formatDate(task.deadline)}
+            </div>
+          )}
+          
+          {/* Status badge */}
+          <Badge 
+            className={`${getStatusColor(task.status, taskIsOverdue)} text-[10px] px-1.5 py-0.5 border shrink-0`}
+          >
+            {getStatusLabel(task.status, taskIsOverdue)}
+          </Badge>
+          
+          {/* Actions */}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* History popup */}
+            <SubmissionHistoryPopup 
+              taskId={task.id}
+              groupId={groupId}
+              taskDeadline={task.deadline}
+              currentSubmissionLink={task.submission_link}
+            />
 
-        {/* Leader menu */}
-        {isLeaderInGroup && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <MoreVertical className="w-3.5 h-3.5" />
+            {/* Submission Link Button */}
+            <SubmissionButton 
+              submissionLink={task.submission_link} 
+              variant="compact"
+              onStopPropagation={true}
+              taskId={task.id}
+              groupId={groupId}
+            />
+            
+            {/* Submit Button */}
+            {(isAssignee || isLeaderInGroup) && (
+              <Button
+                variant={task.submission_link ? "outline" : "default"}
+                size="sm"
+                className="h-7 text-xs px-2 gap-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openSubmissionDialog(task);
+                }}
+              >
+                {task.submission_link ? (
+                  <>
+                    <Edit className="w-3 h-3" />
+                    <span className="hidden md:inline">Chỉnh sửa</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3 h-3" />
+                    <span className="hidden md:inline">Nộp</span>
+                  </>
+                )}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover min-w-[140px]">
-              <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
-                <Edit className="w-3.5 h-3.5 mr-2" />
-                Chỉnh sửa
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
-                <Trash2 className="w-3.5 h-3.5 mr-2" />
-                Xóa
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+            )}
+
+            {/* Leader menu */}
+            {isLeaderInGroup && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <MoreVertical className="w-3.5 h-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover min-w-[140px]">
+                  <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
+                    <Edit className="w-3.5 h-3.5 mr-2" />
+                    Chỉnh sửa
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
+                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                    Xóa
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -394,12 +426,30 @@ export default function TaskListView({
   // Submission dialog state
   const [submissionTask, setSubmissionTask] = useState<Task | null>(null);
   const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
+  
+  // Local task order for drag & drop (maps stage_id -> ordered task ids)
+  const [localTaskOrder, setLocalTaskOrder] = useState<Record<string, string[]>>({});
 
-  const getTasksByStage = (stageId: string | null) => {
-    return tasks
-      .filter((task) => task.stage_id === stageId)
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  };
+  const getTasksByStage = useCallback((stageId: string | null) => {
+    const stageTasks = tasks.filter((task) => task.stage_id === stageId);
+    
+    // If we have a local order for this stage, use it
+    const stageKey = stageId || 'unstaged';
+    if (localTaskOrder[stageKey]) {
+      const orderedIds = localTaskOrder[stageKey];
+      return stageTasks.sort((a, b) => {
+        const indexA = orderedIds.indexOf(a.id);
+        const indexB = orderedIds.indexOf(b.id);
+        if (indexA === -1 && indexB === -1) return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+    }
+    
+    // Default sort by created_at
+    return stageTasks.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  }, [tasks, localTaskOrder]);
 
   const isUserAssignee = (task: Task) => {
     return task.task_assignments?.some(a => a.user_id === user?.id) || false;
@@ -414,6 +464,47 @@ export default function TaskListView({
     }
     setExpandedStages(newExpanded);
   };
+  
+  // Handle drag & drop reordering
+  const handleDragEnd = useCallback(async (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+    
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+    
+    const stageId = source.droppableId === 'unstaged' ? null : source.droppableId;
+    const stageKey = source.droppableId;
+    const stageTasks = getTasksByStage(stageId);
+    
+    // Reorder the tasks
+    const newOrder = [...stageTasks.map(t => t.id)];
+    newOrder.splice(source.index, 1);
+    newOrder.splice(destination.index, 0, draggableId);
+    
+    // Update local state immediately for smooth UX
+    setLocalTaskOrder(prev => ({
+      ...prev,
+      [stageKey]: newOrder
+    }));
+    
+    // Log activity
+    try {
+      const movedTask = tasks.find(t => t.id === draggableId);
+      if (movedTask && user) {
+        await supabase.from('activity_logs').insert({
+          user_id: user.id,
+          user_name: user.email || 'Unknown',
+          action: 'REORDER_TASK',
+          action_type: 'task',
+          description: `Sắp xếp lại task "${movedTask.title}"`,
+          group_id: groupId,
+          metadata: { task_id: draggableId, new_position: destination.index + 1 }
+        });
+      }
+    } catch (error) {
+      console.error('Error logging reorder:', error);
+    }
+  }, [getTasksByStage, tasks, user, groupId]);
 
   const handleDeleteTask = async () => {
     if (!taskToDelete) return;
@@ -512,167 +603,213 @@ export default function TaskListView({
         </Select>
       </div>
 
-      {/* Stage Sections - Grid Layout */}
-      <div className="space-y-4">
-        {filteredStages.map((stage, stageIndex) => {
-          const stageTasks = getTasksByStage(stage.id);
-          const completedCount = stageTasks.filter(t => t.status === 'DONE' || t.status === 'VERIFIED').length;
-          const overdueCount = stageTasks.filter(t => isOverdue(t.deadline) && t.status !== 'DONE' && t.status !== 'VERIFIED').length;
-          const isExpanded = expandedStages.has(stage.id);
-          const stageColor = getStageColor(stageIndex);
-          const progressPercent = stageTasks.length > 0 ? (completedCount / stageTasks.length) * 100 : 0;
+      {/* Stage Sections with Drag & Drop */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="space-y-4">
+          {filteredStages.map((stage, stageIndex) => {
+            const stageTasks = getTasksByStage(stage.id);
+            const completedCount = stageTasks.filter(t => t.status === 'DONE' || t.status === 'VERIFIED').length;
+            const overdueCount = stageTasks.filter(t => isOverdue(t.deadline) && t.status !== 'DONE' && t.status !== 'VERIFIED').length;
+            const isExpanded = expandedStages.has(stage.id);
+            const stageColor = getStageColor(stageIndex);
+            const progressPercent = stageTasks.length > 0 ? (completedCount / stageTasks.length) * 100 : 0;
 
-          return (
-            <Card key={stage.id} className={`overflow-hidden border-l-4 ${stageColor.border} shadow-sm`}>
-              {/* Stage Header */}
-              <CardHeader 
-                className={`py-2.5 px-4 cursor-pointer transition-colors ${stageColor.bg} hover:opacity-90`}
-                onClick={() => toggleStage(stage.id)}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 p-0">
-                      {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </Button>
-                    <div className={`w-2.5 h-2.5 rounded-full ${stageColor.dot} shrink-0`} />
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className={`text-sm font-bold ${stageColor.text} truncate`}>
-                        {stage.name}
-                      </CardTitle>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-medium">
-                        {completedCount}/{stageTasks.length}
-                      </Badge>
-                      {overdueCount > 0 && (
-                        <Badge variant="destructive" className="text-[10px] px-1.5 h-5">
-                          {overdueCount} trễ
+            return (
+              <Card key={stage.id} className={`overflow-hidden border-l-4 ${stageColor.border} shadow-sm`}>
+                {/* Stage Header */}
+                <CardHeader 
+                  className={`py-2.5 px-4 cursor-pointer transition-colors ${stageColor.bg} hover:opacity-90`}
+                  onClick={() => toggleStage(stage.id)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 p-0">
+                        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </Button>
+                      <div className={`w-2.5 h-2.5 rounded-full ${stageColor.dot} shrink-0`} />
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className={`text-sm font-bold ${stageColor.text} truncate`}>
+                          {stage.name}
+                        </CardTitle>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-medium">
+                          {completedCount}/{stageTasks.length}
                         </Badge>
+                        {overdueCount > 0 && (
+                          <Badge variant="destructive" className="text-[10px] px-1.5 h-5">
+                            {overdueCount} trễ
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Progress bar */}
+                      <div className="hidden sm:flex items-center gap-1.5 w-24">
+                        <Progress value={progressPercent} className="h-1.5 flex-1" />
+                        <span className="text-[10px] text-muted-foreground w-7 text-right">
+                          {Math.round(progressPercent)}%
+                        </span>
+                      </div>
+                      
+                      {isLeaderInGroup && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <MoreVertical className="w-3.5 h-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-popover min-w-[120px]">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEditStage(stage); }} className="text-xs">
+                              <Edit className="w-3.5 h-3.5 mr-2" />
+                              Đổi tên
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeleteStage(stage); }} className="text-destructive text-xs">
+                              <Trash2 className="w-3.5 h-3.5 mr-2" />
+                              Xóa
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2 shrink-0">
-                    {/* Progress bar - compact */}
-                    <div className="hidden sm:flex items-center gap-1.5 w-24">
-                      <Progress value={progressPercent} className="h-1.5 flex-1" />
-                      <span className="text-[10px] text-muted-foreground w-7 text-right">
-                        {Math.round(progressPercent)}%
-                      </span>
-                    </div>
-                    
-                    {isLeaderInGroup && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-6 w-6">
-                            <MoreVertical className="w-3.5 h-3.5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-popover min-w-[120px]">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEditStage(stage); }} className="text-xs">
-                            <Edit className="w-3.5 h-3.5 mr-2" />
-                            Đổi tên
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeleteStage(stage); }} className="text-destructive text-xs">
-                            <Trash2 className="w-3.5 h-3.5 mr-2" />
-                            Xóa
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              
-              {/* Tasks List - Horizontal */}
-              {isExpanded && (
-                <CardContent className="p-3">
-                  {stageTasks.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground text-xs border border-dashed rounded-lg bg-muted/10">
-                      <Layers className="w-6 h-6 mx-auto mb-1.5 opacity-30" />
-                      Chưa có task
-                    </div>
-                  ) : (
-                    <ScrollArea className="max-h-[400px]">
-                      <div className="space-y-2 pr-2">
-                        {stageTasks.map((task) => (
-                          <TaskRow
-                            key={task.id}
-                            task={task}
-                            taskCode={getTaskCode(task, tasks, stages)}
-                            stageColor={stageColor}
-                            isLeaderInGroup={isLeaderInGroup}
-                            isAssignee={isUserAssignee(task)}
-                            groupId={groupId}
-                            onEditTask={onEditTask}
-                            openSubmissionDialog={openSubmissionDialog}
-                            setTaskToDelete={setTaskToDelete}
-                          />
-                        ))}
+                </CardHeader>
+                
+                {/* Tasks List with Drag & Drop */}
+                {isExpanded && (
+                  <CardContent className="p-3">
+                    {stageTasks.length === 0 ? (
+                      <div className="text-center py-6 text-muted-foreground text-xs border border-dashed rounded-lg bg-muted/10">
+                        <Layers className="w-6 h-6 mx-auto mb-1.5 opacity-30" />
+                        Chưa có task
                       </div>
-                    </ScrollArea>
-                  )}
-                  {isLeaderInGroup && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-center text-muted-foreground hover:text-foreground border-dashed border mt-2.5 h-8 text-xs"
-                      onClick={() => onCreateTask(stage.id)}
+                    ) : (
+                      <Droppable droppableId={stage.id}>
+                        {(provided) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className="space-y-2"
+                          >
+                            {stageTasks.map((task, index) => (
+                              <Draggable 
+                                key={task.id} 
+                                draggableId={task.id} 
+                                index={index}
+                                isDragDisabled={!isLeaderInGroup}
+                              >
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                  >
+                                    <TaskRow
+                                      task={task}
+                                      taskCode={getTaskCode(task, tasks, stages)}
+                                      stageColor={stageColor}
+                                      isLeaderInGroup={isLeaderInGroup}
+                                      isAssignee={isUserAssignee(task)}
+                                      groupId={groupId}
+                                      onEditTask={onEditTask}
+                                      openSubmissionDialog={openSubmissionDialog}
+                                      setTaskToDelete={setTaskToDelete}
+                                      dragHandleProps={provided.dragHandleProps}
+                                      isDragging={snapshot.isDragging}
+                                    />
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    )}
+                    {isLeaderInGroup && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-center text-muted-foreground hover:text-foreground border-dashed border mt-2.5 h-8 text-xs"
+                        onClick={() => onCreateTask(stage.id)}
+                      >
+                        <Plus className="w-3.5 h-3.5 mr-1.5" />
+                        Thêm task
+                      </Button>
+                    )}
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
+
+          {/* Unstaged Tasks with Drag & Drop */}
+          {filterStage === 'all' && unstagedTasks.length > 0 && (
+            <Card className="overflow-hidden border-dashed border-l-4 border-l-muted-foreground/30">
+              <CardHeader className="py-2.5 px-4 bg-muted/20">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40" />
+                  Chưa phân giai đoạn
+                  <Badge variant="secondary" className="text-[10px] px-1.5 h-5">
+                    {unstagedTasks.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                <Droppable droppableId="unstaged">
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="space-y-2"
                     >
-                      <Plus className="w-3.5 h-3.5 mr-1.5" />
-                      Thêm task
-                    </Button>
+                      {unstagedTasks.map((task, index) => (
+                        <Draggable 
+                          key={task.id} 
+                          draggableId={task.id} 
+                          index={index}
+                          isDragDisabled={!isLeaderInGroup}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                            >
+                              <TaskRow
+                                task={task}
+                                taskCode={null}
+                                stageColor={{ bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-muted', dot: 'bg-muted-foreground/50', accent: 'bg-muted/50' }}
+                                isLeaderInGroup={isLeaderInGroup}
+                                isAssignee={isUserAssignee(task)}
+                                groupId={groupId}
+                                onEditTask={onEditTask}
+                                openSubmissionDialog={openSubmissionDialog}
+                                setTaskToDelete={setTaskToDelete}
+                                dragHandleProps={provided.dragHandleProps}
+                                isDragging={snapshot.isDragging}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
                   )}
-                </CardContent>
-              )}
+                </Droppable>
+              </CardContent>
             </Card>
-          );
-        })}
+          )}
 
-        {/* Unstaged Tasks */}
-        {filterStage === 'all' && unstagedTasks.length > 0 && (
-          <Card className="overflow-hidden border-dashed border-l-4 border-l-muted-foreground/30">
-            <CardHeader className="py-2.5 px-4 bg-muted/20">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40" />
-                Chưa phân giai đoạn
-                <Badge variant="secondary" className="text-[10px] px-1.5 h-5">
-                  {unstagedTasks.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3">
-              <ScrollArea className="max-h-[300px]">
-                <div className="space-y-2 pr-2">
-                  {unstagedTasks.map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      taskCode={null}
-                      stageColor={{ bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-muted', dot: 'bg-muted-foreground/50', accent: 'bg-muted/50' }}
-                      isLeaderInGroup={isLeaderInGroup}
-                      isAssignee={isUserAssignee(task)}
-                      groupId={groupId}
-                      onEditTask={onEditTask}
-                      openSubmissionDialog={openSubmissionDialog}
-                      setTaskToDelete={setTaskToDelete}
-                    />
-                  ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Empty State */}
-        {stages.length === 0 && unstagedTasks.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground border border-dashed rounded-xl bg-muted/10">
-            <Layers className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="font-medium mb-1">Chưa có giai đoạn nào</p>
-            <p className="text-sm">Tạo giai đoạn đầu tiên để bắt đầu</p>
-          </div>
-        )}
-      </div>
+          {/* Empty State */}
+          {stages.length === 0 && unstagedTasks.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground border border-dashed rounded-xl bg-muted/10">
+              <Layers className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="font-medium mb-1">Chưa có giai đoạn nào</p>
+              <p className="text-sm">Tạo giai đoạn đầu tiên để bắt đầu</p>
+            </div>
+          )}
+        </div>
+      </DragDropContext>
 
       {/* Delete Task Confirmation */}
       <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
