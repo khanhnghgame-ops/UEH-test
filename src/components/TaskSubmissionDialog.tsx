@@ -57,7 +57,7 @@ import { parseLocalDateTime } from '@/lib/datetime';
 import MultiFileUploadSubmission, { UploadedFile } from './MultiFileUploadSubmission';
 import { notifyTaskSubmitted, notifyTaskVerified } from '@/lib/notifications';
 import TaskComments from './communication/TaskComments';
-import TaskNotes from './TaskNotes';
+import CompactTaskNotes from './CompactTaskNotes';
 
 interface SubmissionLink {
   id?: string;
@@ -530,22 +530,26 @@ export default function TaskSubmissionDialog({
                 </div>
               </div>
 
-              {/* Task Notes Section */}
+              {/* Discussion Area - 8:2 ratio - Comments : Notes */}
               {task && (
-                <TaskNotes 
-                  taskId={task.id} 
-                  className="flex-shrink-0"
-                  compact
-                />
-              )}
-
-              {/* Task Comments Section */}
-              {task && (
-                <TaskComments 
-                  taskId={task.id} 
-                  groupId={task.group_id} 
-                  className="flex-shrink-0 max-h-[200px]"
-                />
+                <div className="flex-1 flex gap-3 min-h-0 overflow-hidden">
+                  {/* 8 parts - Task Comments (Trao đổi) */}
+                  <div className="flex-[8] min-w-0 overflow-hidden rounded-lg border border-border/40 bg-muted/20">
+                    <TaskComments 
+                      taskId={task.id} 
+                      groupId={task.group_id} 
+                      className="h-full"
+                    />
+                  </div>
+                  
+                  {/* 2 parts - Compact Notes (Ghi chú) */}
+                  <div className="flex-[2] min-w-0 overflow-hidden rounded-lg border border-border/40 bg-muted/20">
+                    <CompactTaskNotes 
+                      taskId={task.id}
+                      className="h-full"
+                    />
+                  </div>
+                </div>
               )}
             </div>
             
