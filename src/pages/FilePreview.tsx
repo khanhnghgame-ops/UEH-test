@@ -68,7 +68,7 @@ const formatFileSize = (bytes: number) => {
 
 const isPreviewableImage = (fileName: string) => {
   const ext = fileName.split('.').pop()?.toLowerCase();
-  return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '');
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'ico'].includes(ext || '');
 };
 
 const isPDF = (fileName: string) => {
@@ -78,6 +78,21 @@ const isPDF = (fileName: string) => {
 const isOfficeDoc = (fileName: string) => {
   const ext = fileName.split('.').pop()?.toLowerCase();
   return ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext || '');
+};
+
+const isTextFile = (fileName: string) => {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  return ['txt', 'md', 'json', 'xml', 'html', 'css', 'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'cs', 'php', 'rb', 'go', 'rs', 'sql', 'sh', 'bat', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'log', 'csv'].includes(ext || '');
+};
+
+const isVideoFile = (fileName: string) => {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  return ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'].includes(ext || '');
+};
+
+const isAudioFile = (fileName: string) => {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  return ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'].includes(ext || '');
 };
 
 export default function FilePreview() {
@@ -249,11 +264,32 @@ export default function FilePreview() {
     }
   };
 
-  const canPreview = isPreviewableImage(fileName) || isPDF(fileName) || isOfficeDoc(fileName);
+  const canPreview = isPreviewableImage(fileName) || isPDF(fileName) || isOfficeDoc(fileName) || isTextFile(fileName) || isVideoFile(fileName) || isAudioFile(fileName);
 
   const getOfficeViewerUrl = (url: string) => {
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
   };
+  
+  // Text file content state
+  const [textContent, setTextContent] = useState<string | null>(null);
+  const [isLoadingText, setIsLoadingText] = useState(false);
+  
+  // Load text file content
+  useEffect(() => {
+    if (fileUrl && isTextFile(fileName)) {
+      setIsLoadingText(true);
+      fetch(fileUrl)
+        .then(res => res.text())
+        .then(text => {
+          setTextContent(text);
+          setIsLoadingText(false);
+        })
+        .catch(err => {
+          console.error('Error loading text file:', err);
+          setIsLoadingText(false);
+        });
+    }
+  }, [fileUrl, fileName]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -446,6 +482,44 @@ export default function FilePreview() {
                           }}
                           allow="fullscreen"
                         />
+                      </div>
+                    ) : isVideoFile(fileName) && fileUrl ? (
+                      <div className="flex items-center justify-center p-4 min-h-[50vh]">
+                        <video
+                          src={fileUrl}
+                          controls
+                          className="max-w-full max-h-[70vh] rounded-lg shadow-lg"
+                          onError={() => setError('Không thể phát video')}
+                        >
+                          Trình duyệt không hỗ trợ phát video.
+                        </video>
+                      </div>
+                    ) : isAudioFile(fileName) && fileUrl ? (
+                      <div className="flex flex-col items-center justify-center p-8 min-h-[40vh]">
+                        {getFileIcon(fileName)}
+                        <h3 className="text-lg font-medium mt-4 mb-6">{fileName}</h3>
+                        <audio
+                          src={fileUrl}
+                          controls
+                          className="w-full max-w-md"
+                          onError={() => setError('Không thể phát audio')}
+                        >
+                          Trình duyệt không hỗ trợ phát audio.
+                        </audio>
+                      </div>
+                    ) : isTextFile(fileName) ? (
+                      <div className="w-full" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
+                        {isLoadingText ? (
+                          <div className="flex items-center justify-center h-full">
+                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                          </div>
+                        ) : (
+                          <ScrollArea className="h-full">
+                            <pre className="p-4 text-sm font-mono whitespace-pre-wrap break-words bg-muted/30">
+                              {textContent || 'Không thể đọc nội dung file'}
+                            </pre>
+                          </ScrollArea>
+                        )}
                       </div>
                     ) : null}
                   </div>
