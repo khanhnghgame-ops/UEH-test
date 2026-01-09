@@ -2,7 +2,7 @@ import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -12,6 +12,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -24,10 +31,12 @@ import {
   Lightbulb,
   FolderArchive,
   MessageSquare,
+  UserCircle,
 } from 'lucide-react';
 import uehLogo from '@/assets/ueh-logo-new.png';
 import UserChangePasswordDialog from '@/components/UserChangePasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
+import AvatarUpload from '@/components/AvatarUpload';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -55,6 +64,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { profile, isAdmin, isLeader, signOut } = useAuth();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -122,6 +132,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   className="flex items-center gap-2 h-auto py-1.5 px-2 hover:bg-white/10 text-white"
                 >
                   <Avatar className="h-9 w-9 border-2 border-white/30">
+                    <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name} />
                     <AvatarFallback className="bg-accent text-accent-foreground text-sm font-semibold">
                       {profile ? getInitials(profile.full_name) : '?'}
                     </AvatarFallback>
@@ -146,6 +157,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setIsProfileOpen(true)}>
+                  <UserCircle className="w-4 h-4 mr-2" />
+                  Cập nhật ảnh đại diện
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setIsChangePasswordOpen(true)}>
                   <Key className="w-4 h-4 mr-2" />
                   Đổi mật khẩu
@@ -211,6 +226,25 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         open={isChangePasswordOpen} 
         onOpenChange={setIsChangePasswordOpen} 
       />
+
+      {/* Avatar Upload Dialog */}
+      <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cập nhật ảnh đại diện</DialogTitle>
+            <DialogDescription>
+              Nhấn vào ảnh để tải lên ảnh mới (tối đa 5MB)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <AvatarUpload 
+              currentAvatarUrl={profile?.avatar_url}
+              fullName={profile?.full_name || ''}
+              size="lg"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

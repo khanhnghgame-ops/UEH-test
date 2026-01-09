@@ -1062,127 +1062,162 @@ export default function ProcessScores({
     </Card>
   );
 
-  // Render Detail Tab for Leader (Stage -> Task compact view with scoring popup)
-  const renderLeaderDetail = () => (
-    <div className="space-y-4">
-      {stages.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <p className="text-muted-foreground">Chưa có giai đoạn nào</p>
-          </CardContent>
-        </Card>
-      ) : (
-        stages.sort((a, b) => a.order_index - b.order_index).map(stage => {
-          const stageTasks = tasks.filter(t => t.stage_id === stage.id);
-          const weight = stageWeights.find(w => w.stage_id === stage.id)?.weight ?? 1;
+  // Helper to get task code - sync with TaskListView
+  const getTaskCode = (task: Task, stageId: string | null) => {
+    if (!stageId) return null;
+    
+    // Sort stages by created_at
+    const sortedStages = [...stages].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    const stageOrder = sortedStages.findIndex(s => s.id === stageId) + 1;
+    if (stageOrder === 0) return null;
+    
+    // Sort tasks within stage by created_at
+    const stageTasks = tasks
+      .filter(t => t.stage_id === stageId)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const taskOrder = stageTasks.findIndex(t => t.id === task.id) + 1;
+    
+    return `${stageOrder}.${taskOrder}`;
+  };
 
-          return (
-            <Card key={stage.id}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Badge className="bg-primary">{stage.order_index + 1}</Badge>
-                    <div>
-                      <CardTitle className="text-lg">{stage.name}</CardTitle>
-                      <CardDescription>
-                        {stageTasks.length} task • Trọng số: x{weight}
-                      </CardDescription>
+  // Render Detail Tab for Leader (Stage -> Task compact view with scoring popup)
+  const renderLeaderDetail = () => {
+    // Sort stages by created_at (chronological)
+    const sortedStages = [...stages].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    return (
+      <div className="space-y-4">
+        {sortedStages.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-12">
+              <p className="text-muted-foreground">Chưa có giai đoạn nào</p>
+            </CardContent>
+          </Card>
+        ) : (
+          sortedStages.map((stage, stageIndex) => {
+            // Sort tasks within stage by created_at
+            const stageTasks = tasks
+              .filter(t => t.stage_id === stage.id)
+              .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            const weight = stageWeights.find(w => w.stage_id === stage.id)?.weight ?? 1;
+            const stageNumber = stageIndex + 1;
+
+            return (
+              <Card key={stage.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Badge className="bg-primary">{stageNumber}</Badge>
+                      <div>
+                        <CardTitle className="text-lg">{stage.name}</CardTitle>
+                        <CardDescription>
+                          {stageTasks.length} task • Trọng số: x{weight}
+                        </CardDescription>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {stageTasks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Chưa có task nào trong giai đoạn này
-                    </p>
-                  ) : (
-                    stageTasks.map(task => {
-                      // Get assignee count and scored count
-                      const assigneeIds = task.task_assignments?.map((a: any) => a.user_id) || [];
-                      const taskScoresForTask = taskScores.filter(ts => ts.task_id === task.id);
-                      const scoredCount = taskScoresForTask.length;
-                      const totalCount = assigneeIds.length;
-                      const isFullyScored = scoredCount === totalCount && totalCount > 0;
-                      const hasAdjustments = taskScoresForTask.some(ts => (ts.adjustment ?? 0) !== 0);
-                      
-                      return (
-                        <div 
-                          key={task.id} 
-                          className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => setTaskScoringDialog({ isOpen: true, task })}
-                        >
-                          <Target className="w-4 h-4 text-primary shrink-0" />
-                          
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{task.title}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-xs text-muted-foreground">
-                                {totalCount} người thực hiện
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Task Status */}
-                          {task.status === 'DONE' && (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 shrink-0">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Xong
-                            </Badge>
-                          )}
-                          {task.status === 'VERIFIED' && (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shrink-0">
-                              <Star className="w-3 h-3 mr-1" />
-                              Duyệt
-                            </Badge>
-                          )}
-
-                          {/* Scoring Status Badge */}
-                          {totalCount > 0 && (
-                            isFullyScored ? (
-                              <Badge className="bg-green-500 shrink-0 gap-1">
-                                <CheckCircle className="w-3 h-3" />
-                                Đã chấm
-                                {hasAdjustments && <span className="ml-0.5">•</span>}
-                              </Badge>
-                            ) : scoredCount > 0 ? (
-                              <Badge variant="secondary" className="shrink-0 gap-1">
-                                <Clock className="w-3 h-3" />
-                                {scoredCount}/{totalCount}
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="shrink-0 gap-1 text-muted-foreground">
-                                <AlertCircle className="w-3 h-3" />
-                                Chưa chấm
-                              </Badge>
-                            )
-                          )}
-
-                          {/* Action Button */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTaskScoringDialog({ isOpen: true, task });
-                            }}
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {stageTasks.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Chưa có task nào trong giai đoạn này
+                      </p>
+                    ) : (
+                      stageTasks.map((task, taskIndex) => {
+                        // Get assignee count and scored count
+                        const assigneeIds = task.task_assignments?.map((a: any) => a.user_id) || [];
+                        const taskScoresForTask = taskScores.filter(ts => ts.task_id === task.id);
+                        const scoredCount = taskScoresForTask.length;
+                        const totalCount = assigneeIds.length;
+                        const isFullyScored = scoredCount === totalCount && totalCount > 0;
+                        const hasAdjustments = taskScoresForTask.some(ts => (ts.adjustment ?? 0) !== 0);
+                        const taskCode = `${stageNumber}.${taskIndex + 1}`;
+                        
+                        return (
+                          <div 
+                            key={task.id} 
+                            className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => setTaskScoringDialog({ isOpen: true, task })}
                           >
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })
-      )}
-    </div>
-  );
+                            {/* Task code badge */}
+                            <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0.5 font-mono font-semibold bg-primary/5 border-primary/20 text-primary">
+                              {taskCode}
+                            </Badge>
+                            
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{task.title}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-xs text-muted-foreground">
+                                  {totalCount} người thực hiện
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Task Status */}
+                            {task.status === 'DONE' && (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 shrink-0">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Xong
+                              </Badge>
+                            )}
+                            {task.status === 'VERIFIED' && (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shrink-0">
+                                <Star className="w-3 h-3 mr-1" />
+                                Duyệt
+                              </Badge>
+                            )}
+
+                            {/* Scoring Status Badge */}
+                            {totalCount > 0 && (
+                              isFullyScored ? (
+                                <Badge className="bg-green-500 shrink-0 gap-1">
+                                  <CheckCircle className="w-3 h-3" />
+                                  Đã chấm
+                                  {hasAdjustments && <span className="ml-0.5">•</span>}
+                                </Badge>
+                              ) : scoredCount > 0 ? (
+                                <Badge variant="secondary" className="shrink-0 gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {scoredCount}/{totalCount}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="shrink-0 gap-1 text-muted-foreground">
+                                  <AlertCircle className="w-3 h-3" />
+                                  Chưa chấm
+                                </Badge>
+                              )
+                            )}
+
+                            {/* Action Button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTaskScoringDialog({ isOpen: true, task });
+                              }}
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
