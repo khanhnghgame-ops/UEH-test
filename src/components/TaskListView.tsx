@@ -409,66 +409,79 @@ function TaskRow({
           </Badge>
         </div>
         
-        <div className="hidden md:flex items-center justify-end gap-1 flex-nowrap min-w-0">
-          <SubmissionHistoryPopup 
-            taskId={task.id}
-            groupId={groupId}
-            taskDeadline={task.deadline}
-            currentSubmissionLink={task.submission_link}
-          />
+        {/* Desktop actions: keep History + View File pinned in fixed sub-columns */}
+        <div className="hidden md:grid grid-cols-[64px_104px_92px_40px] items-center justify-end gap-1 flex-nowrap min-w-0">
+          <div className="flex justify-end">
+            <SubmissionHistoryPopup 
+              taskId={task.id}
+              groupId={groupId}
+              taskDeadline={task.deadline}
+              currentSubmissionLink={task.submission_link}
+            />
+          </div>
 
-          <SubmissionButton 
-            submissionLink={task.submission_link} 
-            variant="compact"
-            onStopPropagation={true}
-            taskId={task.id}
-            groupId={groupId}
-          />
-          
-          {(isAssignee || isLeaderInGroup) && (
-            <Button
-              variant={task.submission_link ? "outline" : "default"}
-              size="sm"
-              className="h-7 text-xs px-2 gap-1 shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                openSubmissionDialog(task);
-              }}
-            >
-              {task.submission_link ? (
-                <>
-                  <Edit className="w-3 h-3" />
-                  <span className="hidden lg:inline">Sửa</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-3 h-3" />
-                  <span className="hidden lg:inline">Nộp</span>
-                </>
-              )}
-            </Button>
-          )}
+          <div className="flex justify-end">
+            <SubmissionButton 
+              submissionLink={task.submission_link} 
+              variant="compact"
+              onStopPropagation={true}
+              taskId={task.id}
+              groupId={groupId}
+            />
+          </div>
 
-          {isLeaderInGroup && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                  <MoreVertical className="w-3.5 h-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
-                <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
-                  <Edit className="w-3.5 h-3.5 mr-2" />
-                  Chỉnh sửa
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
-                  <Trash2 className="w-3.5 h-3.5 mr-2" />
-                  Xóa
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <div className="flex justify-end">
+            {canSubmit ? (
+              <Button
+                variant={task.submission_link ? "outline" : "default"}
+                size="sm"
+                className="h-7 w-[92px] text-xs px-2 gap-1 shrink-0 justify-center"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openSubmissionDialog(task);
+                }}
+              >
+                {task.submission_link ? (
+                  <>
+                    <Edit className="w-3 h-3" />
+                    <span className="hidden lg:inline">Sửa</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3 h-3" />
+                    <span className="hidden lg:inline">Nộp</span>
+                  </>
+                )}
+              </Button>
+            ) : (
+              <span className="h-7 w-[92px]" aria-hidden />
+            )}
+          </div>
+
+          <div className="flex justify-end">
+            {isLeaderInGroup ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                    <MoreVertical className="w-3.5 h-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
+                  <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
+                    <Edit className="w-3.5 h-3.5 mr-2" />
+                    Chỉnh sửa
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
+                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                    Xóa
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <span className="h-7 w-7" aria-hidden />
+            )}
+          </div>
         </div>
       </div>
     </div>

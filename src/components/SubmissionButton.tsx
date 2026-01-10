@@ -89,7 +89,7 @@ export default function SubmissionButton({
   
   if (!submissionLink) {
     return variant === 'compact' ? (
-      <span className="text-[10px] text-muted-foreground px-1 whitespace-nowrap">—</span>
+      <span className="inline-flex h-7 w-[104px] items-center justify-center text-[10px] text-muted-foreground whitespace-nowrap">—</span>
     ) : null;
   }
 
@@ -97,7 +97,7 @@ export default function SubmissionButton({
   
   if (items.length === 0) {
     return variant === 'compact' ? (
-      <span className="text-[10px] text-muted-foreground px-1 whitespace-nowrap">—</span>
+      <span className="inline-flex h-7 w-[104px] items-center justify-center text-[10px] text-muted-foreground whitespace-nowrap">—</span>
     ) : null;
   }
 
@@ -128,7 +128,9 @@ export default function SubmissionButton({
       <Button
         variant="outline"
         size="sm"
-        className="h-7 text-xs px-2 gap-1 text-primary whitespace-nowrap"
+        className={`h-7 text-xs px-2 gap-1 text-primary whitespace-nowrap ${
+          variant === 'compact' ? 'w-[104px] justify-center' : ''
+        }`}
         onClick={(e) => handleOpenItem(item, e)}
       >
         {isFile ? (
@@ -167,15 +169,19 @@ export default function SubmissionButton({
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-xs px-2 gap-1 text-primary whitespace-nowrap"
+          className={`h-7 text-xs px-2 gap-1 text-primary whitespace-nowrap overflow-hidden ${
+            variant === 'compact' ? 'w-[104px] justify-center' : ''
+          }`}
           onClick={(e) => onStopPropagation && e.stopPropagation()}
         >
-          <ExternalLink className="w-3 h-3" />
-          {variant === 'compact' ? label : `Xem bài (${items.length})`}
-          <ChevronDown className="w-3 h-3" />
+          <ExternalLink className="w-3 h-3 shrink-0" />
+          <span className={variant === 'compact' ? 'truncate max-w-[56px]' : ''}>
+            {variant === 'compact' ? label : `Xem bài (${items.length})`}
+          </span>
+          <ChevronDown className="w-3 h-3 shrink-0" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="bg-popover min-w-[200px]">
+      <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[200px]">
         {items.map((item, i) => {
           const isFile = item.type === 'file';
           return (
