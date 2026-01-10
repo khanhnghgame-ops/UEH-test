@@ -175,10 +175,10 @@ export default function SubmissionHistoryPopup({
         <Button 
           variant="ghost" 
           size="sm" 
-          className="gap-1 h-6 text-[10px] px-1.5 text-muted-foreground hover:text-foreground"
+          className="gap-1 h-6 text-[10px] px-1.5 text-muted-foreground hover:text-foreground whitespace-nowrap"
         >
           <History className="w-3 h-3" />
-          <span className="hidden sm:inline">Lịch sử</span>
+          <span className="hidden lg:inline">Lịch sử</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-6xl w-[95vw] min-h-[70vh] max-h-[90vh] flex flex-col p-0 overflow-hidden">
