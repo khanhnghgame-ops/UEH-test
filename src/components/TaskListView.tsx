@@ -209,29 +209,30 @@ function TaskRow({
         taskIsOverdue ? 'border-destructive/40 bg-destructive/5' : 'border-border'
       } ${isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
     >
-      {/* CSS Grid Layout with fixed columns for alignment */}
-      <div className="grid grid-cols-[auto_1fr_minmax(180px,auto)_minmax(60px,auto)_auto] gap-3 p-3 items-center">
-        {/* Column 1: Drag handle + Status bar (fixed width) */}
-        <div className="flex items-center gap-1.5 w-8 shrink-0">
-          {isLeaderInGroup && dragHandleProps && (
+      {/* CSS Grid Layout with FIXED width columns for perfect alignment */}
+      <div className="grid grid-cols-[32px_1fr_140px_70px_180px] gap-2 p-3 items-center">
+        {/* Column 1: Drag handle + Status bar (32px fixed) */}
+        <div className="flex items-center gap-1 justify-center">
+          {isLeaderInGroup && dragHandleProps ? (
             <div 
               {...dragHandleProps}
               className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted rounded touch-none"
             >
               <GripVertical className="w-4 h-4 text-muted-foreground" />
             </div>
+          ) : (
+            <div className={`w-1 h-8 rounded-full ${
+              taskIsOverdue ? 'bg-destructive' : 
+              task.status === 'VERIFIED' ? 'bg-success' :
+              task.status === 'DONE' ? 'bg-primary' :
+              task.status === 'IN_PROGRESS' ? 'bg-warning' : 'bg-muted-foreground/30'
+            }`} />
           )}
-          <div className={`w-1 h-8 rounded-full shrink-0 ${
-            taskIsOverdue ? 'bg-destructive' : 
-            task.status === 'VERIFIED' ? 'bg-success' :
-            task.status === 'DONE' ? 'bg-primary' :
-            task.status === 'IN_PROGRESS' ? 'bg-warning' : 'bg-muted-foreground/30'
-          }`} />
         </div>
         
-        {/* Column 2: Task code + Title + Assignees (flexible) */}
+        {/* Column 2: Task code + Title + Assignees (flexible - takes remaining space) */}
         <div 
-          className={`flex items-start gap-2 min-w-0 ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
+          className={`flex items-start gap-2 min-w-0 overflow-hidden ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
           onClick={() => isLeaderInGroup && onEditTask(task)}
         >
           {taskCode && (
@@ -296,23 +297,23 @@ function TaskRow({
           </div>
         </div>
         
-        {/* Column 3: Deadline (fixed width for alignment) */}
+        {/* Column 3: Deadline (140px fixed) */}
         <div className="flex justify-end">
           {task.deadline ? (
-            <div className={`hidden sm:flex items-center gap-1 text-xs px-2 py-1 rounded-md whitespace-nowrap ${
+            <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md whitespace-nowrap ${
               taskIsOverdue 
                 ? 'bg-destructive/10 text-destructive' 
                 : 'bg-muted text-muted-foreground'
             }`}>
-              <Calendar className="w-3 h-3" />
-              {formatDate(task.deadline)}
+              <Calendar className="w-3 h-3 shrink-0" />
+              <span className="truncate">{formatDate(task.deadline)}</span>
             </div>
           ) : (
-            <div className="hidden sm:block" />
+            <span className="text-xs text-muted-foreground/50">—</span>
           )}
         </div>
         
-        {/* Column 4: Status badge (fixed width for alignment) */}
+        {/* Column 4: Status badge (70px fixed) */}
         <div className="flex justify-center">
           <Badge 
             className={`${getStatusColor(task.status, taskIsOverdue)} text-[10px] px-1.5 py-0.5 border whitespace-nowrap`}
@@ -321,8 +322,8 @@ function TaskRow({
           </Badge>
         </div>
         
-        {/* Column 5: Actions (fixed width for alignment) */}
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Column 5: Actions (180px fixed) */}
+        <div className="flex items-center justify-end gap-1">
           <SubmissionHistoryPopup 
             taskId={task.id}
             groupId={groupId}
