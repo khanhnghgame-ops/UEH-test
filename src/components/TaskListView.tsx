@@ -209,28 +209,30 @@ function TaskRow({
         taskIsOverdue ? 'border-destructive/40 bg-destructive/5' : 'border-border'
       } ${isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
     >
-      {/* CSS Grid Layout with FIXED width columns for perfect alignment */}
-      <div className="grid grid-cols-[32px_1fr_140px_70px_180px] gap-2 p-3 items-center">
-        {/* Column 1: Drag handle + Status bar (32px fixed) */}
-        <div className="flex items-center gap-1 justify-center">
-          {isLeaderInGroup && dragHandleProps ? (
+      {/* Responsive grid: desktop has fixed columns; mobile stacks meta/actions to avoid overlap */}
+      <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_1fr_140px_70px_180px] gap-2 p-3 items-start md:items-center">
+        {/* Column 1: Drag handle + Status bar */}
+        <div className="flex flex-col items-center gap-1 pt-0.5 md:pt-0">
+          {isLeaderInGroup && dragHandleProps && (
             <div 
               {...dragHandleProps}
               className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted rounded touch-none"
+              aria-label="Kéo để đổi thứ tự"
             >
               <GripVertical className="w-4 h-4 text-muted-foreground" />
             </div>
-          ) : (
-            <div className={`w-1 h-8 rounded-full ${
+          )}
+          <div
+            className={`w-1 ${isLeaderInGroup && dragHandleProps ? 'h-6' : 'h-8'} rounded-full ${
               taskIsOverdue ? 'bg-destructive' : 
               task.status === 'VERIFIED' ? 'bg-success' :
               task.status === 'DONE' ? 'bg-primary' :
               task.status === 'IN_PROGRESS' ? 'bg-warning' : 'bg-muted-foreground/30'
-            }`} />
-          )}
+            }`}
+          />
         </div>
         
-        {/* Column 2: Task code + Title + Assignees (flexible - takes remaining space) */}
+        {/* Column 2: Task code + Title + Assignees (flexible) */}
         <div 
           className={`flex items-start gap-2 min-w-0 overflow-hidden ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
           onClick={() => isLeaderInGroup && onEditTask(task)}
@@ -253,7 +255,7 @@ function TaskRow({
               </h4>
             </div>
             
-            {/* Assignees - compact inline display */}
+            {/* Assignees */}
             {assignments.length > 0 && (
               <div className="flex items-center gap-1.5 mt-1">
                 {hasMultipleAssignees ? (
@@ -294,11 +296,97 @@ function TaskRow({
                 )}
               </div>
             )}
+
+            {/* Mobile-only: deadline + status + actions in one row (prevents overlap) */}
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 md:hidden">
+              <div className="flex items-center gap-2">
+                {task.deadline ? (
+                  <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md whitespace-nowrap ${
+                    taskIsOverdue 
+                      ? 'bg-destructive/10 text-destructive' 
+                      : 'bg-muted text-muted-foreground'
+                  }`}>
+                    <Calendar className="w-3 h-3 shrink-0" />
+                    <span className="max-w-[140px] truncate">{formatDate(task.deadline)}</span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground/50">—</span>
+                )}
+
+                <Badge 
+                  className={`${getStatusColor(task.status, taskIsOverdue)} text-[10px] px-1.5 py-0.5 border whitespace-nowrap`}
+                >
+                  {getStatusLabel(task.status, taskIsOverdue)}
+                </Badge>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <SubmissionHistoryPopup 
+                  taskId={task.id}
+                  groupId={groupId}
+                  taskDeadline={task.deadline}
+                  currentSubmissionLink={task.submission_link}
+                />
+
+                <SubmissionButton 
+                  submissionLink={task.submission_link} 
+                  variant="compact"
+                  onStopPropagation={true}
+                  taskId={task.id}
+                  groupId={groupId}
+                />
+
+                {(isAssignee || isLeaderInGroup) && (
+                  <Button
+                    variant={task.submission_link ? "outline" : "default"}
+                    size="sm"
+                    className="h-7 text-xs px-2 gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openSubmissionDialog(task);
+                    }}
+                  >
+                    {task.submission_link ? (
+                      <>
+                        <Edit className="w-3 h-3" />
+                        <span className="hidden sm:inline">Sửa</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3 h-3" />
+                        <span className="hidden sm:inline">Nộp</span>
+                      </>
+                    )}
+                  </Button>
+                )}
+
+                {isLeaderInGroup && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <MoreVertical className="w-3.5 h-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
+                      <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
+                        <Edit className="w-3.5 h-3.5 mr-2" />
+                        Chỉnh sửa
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
+                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                        Xóa
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            </div>
           </div>
         </div>
         
-        {/* Column 3: Deadline (140px fixed) */}
-        <div className="flex justify-end">
+        {/* Desktop-only columns */}
+        <div className="hidden md:flex justify-end">
           {task.deadline ? (
             <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md whitespace-nowrap ${
               taskIsOverdue 
@@ -313,8 +401,7 @@ function TaskRow({
           )}
         </div>
         
-        {/* Column 4: Status badge (70px fixed) */}
-        <div className="flex justify-center">
+        <div className="hidden md:flex justify-center">
           <Badge 
             className={`${getStatusColor(task.status, taskIsOverdue)} text-[10px] px-1.5 py-0.5 border whitespace-nowrap`}
           >
@@ -322,8 +409,7 @@ function TaskRow({
           </Badge>
         </div>
         
-        {/* Column 5: Actions (180px fixed) */}
-        <div className="flex items-center justify-end gap-1">
+        <div className="hidden md:flex items-center justify-end gap-1">
           <SubmissionHistoryPopup 
             taskId={task.id}
             groupId={groupId}
@@ -370,7 +456,7 @@ function TaskRow({
                   <MoreVertical className="w-3.5 h-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover min-w-[140px]">
+              <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
                 <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
                   <Edit className="w-3.5 h-3.5 mr-2" />
                   Chỉnh sửa
