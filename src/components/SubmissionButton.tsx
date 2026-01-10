@@ -89,7 +89,7 @@ export default function SubmissionButton({
   
   if (!submissionLink) {
     return variant === 'compact' ? (
-      <span className="text-[10px] text-muted-foreground px-2">Chưa có bài nộp</span>
+      <span className="text-[10px] text-muted-foreground px-1 whitespace-nowrap">—</span>
     ) : null;
   }
 
@@ -97,7 +97,7 @@ export default function SubmissionButton({
   
   if (items.length === 0) {
     return variant === 'compact' ? (
-      <span className="text-[10px] text-muted-foreground px-2">Chưa có bài nộp</span>
+      <span className="text-[10px] text-muted-foreground px-1 whitespace-nowrap">—</span>
     ) : null;
   }
 
@@ -128,18 +128,18 @@ export default function SubmissionButton({
       <Button
         variant="outline"
         size="sm"
-        className="h-7 text-xs px-2 gap-1 text-primary"
+        className="h-7 text-xs px-2 gap-1 text-primary whitespace-nowrap"
         onClick={(e) => handleOpenItem(item, e)}
       >
         {isFile ? (
           <>
             <Eye className="w-3 h-3" />
-            Xem file
+            {variant === 'compact' ? 'File' : 'Xem file'}
           </>
         ) : (
           <>
             <ExternalLink className="w-3 h-3" />
-            Xem bài nộp
+            {variant === 'compact' ? 'Xem' : 'Xem bài nộp'}
           </>
         )}
       </Button>
@@ -152,13 +152,13 @@ export default function SubmissionButton({
   const filesCount = items.filter(i => i.type === 'file').length;
   const linksCount = items.filter(i => i.type === 'link').length;
   
-  let label = `Xem bài (${items.length})`;
+  let label = `Xem (${items.length})`;
   if (hasFiles && hasLinks) {
-    label = `${filesCount} file + ${linksCount} link`;
+    label = `${filesCount}F+${linksCount}L`;
   } else if (hasFiles) {
-    label = `Xem ${filesCount} file`;
+    label = `${filesCount} file`;
   } else {
-    label = `Xem ${linksCount} link`;
+    label = `${linksCount} link`;
   }
 
   return (
@@ -167,11 +167,11 @@ export default function SubmissionButton({
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-xs px-2 gap-1 text-primary"
+          className="h-7 text-xs px-2 gap-1 text-primary whitespace-nowrap"
           onClick={(e) => onStopPropagation && e.stopPropagation()}
         >
           <ExternalLink className="w-3 h-3" />
-          {label}
+          {variant === 'compact' ? label : `Xem bài (${items.length})`}
           <ChevronDown className="w-3 h-3" />
         </Button>
       </DropdownMenuTrigger>

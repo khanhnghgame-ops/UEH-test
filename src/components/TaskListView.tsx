@@ -210,7 +210,7 @@ function TaskRow({
       } ${isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
     >
       {/* Responsive grid: desktop has fixed columns; mobile stacks meta/actions to avoid overlap */}
-      <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_1fr_140px_70px_180px] gap-2 p-3 items-start md:items-center">
+      <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_minmax(240px,1fr)_150px_96px_320px] gap-2 p-3 items-start md:items-center">
         {/* Column 1: Drag handle + Status bar */}
         <div className="flex flex-col items-center gap-1 pt-0.5 md:pt-0">
           {isLeaderInGroup && dragHandleProps && (
@@ -401,15 +401,15 @@ function TaskRow({
           )}
         </div>
         
-        <div className="hidden md:flex justify-center">
+        <div className="hidden md:flex justify-center min-w-0">
           <Badge 
-            className={`${getStatusColor(task.status, taskIsOverdue)} text-[10px] px-1.5 py-0.5 border whitespace-nowrap`}
+            className={`${getStatusColor(task.status, taskIsOverdue)} text-[10px] px-1.5 py-0.5 border whitespace-nowrap max-w-full`}
           >
             {getStatusLabel(task.status, taskIsOverdue)}
           </Badge>
         </div>
         
-        <div className="hidden md:flex items-center justify-end gap-1">
+        <div className="hidden md:flex items-center justify-end gap-1 flex-nowrap min-w-0">
           <SubmissionHistoryPopup 
             taskId={task.id}
             groupId={groupId}
@@ -429,7 +429,7 @@ function TaskRow({
             <Button
               variant={task.submission_link ? "outline" : "default"}
               size="sm"
-              className="h-7 text-xs px-2 gap-1"
+              className="h-7 text-xs px-2 gap-1 shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
                 openSubmissionDialog(task);
@@ -438,12 +438,12 @@ function TaskRow({
               {task.submission_link ? (
                 <>
                   <Edit className="w-3 h-3" />
-                  <span className="hidden md:inline">Sửa</span>
+                  <span className="hidden lg:inline">Sửa</span>
                 </>
               ) : (
                 <>
                   <Send className="w-3 h-3" />
-                  <span className="hidden md:inline">Nộp</span>
+                  <span className="hidden lg:inline">Nộp</span>
                 </>
               )}
             </Button>
@@ -452,7 +452,7 @@ function TaskRow({
           {isLeaderInGroup && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
                   <MoreVertical className="w-3.5 h-3.5" />
                 </Button>
               </DropdownMenuTrigger>
