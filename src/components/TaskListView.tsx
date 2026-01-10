@@ -2,9 +2,9 @@ import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import UserAvatar from '@/components/UserAvatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -209,10 +209,10 @@ function TaskRow({
         taskIsOverdue ? 'border-destructive/40 bg-destructive/5' : 'border-border'
       } ${isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
     >
-      {/* CSS Grid Layout with fixed columns for alignment */}
-      <div className="grid grid-cols-[auto_1fr_minmax(180px,auto)_minmax(60px,auto)_auto] gap-3 p-3 items-center">
-        {/* Column 1: Drag handle + Status bar (fixed width) */}
-        <div className="flex items-center gap-1.5 w-8 shrink-0">
+      {/* Fixed Grid Layout for perfect alignment */}
+      <div className="grid grid-cols-[32px_1fr_130px_70px_130px] gap-2 p-3 items-center min-h-[56px]">
+        {/* Column 1: Drag handle + Status bar (32px fixed) */}
+        <div className="flex items-center gap-1 justify-center">
           {isLeaderInGroup && dragHandleProps && (
             <div 
               {...dragHandleProps}
@@ -221,7 +221,7 @@ function TaskRow({
               <GripVertical className="w-4 h-4 text-muted-foreground" />
             </div>
           )}
-          <div className={`w-1 h-8 rounded-full shrink-0 ${
+          <div className={`w-1 h-10 rounded-full shrink-0 ${
             taskIsOverdue ? 'bg-destructive' : 
             task.status === 'VERIFIED' ? 'bg-success' :
             task.status === 'DONE' ? 'bg-primary' :
@@ -229,90 +229,101 @@ function TaskRow({
           }`} />
         </div>
         
-        {/* Column 2: Task code + Title + Assignees (flexible) */}
+        {/* Column 2: Task code + Title + Assignees (flexible, min-w-0) */}
         <div 
-          className={`flex items-start gap-2 min-w-0 ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
+          className={`flex flex-col gap-1 min-w-0 ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
           onClick={() => isLeaderInGroup && onEditTask(task)}
         >
-          {taskCode && (
-            <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0.5 font-mono font-semibold bg-primary/5 border-primary/20 text-primary">
-              {taskCode}
-            </Badge>
-          )}
+          <div className="flex items-start gap-2 min-w-0">
+            {taskCode && (
+              <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0 font-mono font-semibold bg-primary/5 border-primary/20 text-primary">
+                {taskCode}
+              </Badge>
+            )}
+            {taskIsOverdue && (
+              <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
+            )}
+            <span className={`font-medium text-sm line-clamp-2 leading-tight ${
+              isLeaderInGroup ? 'group-hover:text-primary transition-colors' : ''
+            }`}>
+              {task.title}
+            </span>
+          </div>
           
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start gap-1.5">
-              {taskIsOverdue && (
-                <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
-              )}
-              <h4 className={`font-medium text-sm line-clamp-2 ${
-                isLeaderInGroup ? 'group-hover:text-primary transition-colors' : ''
-              }`}>
-                {task.title}
-              </h4>
-            </div>
-            
-            {/* Assignees - compact inline display */}
-            {assignments.length > 0 && (
-              <div className="flex items-center gap-1.5 mt-1">
-                {hasMultipleAssignees ? (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1">
-                          <div className="flex -space-x-1.5">
-                            {assignments.slice(0, 3).map((assignment) => (
-                              <Avatar key={assignment.id} className="w-5 h-5 border border-background">
-                                <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
-                                  {assignment.profiles ? getInitials(assignment.profiles.full_name) : '?'}
-                                </AvatarFallback>
-                              </Avatar>
-                            ))}
-                          </div>
-                          <span className="text-[11px] text-muted-foreground">
-                            {assignments.length} thành viên
-                          </span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-xs">
-                        <div className="space-y-1">
-                          {assignments.map((a, idx) => (
-                            <div key={a.id} className="flex items-center gap-2 text-xs">
-                              <span className="font-medium">{idx + 1}.</span>
-                              <span>{a.profiles?.full_name || 'Unknown'}</span>
-                            </div>
+          {/* Assignees - compact inline */}
+          {assignments.length > 0 && (
+            <div className="flex items-center gap-1.5 ml-0">
+              {hasMultipleAssignees ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1">
+                        <div className="flex -space-x-1.5">
+                          {assignments.slice(0, 3).map((assignment) => (
+                            <UserAvatar 
+                              key={assignment.id}
+                              avatarUrl={assignment.profiles?.avatar_url}
+                              fullName={assignment.profiles?.full_name}
+                              size="xs"
+                              className="border border-background"
+                            />
                           ))}
                         </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : (
-                  <span className="text-[11px] text-muted-foreground truncate">
+                        <span className="text-[11px] text-muted-foreground">
+                          {assignments.length} thành viên
+                        </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      <div className="space-y-1">
+                        {assignments.map((a, idx) => (
+                          <div key={a.id} className="flex items-center gap-2 text-xs">
+                            <span className="font-medium">{idx + 1}.</span>
+                            <UserAvatar 
+                              avatarUrl={a.profiles?.avatar_url}
+                              fullName={a.profiles?.full_name}
+                              size="xs"
+                            />
+                            <span>{a.profiles?.full_name || 'Unknown'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <UserAvatar 
+                    avatarUrl={assignments[0]?.profiles?.avatar_url}
+                    fullName={assignments[0]?.profiles?.full_name}
+                    size="xs"
+                  />
+                  <span className="text-[11px] text-muted-foreground truncate max-w-[100px]">
                     {assignments[0]?.profiles?.full_name || 'Unknown'}
                   </span>
-                )}
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         
-        {/* Column 3: Deadline (fixed width for alignment) */}
+        {/* Column 3: Deadline (130px fixed) */}
         <div className="flex justify-end">
           {task.deadline ? (
-            <div className={`hidden sm:flex items-center gap-1 text-xs px-2 py-1 rounded-md whitespace-nowrap ${
+            <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md whitespace-nowrap ${
               taskIsOverdue 
                 ? 'bg-destructive/10 text-destructive' 
                 : 'bg-muted text-muted-foreground'
             }`}>
-              <Calendar className="w-3 h-3" />
-              {formatDate(task.deadline)}
+              <Calendar className="w-3 h-3 shrink-0" />
+              <span className="truncate">{formatDate(task.deadline)}</span>
             </div>
           ) : (
-            <div className="hidden sm:block" />
+            <span className="text-xs text-muted-foreground/50">—</span>
           )}
         </div>
         
-        {/* Column 4: Status badge (fixed width for alignment) */}
+        {/* Column 4: Status badge (70px fixed) */}
         <div className="flex justify-center">
           <Badge 
             className={`${getStatusColor(task.status, taskIsOverdue)} text-[10px] px-1.5 py-0.5 border whitespace-nowrap`}
@@ -321,8 +332,8 @@ function TaskRow({
           </Badge>
         </div>
         
-        {/* Column 5: Actions (fixed width for alignment) */}
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Column 5: Actions (130px fixed) */}
+        <div className="flex items-center gap-1 justify-end">
           <SubmissionHistoryPopup 
             taskId={task.id}
             groupId={groupId}
