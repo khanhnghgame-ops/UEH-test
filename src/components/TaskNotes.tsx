@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,7 +20,6 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   FileText, 
   Plus, 
-  Save, 
   Trash2, 
   Upload, 
   X, 
@@ -29,7 +28,9 @@ import {
   Download,
   Paperclip,
   Edit3,
-  Check
+  Check,
+  CheckCircle2,
+  Cloud
 } from 'lucide-react';
 
 interface TaskNote {
@@ -64,6 +65,7 @@ const formatFileSize = (bytes: number) => {
 };
 
 const MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10MB per task
+const AUTOSAVE_DELAY = 1500; // 1.5 seconds
 
 export default function TaskNotes({ taskId, className = '', compact = false }: TaskNotesProps) {
   const { toast } = useToast();
@@ -79,6 +81,11 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editingName, setEditingName] = useState('');
+  
+  // Autosave state
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedContentRef = useRef<string>('');
 
   const selectedNote = notes.find(n => n.id === selectedNoteId);
 
@@ -196,9 +203,15 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
     }
   };
 
-  const saveContent = async () => {
+  // Autosave function
+  const saveContent = useCallback(async (showToast = false) => {
     if (!selectedNoteId) return;
+    if (content === lastSavedContentRef.current) {
+      setSaveStatus('saved');
+      return;
+    }
 
+    setSaveStatus('saving');
     setIsSaving(true);
     try {
       const { error } = await supabase
@@ -213,13 +226,55 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
         n.id === selectedNoteId ? { ...n, content, updated_at: new Date().toISOString() } : n
       ));
       
-      toast({ title: 'Đã lưu ghi chú' });
+      lastSavedContentRef.current = content;
+      setSaveStatus('saved');
+      
+      if (showToast) {
+        toast({ title: 'Đã lưu ghi chú' });
+      }
     } catch (error: any) {
+      setSaveStatus('unsaved');
       toast({ title: 'Lỗi', description: error.message, variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [selectedNoteId, content, notes, toast]);
+
+  // Handle content change with autosave
+  const handleContentChange = useCallback((newContent: string) => {
+    setContent(newContent);
+    setSaveStatus('unsaved');
+    
+    // Clear existing timer
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+    
+    // Set new autosave timer
+    autosaveTimerRef.current = setTimeout(() => {
+      saveContent(false);
+    }, AUTOSAVE_DELAY);
+  }, [saveContent]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Update lastSavedContentRef when switching notes
+  useEffect(() => {
+    if (selectedNoteId) {
+      const note = notes.find(n => n.id === selectedNoteId);
+      if (note) {
+        lastSavedContentRef.current = note.content || '';
+        setSaveStatus('saved');
+      }
+    }
+  }, [selectedNoteId, notes]);
 
   const handleDeleteVersion = async () => {
     if (!noteToDelete) return;
@@ -537,7 +592,7 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
                 {/* Content Editor */}
                 <Textarea
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  onChange={(e) => handleContentChange(e.target.value)}
                   placeholder="Nhập nội dung ghi chú tại đây..."
                   className="flex-1 resize-none min-h-[120px]"
                 />
@@ -613,15 +668,43 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
                   )}
                 </div>
 
-                {/* Save Button */}
-                <Button onClick={saveContent} disabled={isSaving} className="w-full">
-                  {isSaving ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Lưu ghi chú
-                </Button>
+                {/* Autosave Status */}
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    {saveStatus === 'saved' && (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                        <span>Đã lưu tự động</span>
+                      </>
+                    )}
+                    {saveStatus === 'saving' && (
+                      <>
+                        <Cloud className="w-3.5 h-3.5 text-primary animate-pulse" />
+                        <span>Đang lưu...</span>
+                      </>
+                    )}
+                    {saveStatus === 'unsaved' && (
+                      <>
+                        <Cloud className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span>Chưa lưu</span>
+                      </>
+                    )}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => saveContent(true)} 
+                    disabled={isSaving || saveStatus === 'saved'}
+                    className="h-7 text-xs"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    Lưu ngay
+                  </Button>
+                </div>
               </div>
             )}
           </>
