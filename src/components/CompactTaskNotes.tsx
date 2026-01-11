@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -51,8 +51,19 @@ export default function CompactTaskNotes({ taskId, className = '' }: CompactTask
   const [allAttachments, setAllAttachments] = useState<NoteAttachment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchNotes = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    
     try {
       const { data: notesData, error } = await supabase
         .from('task_notes')
@@ -61,41 +72,51 @@ export default function CompactTaskNotes({ taskId, className = '' }: CompactTask
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setNotes((notesData || []) as TaskNote[]);
+      if (isMountedRef.current) {
+        setNotes((notesData || []) as TaskNote[]);
+      }
     } catch (error) {
       console.error('Error fetching notes:', error);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [taskId]);
 
-  const fetchAllAttachments = useCallback(async () => {
-    try {
-      const noteIds = notes.map(n => n.id);
-      if (noteIds.length === 0) {
-        setAllAttachments([]);
-        return;
-      }
+  const fetchAllAttachments = useCallback(async (noteIds: string[]) => {
+    if (!isMountedRef.current || noteIds.length === 0) {
+      setAllAttachments([]);
+      return;
+    }
 
+    try {
       const { data, error } = await supabase
         .from('task_note_attachments')
         .select('*')
         .in('note_id', noteIds);
 
       if (error) throw error;
-      setAllAttachments((data || []) as NoteAttachment[]);
+      if (isMountedRef.current) {
+        setAllAttachments((data || []) as NoteAttachment[]);
+      }
     } catch (error) {
       console.error('Error fetching attachments:', error);
     }
-  }, [notes]);
+  }, []);
 
+  // Fetch notes on mount or taskId change
   useEffect(() => {
     fetchNotes();
-  }, [fetchNotes]);
+  }, [taskId]);
 
+  // Fetch attachments when notes change
   useEffect(() => {
-    fetchAllAttachments();
-  }, [fetchAllAttachments]);
+    if (notes.length > 0) {
+      const noteIds = notes.map(n => n.id);
+      fetchAllAttachments(noteIds);
+    }
+  }, [notes.length]); // Only depend on count to prevent loops
 
   const toggleExpand = (noteId: string) => {
     setExpandedNoteId(expandedNoteId === noteId ? null : noteId);

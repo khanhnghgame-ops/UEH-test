@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,10 +17,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAutosave } from '@/hooks/useAutosave';
 import { 
   FileText, 
   Plus, 
-  Save, 
   Trash2, 
   Upload, 
   X, 
@@ -29,7 +29,9 @@ import {
   Download,
   Paperclip,
   Edit3,
-  Check
+  Check,
+  CloudOff,
+  Cloud
 } from 'lucide-react';
 
 interface TaskNote {
@@ -73,16 +75,62 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
   const [attachments, setAttachments] = useState<NoteAttachment[]>([]);
   const [allAttachments, setAllAttachments] = useState<NoteAttachment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editingName, setEditingName] = useState('');
+  
+  // Track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true);
 
   const selectedNote = notes.find(n => n.id === selectedNoteId);
 
+  // Autosave handler
+  const handleAutosave = useCallback(async (dataToSave: string) => {
+    if (!selectedNoteId || !isMountedRef.current) return;
+    
+    const { error } = await supabase
+      .from('task_notes')
+      .update({ content: dataToSave })
+      .eq('id', selectedNoteId);
+
+    if (error) throw error;
+
+    // Update local state without refetching
+    if (isMountedRef.current) {
+      setNotes(prev => prev.map(n => 
+        n.id === selectedNoteId 
+          ? { ...n, content: dataToSave, updated_at: new Date().toISOString() } 
+          : n
+      ));
+    }
+  }, [selectedNoteId]);
+
+  // Use autosave hook
+  const { 
+    isSaving, 
+    lastSaved, 
+    hasUnsavedChanges, 
+    resetSavedData 
+  } = useAutosave({
+    data: content,
+    onSave: handleAutosave,
+    delay: 1500,
+    enabled: !!selectedNoteId
+  });
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const fetchNotes = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    
     try {
       const { data: notesData, error } = await supabase
         .from('task_notes')
@@ -91,8 +139,8 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
         .order('created_at', { ascending: true });
 
       if (error) throw error;
+      if (!isMountedRef.current) return;
 
-      // Type assertion for the response
       const typedNotes = (notesData || []) as TaskNote[];
       setNotes(typedNotes);
 
@@ -100,16 +148,19 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
       if (typedNotes.length > 0 && !selectedNoteId) {
         setSelectedNoteId(typedNotes[0].id);
         setContent(typedNotes[0].content || '');
+        resetSavedData(typedNotes[0].content || '');
       }
     } catch (error) {
       console.error('Error fetching notes:', error);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [taskId, selectedNoteId]);
+  }, [taskId]); // Remove selectedNoteId from dependencies to prevent loops
 
   const fetchAttachments = useCallback(async () => {
-    if (!selectedNoteId) {
+    if (!selectedNoteId || !isMountedRef.current) {
       setAttachments([]);
       return;
     }
@@ -122,49 +173,61 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setAttachments((data || []) as NoteAttachment[]);
+      if (isMountedRef.current) {
+        setAttachments((data || []) as NoteAttachment[]);
+      }
     } catch (error) {
       console.error('Error fetching attachments:', error);
     }
   }, [selectedNoteId]);
 
   const fetchAllAttachments = useCallback(async () => {
-    try {
-      const noteIds = notes.map(n => n.id);
-      if (noteIds.length === 0) {
-        setAllAttachments([]);
-        return;
-      }
+    if (!isMountedRef.current) return;
+    
+    const noteIds = notes.map(n => n.id);
+    if (noteIds.length === 0) {
+      setAllAttachments([]);
+      return;
+    }
 
+    try {
       const { data, error } = await supabase
         .from('task_note_attachments')
         .select('*')
         .in('note_id', noteIds);
 
       if (error) throw error;
-      setAllAttachments((data || []) as NoteAttachment[]);
+      if (isMountedRef.current) {
+        setAllAttachments((data || []) as NoteAttachment[]);
+      }
     } catch (error) {
       console.error('Error fetching all attachments:', error);
     }
-  }, [notes]);
+  }, [notes.length]); // Only depend on notes.length to avoid loops
 
+  // Initial fetch
   useEffect(() => {
     fetchNotes();
-  }, [fetchNotes]);
+  }, [taskId]); // Only refetch when taskId changes
 
+  // Fetch attachments when selectedNoteId changes
   useEffect(() => {
     if (selectedNoteId) {
       const note = notes.find(n => n.id === selectedNoteId);
       if (note) {
         setContent(note.content || '');
+        resetSavedData(note.content || '');
       }
       fetchAttachments();
     }
-  }, [selectedNoteId, notes, fetchAttachments]);
+  }, [selectedNoteId]); // Minimal dependencies
 
+  // Fetch all attachments when notes change
   useEffect(() => {
-    fetchAllAttachments();
-  }, [fetchAllAttachments]);
+    if (notes.length > 0) {
+      fetchAllAttachments();
+    }
+  }, [notes.length]); // Only when notes count changes
 
   const getTotalAttachmentSize = () => {
     return allAttachments.reduce((sum, a) => sum + a.file_size, 0);
@@ -186,38 +249,14 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
       if (error) throw error;
 
       const newNote = data as TaskNote;
-      setNotes([...notes, newNote]);
+      setNotes(prev => [...prev, newNote]);
       setSelectedNoteId(newNote.id);
       setContent('');
+      resetSavedData('');
       
       toast({ title: 'Đã tạo phiên bản mới' });
     } catch (error: any) {
       toast({ title: 'Lỗi', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const saveContent = async () => {
-    if (!selectedNoteId) return;
-
-    setIsSaving(true);
-    try {
-      const { error } = await supabase
-        .from('task_notes')
-        .update({ content })
-        .eq('id', selectedNoteId);
-
-      if (error) throw error;
-
-      // Update local state
-      setNotes(notes.map(n => 
-        n.id === selectedNoteId ? { ...n, content, updated_at: new Date().toISOString() } : n
-      ));
-      
-      toast({ title: 'Đã lưu ghi chú' });
-    } catch (error: any) {
-      toast({ title: 'Lỗi', description: error.message, variant: 'destructive' });
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -242,14 +281,17 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
 
       const remainingNotes = notes.filter(n => n.id !== noteToDelete);
       setNotes(remainingNotes);
+      setAllAttachments(prev => prev.filter(a => a.note_id !== noteToDelete));
       
       if (selectedNoteId === noteToDelete) {
         if (remainingNotes.length > 0) {
           setSelectedNoteId(remainingNotes[0].id);
           setContent(remainingNotes[0].content || '');
+          resetSavedData(remainingNotes[0].content || '');
         } else {
           setSelectedNoteId(null);
           setContent('');
+          resetSavedData('');
         }
       }
       
@@ -279,19 +321,16 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
 
     setIsUploading(true);
     try {
-      // Generate safe storage name
       const ext = file.name.split('.').pop() || '';
       const storageName = `${crypto.randomUUID()}.${ext}`;
       const filePath = `${taskId}/${selectedNoteId}/${storageName}`;
 
-      // Upload to storage
       const { error: uploadError } = await supabase.storage
         .from('task-note-attachments')
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // Save attachment record
       const { data: attachmentData, error: dbError } = await supabase
         .from('task_note_attachments')
         .insert({
@@ -307,8 +346,8 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
       if (dbError) throw dbError;
 
       const newAttachment = attachmentData as NoteAttachment;
-      setAttachments([...attachments, newAttachment]);
-      setAllAttachments([...allAttachments, newAttachment]);
+      setAttachments(prev => [...prev, newAttachment]);
+      setAllAttachments(prev => [...prev, newAttachment]);
       
       toast({ title: 'Đã tải file lên' });
     } catch (error: any) {
@@ -321,19 +360,17 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
 
   const handleDeleteAttachment = async (attachment: NoteAttachment) => {
     try {
-      // Delete from storage
       await supabase.storage
         .from('task-note-attachments')
         .remove([attachment.file_path]);
 
-      // Delete record
       await supabase
         .from('task_note_attachments')
         .delete()
         .eq('id', attachment.id);
 
-      setAttachments(attachments.filter(a => a.id !== attachment.id));
-      setAllAttachments(allAttachments.filter(a => a.id !== attachment.id));
+      setAttachments(prev => prev.filter(a => a.id !== attachment.id));
+      setAllAttachments(prev => prev.filter(a => a.id !== attachment.id));
       
       toast({ title: 'Đã xóa file' });
     } catch (error: any) {
@@ -373,13 +410,45 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
 
       if (error) throw error;
 
-      setNotes(notes.map(n => 
+      setNotes(prev => prev.map(n => 
         n.id === selectedNoteId ? { ...n, version_name: editingName.trim() } : n
       ));
       setIsEditingName(false);
     } catch (error: any) {
       toast({ title: 'Lỗi', description: error.message, variant: 'destructive' });
     }
+  };
+
+  // Autosave status indicator
+  const renderAutosaveStatus = () => {
+    if (isSaving) {
+      return (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          <span>Đang lưu...</span>
+        </div>
+      );
+    }
+    
+    if (hasUnsavedChanges) {
+      return (
+        <div className="flex items-center gap-1.5 text-xs text-warning">
+          <CloudOff className="w-3 h-3" />
+          <span>Chưa lưu</span>
+        </div>
+      );
+    }
+    
+    if (lastSaved) {
+      return (
+        <div className="flex items-center gap-1.5 text-xs text-success">
+          <Cloud className="w-3 h-3" />
+          <span>Đã lưu tự động</span>
+        </div>
+      );
+    }
+    
+    return null;
   };
 
   if (isLoading) {
@@ -409,7 +478,7 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Ghi chú dùng để trao đổi với giảng viên. Thành viên trong nhóm xem yêu cầu làm lại và trao đổi tại mục Trao đổi.
+          Ghi chú dùng để trao đổi với giảng viên. Nội dung được lưu tự động.
         </p>
       </CardHeader>
 
@@ -425,7 +494,7 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
           </div>
         ) : (
           <>
-            {/* Notes List - Visible list of all saved notes */}
+            {/* Notes List */}
             <div className="space-y-2">
               <span className="text-sm font-medium text-muted-foreground">
                 Danh sách ghi chú ({notes.length})
@@ -494,51 +563,55 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
             {/* Selected Note Editor */}
             {selectedNote && (
               <div className="flex-1 flex flex-col space-y-3 border-t pt-3">
-                {/* Version Name Editor */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Đang chỉnh sửa:</span>
-                  {isEditingName ? (
-                    <div className="flex items-center gap-1 flex-1">
-                      <Input
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        className="h-8 flex-1"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') saveVersionName();
-                          if (e.key === 'Escape') setIsEditingName(false);
-                        }}
-                      />
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveVersionName}>
-                        <Check className="w-4 h-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setIsEditingName(false)}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 flex-1">
-                      <Badge variant="secondary" className="text-sm">{selectedNote.version_name}</Badge>
-                      <Button 
-                        size="icon" 
-                        variant="ghost"
-                        className="h-7 w-7"
-                        onClick={() => {
-                          setEditingName(selectedNote.version_name);
-                          setIsEditingName(true);
-                        }}
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  )}
+                {/* Version Name Editor + Autosave Status */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-sm font-medium shrink-0">Đang chỉnh sửa:</span>
+                    {isEditingName ? (
+                      <div className="flex items-center gap-1 flex-1">
+                        <Input
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          className="h-8 flex-1"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveVersionName();
+                            if (e.key === 'Escape') setIsEditingName(false);
+                          }}
+                        />
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveVersionName}>
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setIsEditingName(false)}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <Badge variant="secondary" className="text-sm">{selectedNote.version_name}</Badge>
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            setEditingName(selectedNote.version_name);
+                            setIsEditingName(true);
+                          }}
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {/* Autosave Status */}
+                  {renderAutosaveStatus()}
                 </div>
 
-                {/* Content Editor */}
+                {/* Content Editor - No manual save button needed */}
                 <Textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="Nhập nội dung ghi chú tại đây..."
+                  placeholder="Nhập nội dung ghi chú tại đây... (tự động lưu)"
                   className="flex-1 resize-none min-h-[120px]"
                 />
 
@@ -612,16 +685,6 @@ export default function TaskNotes({ taskId, className = '', compact = false }: T
                     </p>
                   )}
                 </div>
-
-                {/* Save Button */}
-                <Button onClick={saveContent} disabled={isSaving} className="w-full">
-                  {isSaving ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Lưu ghi chú
-                </Button>
               </div>
             )}
           </>
