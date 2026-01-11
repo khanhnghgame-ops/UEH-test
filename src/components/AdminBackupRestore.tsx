@@ -33,6 +33,7 @@ interface Group {
   created_by: string;
   created_at: string;
   updated_at: string;
+  image_url: string | null;
 }
 
 interface FileSubmission {
@@ -324,7 +325,8 @@ export default function AdminBackupRestore() {
           leader_id: null,
           created_by: group.created_by,
           created_at: group.created_at,
-          updated_at: group.updated_at
+          updated_at: group.updated_at,
+          image_url: group.image_url
         },
         members: membersWithProfiles,
         stages: stagesRes.data?.map(s => ({
@@ -408,6 +410,7 @@ export default function AdminBackupRestore() {
           instructor_email: backupData.group.instructor_email,
           additional_info: backupData.group.additional_info,
           zalo_link: backupData.group.zalo_link,
+          image_url: backupData.group.image_url || null,
           leader_id: user!.id,
           created_by: user!.id
         });
