@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -44,6 +44,7 @@ export interface Message {
   source_task_id?: string;
   source_task_title?: string;
   user_name?: string;
+  avatar_url?: string;
   reply_to?: string;
   reply_to_content?: string;
   reply_to_user_name?: string;
@@ -89,21 +90,20 @@ export default function MessageItem({ message, isOwn, onTaskClick, onDelete, onR
         isOwn && 'flex-row-reverse'
       )}>
         {/* Avatar */}
-        <Avatar className={cn(
-          "w-9 h-9 shrink-0 shadow-sm",
-          isOwn 
-            ? "ring-2 ring-primary/30" 
-            : "ring-2 ring-border"
-        )}>
-          <AvatarFallback className={cn(
-            'text-xs font-semibold',
+        <UserAvatar 
+          src={message.avatar_url}
+          name={message.user_name}
+          size="md"
+          className={cn(
+            "shadow-sm",
+            isOwn ? "ring-2 ring-primary/30" : "ring-2 ring-border"
+          )}
+          fallbackClassName={cn(
             isOwn 
               ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground' 
-              : 'bg-gradient-to-br from-muted to-muted/80 text-muted-foreground'
-          )}>
-            {getInitials(message.user_name || 'U')}
-          </AvatarFallback>
-        </Avatar>
+              : 'bg-gradient-to-br from-muted to-muted/80'
+          )}
+        />
 
         {/* Message Card - Unified Box */}
         <Card className={cn(

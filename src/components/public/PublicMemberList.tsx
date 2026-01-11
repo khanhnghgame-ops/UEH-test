@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { Button } from '@/components/ui/button';
 import { Users, Download } from 'lucide-react';
 import type { GroupMember } from '@/types/database';
@@ -53,11 +53,11 @@ export default function PublicMemberList({ members }: PublicMemberListProps) {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {members.map(member => (
               <div key={member.id} className="flex items-center gap-3 p-4 rounded-xl border bg-card hover:bg-muted/30 transition-colors">
-                <Avatar className="w-12 h-12">
-                  <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                    {member.profiles?.full_name ? getInitials(member.profiles.full_name) : '?'}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar 
+                  src={member.profiles?.avatar_url}
+                  name={member.profiles?.full_name}
+                  size="lg"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{member.profiles?.full_name || 'Unknown'}</div>
                   <div className="text-sm text-muted-foreground truncate">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -167,11 +167,11 @@ export default function ProjectActivityLog({ groupId }: ProjectActivityLogProps)
                   )}
                   
                   {/* Avatar */}
-                  <Avatar className="w-10 h-10 border-2 border-background z-10 flex-shrink-0">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                      {getInitials(log.user_name.split('@')[0])}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar 
+                    name={log.user_name.split('@')[0]}
+                    size="md"
+                    className="border-2 border-background z-10 flex-shrink-0"
+                  />
                   
                   {/* Content */}
                   <div className="flex-1 min-w-0">

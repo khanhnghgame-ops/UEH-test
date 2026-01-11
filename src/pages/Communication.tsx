@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { Separator } from '@/components/ui/separator';
 import {
   MessageSquare,
@@ -52,7 +52,7 @@ interface Message {
   source_task_title?: string;
   source_comment_id?: string;
   user_name?: string;
-  user_avatar?: string;
+  avatar_url?: string;
   mentions?: ParsedMention[];
   reply_to?: string;
   reply_to_content?: string;
@@ -68,6 +68,7 @@ interface MentionItem {
   source_label: string;
   source_task_id?: string;
   user_name: string;
+  avatar_url?: string;
   created_at: string;
   is_read: boolean;
 }
@@ -89,7 +90,7 @@ export default function Communication() {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
   // Project members for mentions
-  const [projectMembers, setProjectMembers] = useState<{ id: string; name: string }[]>([]);
+  const [projectMembers, setProjectMembers] = useState<{ id: string; name: string; avatar_url?: string }[]>([]);
   const [projectTasks, setProjectTasks] = useState<{ id: string; title: string; stageOrder: number; stageName: string }[]>([]);
 
   // Fetch projects with unread counts
@@ -847,14 +848,16 @@ export default function Communication() {
           <div className="flex items-center gap-2">
             <div className="flex -space-x-2">
               {projectMembers.slice(0, 4).map((member) => (
-                <Avatar key={member.id} className="w-8 h-8 border-2 border-background">
-                  <AvatarFallback className="text-[10px] bg-secondary text-secondary-foreground">
-                    {getInitials(member.name)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar 
+                  key={member.id}
+                  src={member.avatar_url}
+                  name={member.name}
+                  size="sm"
+                  className="border-2 border-background"
+                />
               ))}
               {projectMembers.length > 4 && (
-                <div className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium text-muted-foreground">
+                <div className="w-7 h-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium text-muted-foreground">
                   +{projectMembers.length - 4}
                 </div>
               )}
@@ -1013,19 +1016,17 @@ export default function Communication() {
                         <CardContent className="p-4">
                           <div className="flex items-start gap-3">
                             {/* Avatar */}
-                            <Avatar className={cn(
-                              "w-10 h-10 shrink-0",
-                              !mention.is_read && "ring-2 ring-primary/20"
-                            )}>
-                              <AvatarFallback className={cn(
-                                "text-sm font-medium",
+                            <UserAvatar 
+                              src={mention.avatar_url}
+                              name={mention.user_name}
+                              size="md"
+                              className={cn(!mention.is_read && "ring-2 ring-primary/20")}
+                              fallbackClassName={cn(
                                 !mention.is_read 
                                   ? "bg-primary/20 text-primary" 
                                   : "bg-muted text-muted-foreground"
-                              )}>
-                                {getInitials(mention.user_name)}
-                              </AvatarFallback>
-                            </Avatar>
+                              )}
+                            />
 
                             {/* Content */}
                             <div className="flex-1 min-w-0">

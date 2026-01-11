@@ -2,7 +2,7 @@ import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -131,12 +131,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   variant="ghost"
                   className="flex items-center gap-2 h-auto py-1.5 px-2 hover:bg-white/10 text-white"
                 >
-                  <Avatar className="h-9 w-9 border-2 border-white/30">
-                    <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name} />
-                    <AvatarFallback className="bg-accent text-accent-foreground text-sm font-semibold">
-                      {profile ? getInitials(profile.full_name) : '?'}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar 
+                    src={profile?.avatar_url} 
+                    name={profile?.full_name}
+                    size="md"
+                    className="border-2 border-white/30"
+                  />
                   <div className="hidden sm:flex flex-col items-start">
                     <span className="text-sm font-semibold text-white truncate max-w-[120px]">
                       {profile?.full_name || 'Đang tải...'}
