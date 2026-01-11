@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { 
@@ -12,6 +11,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import UserAvatar from '@/components/UserAvatar';
 import { 
   Award, Scale, History, 
   AlertCircle, CheckCircle, Clock, Edit2, MessageSquare,
@@ -547,7 +547,6 @@ export default function ProcessScores({
 
   // Helper functions
   const getMemberProfile = (userId: string) => members.find(m => m.user_id === userId)?.profiles;
-  const getInitials = (name: string) => name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '??';
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-600';
@@ -744,11 +743,11 @@ export default function ProcessScores({
                     getScoreBgColor(score)
                   }`}
                 >
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                      {getInitials(profile?.full_name || '')}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar 
+                    src={profile?.avatar_url} 
+                    name={profile?.full_name}
+                    size="md"
+                  />
                   
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{profile?.full_name}</p>
@@ -985,11 +984,11 @@ export default function ProcessScores({
                   className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
                   onClick={() => setReviewDialog({ isOpen: true, appeal })}
                 >
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      {getInitials(profile?.full_name || '')}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar 
+                    src={profile?.avatar_url} 
+                    name={profile?.full_name}
+                    size="md"
+                  />
                   
                   <div className="flex-1 min-w-0">
                     <p className="font-medium">{profile?.full_name}</p>
@@ -1052,11 +1051,12 @@ export default function ProcessScores({
         <Card className="overflow-hidden">
           <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4">
             <div className="flex items-center gap-4">
-              <Avatar className="h-12 w-12 border-2 border-background shadow">
-                <AvatarFallback className="text-lg bg-primary text-primary-foreground">
-                  {getInitials(currentUserProfile?.full_name || '')}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar 
+                src={currentUserProfile?.avatar_url} 
+                name={currentUserProfile?.full_name}
+                size="lg"
+                className="border-2 border-background shadow"
+              />
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold truncate">{currentUserProfile?.full_name}</h3>
                 <p className="text-sm text-muted-foreground">{currentUserProfile?.student_id}</p>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   BookOpen,
   User,
@@ -23,6 +24,9 @@ import {
   Loader2,
   FileText,
   ExternalLink,
+  ImagePlus,
+  X,
+  Image,
 } from 'lucide-react';
 
 interface GroupInfo {
@@ -34,6 +38,7 @@ interface GroupInfo {
   instructor_email: string | null;
   zalo_link: string | null;
   additional_info: string | null;
+  image_url?: string | null;
 }
 
 interface GroupInfoCardProps {
@@ -44,8 +49,11 @@ interface GroupInfoCardProps {
 
 export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCardProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Edit form state
   const [editName, setEditName] = useState(group.name);
@@ -55,6 +63,7 @@ export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCar
   const [editInstructorEmail, setEditInstructorEmail] = useState(group.instructor_email || '');
   const [editZaloLink, setEditZaloLink] = useState(group.zalo_link || '');
   const [editAdditionalInfo, setEditAdditionalInfo] = useState(group.additional_info || '');
+  const [editImageUrl, setEditImageUrl] = useState(group.image_url || '');
 
   const handleOpenEdit = () => {
     setEditName(group.name);
@@ -64,7 +73,53 @@ export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCar
     setEditInstructorEmail(group.instructor_email || '');
     setEditZaloLink(group.zalo_link || '');
     setEditAdditionalInfo(group.additional_info || '');
+    setEditImageUrl(group.image_url || '');
     setIsEditDialogOpen(true);
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Lỗi', description: 'Vui lòng chọn file ảnh', variant: 'destructive' });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Lỗi', description: 'Kích thước ảnh không được vượt quá 5MB', variant: 'destructive' });
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `${group.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('project-images')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('project-images')
+        .getPublicUrl(fileName);
+
+      setEditImageUrl(urlData.publicUrl);
+      toast({ title: 'Thành công', description: 'Đã tải ảnh lên' });
+    } catch (error: any) {
+      toast({ title: 'Lỗi', description: error.message || 'Không thể tải ảnh lên', variant: 'destructive' });
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setEditImageUrl('');
   };
 
   const handleSave = async () => {
@@ -90,6 +145,7 @@ export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCar
           instructor_email: editInstructorEmail.trim() || null,
           zalo_link: editZaloLink.trim() || null,
           additional_info: editAdditionalInfo.trim() || null,
+          image_url: editImageUrl.trim() || null,
         })
         .eq('id', group.id);
 
@@ -116,7 +172,19 @@ export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCar
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+        {/* Project Image Banner */}
+        {group.image_url && (
+          <div className="relative w-full h-40 overflow-hidden rounded-t-lg">
+            <img 
+              src={group.image_url} 
+              alt={group.name}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+          </div>
+        )}
+        
+        <CardHeader className={`flex flex-row items-center justify-between pb-2 ${group.image_url ? '-mt-8 relative z-10' : ''}`}>
           <CardTitle className="text-base flex items-center gap-2">
             <BookOpen className="w-4 h-4" />
             Thông tin học phần
@@ -210,7 +278,77 @@ export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCar
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Project Image Upload */}
             <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Image className="w-4 h-4" />
+                Ảnh Project
+              </Label>
+              
+              {editImageUrl ? (
+                <div className="relative group">
+                  <img 
+                    src={editImageUrl} 
+                    alt="Project preview"
+                    className="w-full h-32 object-cover rounded-lg border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={handleRemoveImage}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {isUploadingImage ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Đang tải lên...</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <ImagePlus className="w-8 h-8 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Nhấn để chọn ảnh (tối đa 5MB)</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              
+              {editImageUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingImage}
+                >
+                  {isUploadingImage ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ImagePlus className="w-4 h-4" />
+                  )}
+                  Thay đổi ảnh
+                </Button>
+              )}
+            </div>
+
+            <div className="border-t pt-4 space-y-2">
               <Label htmlFor="edit-name">Tên nhóm *</Label>
               <Input
                 id="edit-name"

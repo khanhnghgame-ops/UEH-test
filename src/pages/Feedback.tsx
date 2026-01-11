@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
@@ -36,6 +35,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import UserAvatar from '@/components/UserAvatar';
 import {
   MessageSquarePlus,
   Send,
@@ -63,7 +63,20 @@ interface Feedback {
   updated_at: string;
   user_name?: string;
   user_student_id?: string;
+  user_avatar_url?: string;
   comment_count?: number;
+}
+
+interface FeedbackComment {
+  id: string;
+  feedback_id: string;
+  user_id: string;
+  content: string;
+  is_hidden: boolean;
+  created_at: string;
+  user_name?: string;
+  user_student_id?: string;
+  user_avatar_url?: string;
 }
 
 interface FeedbackComment {
@@ -119,7 +132,7 @@ export default function FeedbackPage() {
         const userIds = [...new Set(feedbacksData.map(f => f.user_id))];
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, student_id')
+          .select('id, full_name, student_id, avatar_url')
           .in('id', userIds);
 
         const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
@@ -141,6 +154,7 @@ export default function FeedbackPage() {
           ...f,
           user_name: profileMap.get(f.user_id)?.full_name || 'Unknown',
           user_student_id: profileMap.get(f.user_id)?.student_id || '',
+          user_avatar_url: profileMap.get(f.user_id)?.avatar_url || null,
           comment_count: countMap.get(f.id) || 0,
         })));
       } else {
@@ -173,7 +187,7 @@ export default function FeedbackPage() {
         const userIds = [...new Set(commentsData.map(c => c.user_id))];
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, student_id')
+          .select('id, full_name, student_id, avatar_url')
           .in('id', userIds);
 
         const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
@@ -184,6 +198,7 @@ export default function FeedbackPage() {
             ...c,
             user_name: profileMap.get(c.user_id)?.full_name || 'Unknown',
             user_student_id: profileMap.get(c.user_id)?.student_id || '',
+            user_avatar_url: profileMap.get(c.user_id)?.avatar_url || null,
           })),
         }));
       } else {
@@ -373,14 +388,6 @@ export default function FeedbackPage() {
     }
   };
 
-  const getInitials = (name: string) =>
-    name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-
   const formatTime = (dateStr: string) => {
     return format(new Date(dateStr), "dd/MM/yyyy 'lúc' HH:mm", { locale: vi });
   };
@@ -502,11 +509,12 @@ export default function FeedbackPage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <Avatar className="w-10 h-10 shrink-0">
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                          {getInitials(feedback.user_name || '')}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar 
+                        src={feedback.user_avatar_url} 
+                        name={feedback.user_name}
+                        size="md"
+                        className="shrink-0"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold">{feedback.user_name}</span>
@@ -607,11 +615,12 @@ export default function FeedbackPage() {
                                       comment.is_hidden ? 'opacity-60' : ''
                                     }`}
                                   >
-                                    <Avatar className="w-8 h-8 shrink-0">
-                                      <AvatarFallback className="text-xs bg-secondary">
-                                        {getInitials(comment.user_name || '')}
-                                      </AvatarFallback>
-                                    </Avatar>
+                                    <UserAvatar 
+                                      src={comment.user_avatar_url} 
+                                      name={comment.user_name}
+                                      size="sm"
+                                      className="shrink-0"
+                                    />
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap">
                                         <span className="font-medium text-sm">
@@ -648,11 +657,12 @@ export default function FeedbackPage() {
 
                           {/* New comment input */}
                           <div className="flex gap-2">
-                            <Avatar className="w-8 h-8 shrink-0">
-                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                {profile ? getInitials(profile.full_name) : '?'}
-                              </AvatarFallback>
-                            </Avatar>
+                            <UserAvatar 
+                              src={profile?.avatar_url} 
+                              name={profile?.full_name}
+                              size="sm"
+                              className="shrink-0"
+                            />
                             <div className="flex-1 flex gap-2">
                               <Input
                                 placeholder="Viết bình luận..."

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -54,6 +53,7 @@ import { exportMembersToExcel, getRoleDisplayName } from '@/lib/excelExport';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import UserAvatar from '@/components/UserAvatar';
 import type { GroupMember, Profile } from '@/types/database';
 
 interface MemberManagementCardProps {
@@ -101,14 +101,7 @@ export default function MemberManagementCard({
   // New role for change role dialog
   const [newRole, setNewRole] = useState<'member' | 'leader'>('member');
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
+  // Avatar is now handled by UserAvatar component - no need for initials
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -418,11 +411,12 @@ export default function MemberManagementCard({
           <div className="space-y-3">
             {members.map((member) => (
               <div key={member.id} className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
-                <Avatar className="w-12 h-12 border-2 border-background">
-                  <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                    {member.profiles ? getInitials(member.profiles.full_name) : '?'}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar 
+                  src={member.profiles?.avatar_url} 
+                  name={member.profiles?.full_name}
+                  size="lg"
+                  className="border-2 border-background"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold truncate">{member.profiles?.full_name}</p>
@@ -528,11 +522,11 @@ export default function MemberManagementCard({
                         }`}
                         onClick={() => setSelectedUserId(p.id)}
                       >
-                        <Avatar className="w-10 h-10">
-                          <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                            {getInitials(p.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <UserAvatar 
+                          src={p.avatar_url} 
+                          name={p.full_name}
+                          size="md"
+                        />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{p.full_name}</p>
                           <p className="text-xs text-muted-foreground truncate">
@@ -635,11 +629,11 @@ export default function MemberManagementCard({
           <div className="space-y-4 py-2">
             <div className="p-4 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-3">
-                <Avatar className="w-12 h-12">
-                  <AvatarFallback className="bg-primary/10 text-primary">
-                    {memberToChangeRole?.profiles ? getInitials(memberToChangeRole.profiles.full_name) : '?'}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar 
+                  src={memberToChangeRole?.profiles?.avatar_url} 
+                  name={memberToChangeRole?.profiles?.full_name}
+                  size="lg"
+                />
                 <div>
                   <p className="font-medium">{memberToChangeRole?.profiles?.full_name}</p>
                   <p className="text-sm text-muted-foreground">{memberToChangeRole?.profiles?.email}</p>

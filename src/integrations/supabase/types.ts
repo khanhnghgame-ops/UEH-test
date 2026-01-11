@@ -204,6 +204,7 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          image_url: string | null
           instructor_email: string | null
           instructor_name: string | null
           is_public: boolean
@@ -222,6 +223,7 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
+          image_url?: string | null
           instructor_email?: string | null
           instructor_name?: string | null
           is_public?: boolean
@@ -240,6 +242,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           instructor_email?: string | null
           instructor_name?: string | null
           is_public?: boolean
