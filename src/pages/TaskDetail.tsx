@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -129,7 +129,7 @@ export default function TaskDetail() {
               <div className="flex flex-wrap gap-2">
                 {assignees.map(a => (
                   <div key={a.id} className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
-                    <Avatar className="w-6 h-6"><AvatarFallback className="text-xs">{a.profiles ? getInitials(a.profiles.full_name) : '?'}</AvatarFallback></Avatar>
+                    <UserAvatar src={a.profiles?.avatar_url} name={a.profiles?.full_name} size="xs" />
                     <span className="text-sm">{a.profiles?.full_name}</span>
                   </div>
                 ))}

@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { supabase } from '@/integrations/supabase/client';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import {
@@ -100,11 +100,12 @@ export default function Dashboard() {
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
           
           <div className="relative flex items-center gap-6">
-            <Avatar className="h-20 w-20 border-4 border-white/20 shadow-xl">
-              <AvatarFallback className="bg-accent text-accent-foreground text-2xl font-bold">
-                {profile ? getInitials(profile.full_name) : '?'}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar 
+              src={profile?.avatar_url} 
+              name={profile?.full_name}
+              size="xl"
+              className="border-4 border-white/20 shadow-xl"
+            />
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <Sparkles className="w-6 h-6 text-accent" />

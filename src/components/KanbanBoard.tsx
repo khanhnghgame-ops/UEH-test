@@ -3,7 +3,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { Progress } from '@/components/ui/progress';
 import {
   DropdownMenu,
@@ -304,13 +304,13 @@ export default function KanbanBoard({
                     <Users className="w-3 h-3 text-muted-foreground" />
                     <div className="flex -space-x-2">
                       {task.task_assignments.slice(0, 3).map((assignment) => (
-                        <Avatar key={assignment.id} className="w-6 h-6 border-2 border-background">
-                          <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                            {assignment.profiles
-                              ? getInitials(assignment.profiles.full_name)
-                              : '?'}
-                          </AvatarFallback>
-                        </Avatar>
+                        <UserAvatar 
+                          key={assignment.id}
+                          src={assignment.profiles?.avatar_url}
+                          name={assignment.profiles?.full_name}
+                          size="xs"
+                          className="border-2 border-background"
+                        />
                       ))}
                       {task.task_assignments.length > 3 && (
                         <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] border-2 border-background">

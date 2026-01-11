@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { Loader2, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import MentionInput from './MentionInput';
@@ -17,6 +17,7 @@ interface Comment {
   user_id: string;
   created_at: string;
   user_name?: string;
+  avatar_url?: string;
 }
 
 interface TaskCommentsProps {
@@ -283,14 +284,14 @@ export default function TaskComments({ taskId, groupId, className }: TaskComment
 
               return (
                 <div key={comment.id} className={cn('flex gap-2', isOwn && 'flex-row-reverse')}>
-                  <Avatar className="w-7 h-7 shrink-0">
-                    <AvatarFallback className={cn(
-                      'text-[10px]',
+                  <UserAvatar 
+                    src={comment.avatar_url}
+                    name={comment.user_name}
+                    size="sm"
+                    fallbackClassName={cn(
                       isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                    )}>
-                      {getInitials(comment.user_name || 'U')}
-                    </AvatarFallback>
-                  </Avatar>
+                    )}
+                  />
 
                   <div className={cn('flex flex-col max-w-[80%]', isOwn && 'items-end')}>
                     {!isOwn && (

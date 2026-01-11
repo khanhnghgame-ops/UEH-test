@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 import {
@@ -38,6 +38,7 @@ interface MemberRow {
   studentId?: string;
   email?: string;
   groupName?: string;
+  avatarUrl?: string;
 }
 
 interface PendingApprovalRow {
@@ -395,11 +396,11 @@ export default function AdminUsers() {
                         className="flex items-center justify-between gap-3 p-3 border rounded-lg bg-card/40"
                       >
                         <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback>
-                              {getInitials(m.fullName || m.email || 'U')}
-                            </AvatarFallback>
-                          </Avatar>
+                          <UserAvatar 
+                            src={m.avatarUrl}
+                            name={m.fullName}
+                            size="md"
+                          />
                           <div>
                             <p className="font-medium">
                               {m.fullName || 'Không rõ tên'}{' '}
@@ -616,9 +617,11 @@ export default function AdminUsers() {
                     {pendingUsers.map((u) => (
                       <div key={u.id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback>{getInitials(u.full_name)}</AvatarFallback>
-                          </Avatar>
+                          <UserAvatar 
+                            src={u.avatar_url}
+                            name={u.full_name}
+                            size="md"
+                          />
                           <div>
                             <p className="font-medium">{u.full_name}</p>
                             <p className="text-sm text-muted-foreground">
@@ -650,9 +653,11 @@ export default function AdminUsers() {
                   {approvedUsers.map((u) => (
                     <div key={u.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarFallback>{getInitials(u.full_name)}</AvatarFallback>
-                        </Avatar>
+                          <UserAvatar 
+                            src={u.avatar_url}
+                            name={u.full_name}
+                            size="md"
+                          />
                         <div>
                           <p className="font-medium">{u.full_name}</p>
                           <p className="text-sm text-muted-foreground">

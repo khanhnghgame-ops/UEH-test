@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -566,11 +566,12 @@ export default function MemberManagement() {
                   
                   return (
                     <div key={member.id} className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <Avatar className="w-12 h-12 border-2 border-background">
-                        <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                          {getInitials(member.full_name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar 
+                        src={member.avatar_url}
+                        name={member.full_name}
+                        size="lg"
+                        className="border-2 border-background"
+                      />
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">

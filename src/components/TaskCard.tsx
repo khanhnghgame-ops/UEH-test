@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { Progress } from '@/components/ui/progress';
 import { CountdownTimer } from '@/components/CountdownTimer';
 import { FileText, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
@@ -98,11 +98,13 @@ export function TaskCard({ task, groupId, showLink = true }: TaskCardProps) {
             <div className="flex items-center gap-1">
               <div className="flex -space-x-2">
                 {task.task_assignments?.slice(0, 3).map((assignment) => (
-                  <Avatar key={assignment.id} className="w-7 h-7 border-2 border-background">
-                    <AvatarFallback className="text-[10px] bg-secondary text-secondary-foreground">
-                      {assignment.profiles ? getInitials(assignment.profiles.full_name) : '?'}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar 
+                    key={assignment.id}
+                    src={assignment.profiles?.avatar_url}
+                    name={assignment.profiles?.full_name}
+                    size="sm"
+                    className="border-2 border-background"
+                  />
                 ))}
               </div>
               {(task.task_assignments?.length || 0) > 3 && (

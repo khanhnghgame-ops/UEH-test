@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -265,11 +265,13 @@ function TaskRow({
                         <div className="flex items-center gap-1">
                           <div className="flex -space-x-1.5">
                             {assignments.slice(0, 3).map((assignment) => (
-                              <Avatar key={assignment.id} className="w-5 h-5 border border-background">
-                                <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
-                                  {assignment.profiles ? getInitials(assignment.profiles.full_name) : '?'}
-                                </AvatarFallback>
-                              </Avatar>
+                              <UserAvatar 
+                                key={assignment.id}
+                                src={assignment.profiles?.avatar_url}
+                                name={assignment.profiles?.full_name}
+                                size="xs"
+                                className="border border-background"
+                              />
                             ))}
                           </div>
                           <span className="text-[11px] text-muted-foreground">
