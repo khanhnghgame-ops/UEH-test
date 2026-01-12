@@ -27,6 +27,7 @@ interface ActivityLog {
   description: string | null;
   created_at: string;
   metadata: any;
+  avatar_url?: string;
 }
 
 interface ProjectActivityLogProps {
@@ -50,7 +51,23 @@ export default function ProjectActivityLog({ groupId }: ProjectActivityLogProps)
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (data) setLogs(data as ActivityLog[]);
+      if (data) {
+        // Fetch avatars for all unique user_ids
+        const userIds = [...new Set(data.map(log => log.user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, avatar_url')
+          .in('id', userIds);
+
+        const avatarMap = new Map(profiles?.map(p => [p.id, p.avatar_url]) || []);
+        
+        const logsWithAvatars = data.map(log => ({
+          ...log,
+          avatar_url: avatarMap.get(log.user_id) || null
+        }));
+        
+        setLogs(logsWithAvatars as ActivityLog[]);
+      }
     } catch (error) {
       console.error('Error fetching logs:', error);
     } finally {
@@ -168,6 +185,7 @@ export default function ProjectActivityLog({ groupId }: ProjectActivityLogProps)
                   
                   {/* Avatar */}
                   <UserAvatar 
+                    src={log.avatar_url}
                     name={log.user_name.split('@')[0]}
                     size="md"
                     className="border-2 border-background z-10 flex-shrink-0"

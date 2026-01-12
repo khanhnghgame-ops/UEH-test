@@ -268,110 +268,116 @@ export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCar
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
+      {/* Edit Dialog - 16:9 Responsive */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-[1280px] h-auto max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Chỉnh sửa thông tin nhóm</DialogTitle>
             <DialogDescription>
               Cập nhật thông tin học phần và giảng viên
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            {/* Project Image Upload */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Image className="w-4 h-4" />
-                Ảnh Project
-              </Label>
-              
-              {editImageUrl ? (
-                <div className="relative group">
-                  <img 
-                    src={editImageUrl} 
-                    alt="Project preview"
-                    className="w-full h-32 object-cover rounded-lg border"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={handleRemoveImage}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div
-                  className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {isUploadingImage ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Đang tải lên...</p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2">
-                      <ImagePlus className="w-8 h-8 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Nhấn để chọn ảnh (tối đa 5MB)</p>
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              
-              {editImageUrl && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-2"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploadingImage}
-                >
-                  {isUploadingImage ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <ImagePlus className="w-4 h-4" />
-                  )}
-                  Thay đổi ảnh
-                </Button>
-              )}
-            </div>
-
-            <div className="border-t pt-4 space-y-2">
-              <Label htmlFor="edit-name">Tên nhóm *</Label>
-              <Input
-                id="edit-name"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                placeholder="Tên nhóm"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="edit-description">Mô tả</Label>
-              <Textarea
-                id="edit-description"
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                placeholder="Mô tả về nhóm..."
-              />
-            </div>
-
-            <div className="border-t pt-4">
-              <p className="text-sm font-medium mb-3">Thông tin học phần</p>
-              
+          <div className="flex-1 overflow-y-auto py-4 pr-2 -mr-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column - Project Image */}
               <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Image className="w-4 h-4" />
+                    Ảnh Project (16:9)
+                  </Label>
+                  
+                  {editImageUrl ? (
+                    <div className="relative group aspect-video">
+                      <img 
+                        src={editImageUrl} 
+                        alt="Project preview"
+                        className="w-full h-full object-cover rounded-lg border"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploadingImage}
+                        >
+                          {isUploadingImage ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ImagePlus className="w-4 h-4" />
+                          )}
+                          Thay đổi
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleRemoveImage}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="aspect-video border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {isUploadingImage ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <Loader2 className="w-10 h-10 animate-spin text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">Đang tải lên...</p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <ImagePlus className="w-10 h-10 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground text-center">
+                            Nhấn để chọn ảnh<br/>
+                            <span className="text-xs">(Tối đa 5MB, khuyến nghị 1280x720)</span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </div>
+
+                {/* Group Name & Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Tên nhóm *</Label>
+                  <Input
+                    id="edit-name"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Tên nhóm"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit-description">Mô tả</Label>
+                  <Textarea
+                    id="edit-description"
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Mô tả về nhóm..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              {/* Right Column - Course Info */}
+              <div className="space-y-4">
+                <p className="text-sm font-medium">Thông tin học phần</p>
+                
                 <div className="space-y-2">
                   <Label htmlFor="edit-class-code">Tên lớp học phần</Label>
                   <Input

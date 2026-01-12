@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
@@ -87,8 +87,6 @@ export default function TaskScoringDialog({
     }
   }, [isOpen, task, taskScores, assignedMembers.length]);
 
-  const getInitials = (name: string) =>
-    name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '??';
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-600';
@@ -265,11 +263,11 @@ export default function TaskScoringDialog({
                   >
                     {/* Member Header */}
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                          {getInitials(profile?.full_name || '')}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar 
+                        src={profile?.avatar_url}
+                        name={profile?.full_name}
+                        size="md"
+                      />
 
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{profile?.full_name}</p>
