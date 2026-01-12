@@ -211,13 +211,13 @@ export default function Communication() {
 
       if (error) throw error;
 
-      // Fetch user names separately
+      // Fetch user names and avatars separately
       const userIds = [...new Set((data || []).map(m => m.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, avatar_url')
         .in('id', userIds);
-      const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+      const profileMap = new Map((profiles || []).map(p => [p.id, { name: p.full_name, avatar_url: p.avatar_url }]));
 
       // Fetch task titles separately
       const taskIds = [...new Set((data || []).filter(m => m.source_task_id).map(m => m.source_task_id))];
@@ -239,6 +239,7 @@ export default function Communication() {
 
       const messagesWithParsed = (data || []).map((msg: any) => {
         const taskInfo = msg.source_task_id ? taskMap.get(msg.source_task_id) : null;
+        const userProfile = profileMap.get(msg.user_id);
         
         // Get reply info if exists
         let replyToContent: string | undefined;
@@ -247,13 +248,15 @@ export default function Communication() {
           const parentMsg = messageMap.get(msg.reply_to);
           if (parentMsg) {
             replyToContent = parentMsg.content?.substring(0, 100) + (parentMsg.content?.length > 100 ? '...' : '');
-            replyToUserName = profileMap.get(parentMsg.user_id) || 'Unknown';
+            const parentProfile = profileMap.get(parentMsg.user_id);
+            replyToUserName = parentProfile?.name || 'Unknown';
           }
         }
         
         return {
           ...msg,
-          user_name: profileMap.get(msg.user_id) || 'Unknown',
+          user_name: userProfile?.name || 'Unknown',
+          avatar_url: userProfile?.avatar_url,
           source_task_title: taskInfo?.title,
           source_task_stage: taskInfo?.stageOrder,
           mentions: parseMessageContent(msg.content).mentions,
@@ -298,13 +301,13 @@ export default function Communication() {
           .eq('group_id', selectedProject.id);
 
         if (messages && messages.length > 0) {
-          // Get user names
+          // Get user names and avatars
           const userIds = [...new Set(messages.map(m => m.user_id))];
           const { data: profiles } = await supabase
             .from('profiles')
-            .select('id, full_name')
+            .select('id, full_name, avatar_url')
             .in('id', userIds);
-          const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+          const profileMap = new Map((profiles || []).map(p => [p.id, { name: p.full_name, avatar_url: p.avatar_url }]));
 
           // Get task titles
           const taskIds = [...new Set(messages.filter(m => m.source_task_id).map(m => m.source_task_id))];
@@ -323,6 +326,7 @@ export default function Communication() {
             const pm = messageMap.get(mention.message_id!);
             if (!pm) return;
 
+            const userProfile = profileMap.get(pm.user_id);
             allMentions.push({
               id: mention.id,
               message_id: pm.id,
@@ -332,7 +336,8 @@ export default function Communication() {
                 ? `Task – ${taskMap.get(pm.source_task_id) || ''}`
                 : `Chat chung`,
               source_task_id: pm.source_task_id,
-              user_name: profileMap.get(pm.user_id) || 'Unknown',
+              user_name: userProfile?.name || 'Unknown',
+              avatar_url: userProfile?.avatar_url,
               created_at: pm.created_at,
               is_read: mention.is_read
             });
@@ -357,13 +362,13 @@ export default function Communication() {
             .in('id', taskIds);
           const taskMap = new Map((tasks || []).map(t => [t.id, { title: t.title, group_id: t.group_id }]));
 
-          // Get user names
+          // Get user names and avatars
           const userIds = [...new Set(comments.map(c => c.user_id))];
           const { data: profiles } = await supabase
             .from('profiles')
-            .select('id, full_name')
+            .select('id, full_name, avatar_url')
             .in('id', userIds);
-          const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+          const profileMap = new Map((profiles || []).map(p => [p.id, { name: p.full_name, avatar_url: p.avatar_url }]));
 
           const commentMap = new Map(comments.map(c => [c.id, c]));
 
@@ -374,6 +379,7 @@ export default function Communication() {
             const taskInfo = taskMap.get(tc.task_id);
             if (!taskInfo || taskInfo.group_id !== selectedProject.id) return;
 
+            const userProfile = profileMap.get(tc.user_id);
             allMentions.push({
               id: mention.id,
               comment_id: tc.id,
@@ -381,7 +387,8 @@ export default function Communication() {
               source_type: 'from_task',
               source_label: `Task – ${taskInfo.title}`,
               source_task_id: tc.task_id,
-              user_name: profileMap.get(tc.user_id) || 'Unknown',
+              user_name: userProfile?.name || 'Unknown',
+              avatar_url: userProfile?.avatar_url,
               created_at: tc.created_at,
               is_read: mention.is_read
             });
@@ -415,12 +422,13 @@ export default function Communication() {
       const userIds = data.map(m => m.user_id);
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, avatar_url')
         .in('id', userIds);
 
       const members = (profiles || []).map((p: any) => ({
         id: p.id,
-        name: p.full_name || 'Unknown'
+        name: p.full_name || 'Unknown',
+        avatar_url: p.avatar_url
       }));
 
       setProjectMembers(members);

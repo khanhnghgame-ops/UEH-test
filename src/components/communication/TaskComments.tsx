@@ -35,7 +35,7 @@ export default function TaskComments({ taskId, groupId, className }: TaskComment
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [commentInput, setCommentInput] = useState('');
-  const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
+  const [members, setMembers] = useState<{ id: string; name: string; avatar_url?: string }[]>([]);
   const [tasks, setTasks] = useState<{ id: string; title: string; stageOrder: number; stageName: string }[]>([]);
 
   useEffect(() => {
@@ -78,18 +78,22 @@ export default function TaskComments({ taskId, groupId, className }: TaskComment
 
       if (error) throw error;
 
-      // Fetch user names separately
+      // Fetch user names and avatars separately
       const userIds = [...new Set((data || []).map(c => c.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, avatar_url')
         .in('id', userIds);
-      const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+      const profileMap = new Map((profiles || []).map(p => [p.id, { name: p.full_name, avatar_url: p.avatar_url }]));
 
-      const commentsWithNames = (data || []).map((c: any) => ({
-        ...c,
-        user_name: profileMap.get(c.user_id) || 'Unknown'
-      }));
+      const commentsWithNames = (data || []).map((c: any) => {
+        const userProfile = profileMap.get(c.user_id);
+        return {
+          ...c,
+          user_name: userProfile?.name || 'Unknown',
+          avatar_url: userProfile?.avatar_url
+        };
+      });
 
       setComments(commentsWithNames);
     } catch (error) {
@@ -114,12 +118,13 @@ export default function TaskComments({ taskId, groupId, className }: TaskComment
       const userIds = data.map(m => m.user_id);
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, avatar_url')
         .in('id', userIds);
 
       const memberList = (profiles || []).map((p: any) => ({
         id: p.id,
-        name: p.full_name || 'Unknown'
+        name: p.full_name || 'Unknown',
+        avatar_url: p.avatar_url
       }));
 
       setMembers(memberList);
