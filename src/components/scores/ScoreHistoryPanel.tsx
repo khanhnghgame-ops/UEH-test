@@ -1,9 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import type { GroupMember } from '@/types/database';
 import type { ScoreAdjustmentHistory } from '@/types/processScores';
+import UserAvatar from '@/components/UserAvatar';
 
 interface ScoreHistoryPanelProps {
   history: ScoreAdjustmentHistory[];
@@ -17,7 +17,6 @@ export default function ScoreHistoryPanel({
   isLeader,
 }: ScoreHistoryPanelProps) {
   const getMemberProfile = (userId: string) => members.find(m => m.user_id === userId)?.profiles;
-  const getInitials = (name: string) => name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '??';
 
   const getTypeLabel = (type: string) => {
     switch (type) {
@@ -76,11 +75,11 @@ export default function ScoreHistoryPanel({
                   className="flex items-start gap-4 p-4 rounded-lg border bg-card"
                 >
                   {/* Member Avatar */}
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                      {getInitials(memberProfile?.full_name || '')}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar 
+                    src={memberProfile?.avatar_url}
+                    name={memberProfile?.full_name}
+                    size="md"
+                  />
 
                   {/* Content */}
                   <div className="flex-1 min-w-0 space-y-2">
