@@ -28,6 +28,17 @@ export interface Group {
   created_by: string;
   created_at: string;
   updated_at: string;
+  image_url?: string | null;
+  class_code?: string | null;
+  instructor_name?: string | null;
+  instructor_email?: string | null;
+  zalo_link?: string | null;
+  additional_info?: string | null;
+  is_public?: boolean;
+  share_token?: string | null;
+  show_activity_public?: boolean;
+  show_members_public?: boolean;
+  leader_id?: string | null;
 }
 
 export interface GroupMember {
