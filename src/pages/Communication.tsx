@@ -615,8 +615,11 @@ export default function Communication() {
   };
 
   const handleNavigateToTask = (taskId: string) => {
-    // Navigate directly to the project's tasks tab
-    navigate(`/groups/${selectedProject?.id}?tab=tasks&task=${taskId}`);
+    // Navigate directly to the project's tasks tab using short_id if available
+    const projectId = (selectedProject as any)?.short_id || selectedProject?.id;
+    const isShortId = /^[a-z0-9]{8}$/i.test(projectId || '');
+    const path = isShortId ? `/p/${projectId}` : `/groups/${projectId}`;
+    navigate(`${path}?tab=tasks&task=${taskId}`);
   };
 
   const getInitials = (name: string) => {

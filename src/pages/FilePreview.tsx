@@ -109,8 +109,8 @@ export default function FilePreview() {
   const filePath = searchParams.get('path');
   const fileName = searchParams.get('name') || 'file';
   const fileSize = parseInt(searchParams.get('size') || '0');
-  const taskId = searchParams.get('taskId');
-  const groupId = searchParams.get('groupId');
+  const taskId = searchParams.get('taskId') || searchParams.get('t');
+  const groupId = searchParams.get('groupId') || searchParams.get('p'); // Support both old and new params
 
   const currentFileIndex = useMemo(() => {
     if (!filePath || taskFiles.length === 0) return -1;
@@ -119,7 +119,10 @@ export default function FilePreview() {
 
   const handleGoBack = () => {
     if (groupId) {
-      navigate(`/groups/${groupId}?tab=tasks${taskId ? `&task=${taskId}` : ''}`);
+      // Use short format if groupId looks like a short_id (8 chars alphanumeric)
+      const isShortId = /^[a-z0-9]{8}$/i.test(groupId);
+      const projectPath = isShortId ? `/p/${groupId}` : `/groups/${groupId}`;
+      navigate(`${projectPath}?tab=tasks${taskId ? `&task=${taskId}` : ''}`);
     } else {
       navigate(-1);
     }

@@ -44,9 +44,10 @@ interface ExtendedGroup extends Group {
 }
 
 export default function GroupDetail() {
-  const { groupId } = useParams<{ groupId: string }>();
+  const { groupId, projectId } = useParams<{ groupId?: string; projectId?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const routeId = projectId || groupId; // Support both /p/:projectId and /groups/:groupId
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const { currentTab, setCurrentTab, goBack, goNext, canGoBack, canGoNext, isFirstTab, isLastTab } = useNavigation();
@@ -118,17 +119,38 @@ export default function GroupDetail() {
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
   const [stageToDelete, setStageToDelete] = useState<Stage | null>(null);
 
-  useEffect(() => { if (groupId) fetchGroupData(); }, [groupId]);
+  useEffect(() => { if (routeId) fetchGroupData(); }, [routeId]);
 
   const fetchGroupData = async () => {
+    if (!routeId) return;
+    
     try {
-      const { data: groupData } = await supabase.from('groups').select('*').eq('id', groupId).single();
-      if (groupData) setGroup(groupData as ExtendedGroup);
+      // Support both UUID and short_id lookup
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(routeId);
+      
+      let groupData;
+      if (isUUID) {
+        const { data } = await supabase.from('groups').select('*').eq('id', routeId).single();
+        groupData = data;
+      } else {
+        // Lookup by short_id
+        const { data } = await supabase.from('groups').select('*').eq('short_id', routeId).single();
+        groupData = data;
+      }
+      
+      if (!groupData) {
+        toast({ title: 'Lỗi', description: 'Không tìm thấy project', variant: 'destructive' });
+        navigate('/groups');
+        return;
+      }
+      
+      setGroup(groupData as ExtendedGroup);
+      const resolvedGroupId = groupData.id;
 
-      const { data: stagesData } = await supabase.from('stages').select('*').eq('group_id', groupId).order('order_index');
+      const { data: stagesData } = await supabase.from('stages').select('*').eq('group_id', resolvedGroupId).order('order_index');
       if (stagesData) setStages(stagesData);
 
-      const { data: membersData } = await supabase.from('group_members').select('*').eq('group_id', groupId);
+      const { data: membersData } = await supabase.from('group_members').select('*').eq('group_id', resolvedGroupId);
       if (membersData) {
         const userIds = membersData.map(m => m.user_id);
         const { data: profilesData } = await supabase.from('profiles').select('*').in('id', userIds);
@@ -140,7 +162,7 @@ export default function GroupDetail() {
         setIsGroupCreator(groupData?.created_by === user?.id || isAdmin);
       }
 
-      const { data: tasksData } = await supabase.from('tasks').select('*').eq('group_id', groupId).order('created_at', { ascending: false });
+      const { data: tasksData } = await supabase.from('tasks').select('*').eq('group_id', resolvedGroupId).order('created_at', { ascending: false });
       if (tasksData) {
         const taskIds = tasksData.map(t => t.id);
         const { data: assignmentsData } = await supabase.from('task_assignments').select('*').in('task_id', taskIds);

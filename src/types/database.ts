@@ -23,6 +23,7 @@ export interface UserRole {
 
 export interface Group {
   id: string;
+  short_id: string;
   name: string;
   description: string | null;
   created_by: string;
@@ -52,6 +53,7 @@ export interface GroupMember {
 
 export interface Task {
   id: string;
+  short_id: string;
   group_id: string;
   stage_id: string | null;
   title: string;

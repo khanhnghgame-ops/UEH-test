@@ -103,7 +103,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               .filter(item => !item.requiresAdmin || isAdmin)
               .map((item) => {
                 const isActive = location.pathname === item.href || 
-                  (item.href === '/groups' && location.pathname.startsWith('/groups/'));
+                  (item.href === '/groups' && (location.pathname.startsWith('/groups/') || location.pathname.startsWith('/p/')));
                 return (
                   <Link
                     key={item.name}

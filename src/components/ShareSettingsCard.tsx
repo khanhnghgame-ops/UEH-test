@@ -47,7 +47,7 @@ export default function ShareSettingsCard({
   }, [isPublic, shareToken, showMembersPublic, showActivityPublic]);
 
   const publicLink = localShareToken 
-    ? `${window.location.origin}/public/project/${localShareToken}` 
+    ? `${window.location.origin}/s/${localShareToken}` 
     : null;
 
   const handleToggleShare = async (enabled: boolean) => {
