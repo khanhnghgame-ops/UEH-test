@@ -17,7 +17,7 @@ import {
   Loader2, Eye, Calendar, Clock, Users, Activity, 
   CheckCircle, Circle, AlertCircle, Layers, 
   ChevronDown, ChevronRight, User, BookOpen, Mail, Link as LinkIcon,
-  ExternalLink, LogIn, LayoutDashboard, FileText, Menu, X
+  ExternalLink, LogIn, LayoutDashboard, FileText, Menu, X, FolderKanban
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -304,29 +304,45 @@ export default function PublicProjectView() {
       {/* Main Content - with top padding for fixed header */}
       <main className="flex-1 pt-16">
         <div className="max-w-[1600px] mx-auto p-6">
-          {/* Project Header - Similar to GroupDetail */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold">{group.name}</h1>
-            {group.description && <p className="text-muted-foreground mt-1">{group.description}</p>}
-            <div className="flex flex-wrap gap-2 mt-3">
-              {group.class_code && (
-                <Badge variant="secondary" className="gap-1.5">
-                  <BookOpen className="w-3 h-3" />
-                  {group.class_code}
-                </Badge>
+          {/* Project Header with Image */}
+          <div className="mb-6 flex items-start gap-4">
+            {/* Project Image - 1:1 thumbnail */}
+            <div className="relative w-24 h-24 flex-shrink-0 rounded-xl bg-muted overflow-hidden">
+              {group.image_url ? (
+                <img
+                  src={group.image_url}
+                  alt={group.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                  <FolderKanban className="w-10 h-10 text-primary/40" />
+                </div>
               )}
-              {group.instructor_name && (
-                <Badge variant="secondary" className="gap-1.5">
-                  <User className="w-3 h-3" />
-                  GV: {group.instructor_name}
-                </Badge>
-              )}
-              {group.instructor_email && (
-                <Badge variant="outline" className="gap-1.5">
-                  <Mail className="w-3 h-3" />
-                  {group.instructor_email}
-                </Badge>
-              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-3xl font-bold line-clamp-2">{group.name}</h1>
+              {group.description && <p className="text-muted-foreground mt-1 line-clamp-2">{group.description}</p>}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {group.class_code && (
+                  <Badge variant="secondary" className="gap-1.5">
+                    <BookOpen className="w-3 h-3" />
+                    {group.class_code}
+                  </Badge>
+                )}
+                {group.instructor_name && (
+                  <Badge variant="secondary" className="gap-1.5">
+                    <User className="w-3 h-3" />
+                    GV: {group.instructor_name}
+                  </Badge>
+                )}
+                {group.instructor_email && (
+                  <Badge variant="outline" className="gap-1.5">
+                    <Mail className="w-3 h-3" />
+                    {group.instructor_email}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
 
