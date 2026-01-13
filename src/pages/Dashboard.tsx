@@ -168,8 +168,8 @@ export default function Dashboard() {
                     to={`/groups/${group.id}`}
                     className="group flex items-center gap-4 p-4 rounded-xl border bg-card hover:shadow-md hover:border-primary/30 transition-all"
                   >
-                    {/* Thumbnail 1:1 - medium size */}
-                    <div className="relative w-20 h-20 flex-shrink-0 rounded-xl bg-muted overflow-hidden">
+                    {/* Thumbnail 1:1 - larger size for better recognition */}
+                    <div className="relative w-24 h-24 flex-shrink-0 rounded-xl bg-muted overflow-hidden">
                       {group.image_url ? (
                         <img
                           src={group.image_url}
@@ -178,7 +178,7 @@ export default function Dashboard() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                          <FolderKanban className="w-8 h-8 text-primary/40" />
+                          <FolderKanban className="w-10 h-10 text-primary/40" />
                         </div>
                       )}
                     </div>

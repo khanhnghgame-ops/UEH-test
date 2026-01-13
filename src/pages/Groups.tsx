@@ -260,26 +260,39 @@ export default function Groups() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {groups.map((group) => (
               <Link key={group.id} to={`/groups/${group.id}`}>
-                <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <FolderKanban className="w-6 h-6" />
-                      </div>
-                      {getRoleBadge(group.myRole)}
+                <Card className="h-full hover:shadow-md transition-shadow cursor-pointer group overflow-hidden">
+                  <CardHeader className="flex flex-row items-start gap-4 pb-3">
+                    {/* Thumbnail 1:1 - consistent with Dashboard */}
+                    <div className="relative w-24 h-24 flex-shrink-0 rounded-xl bg-muted overflow-hidden">
+                      {group.image_url ? (
+                        <img
+                          src={group.image_url}
+                          alt={group.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                          <FolderKanban className="w-10 h-10 text-primary/40" />
+                        </div>
+                      )}
                     </div>
-                    <CardTitle className="mt-4">{group.name}</CardTitle>
-                    <CardDescription className="line-clamp-2">
-                      {group.description || 'Không có mô tả'}
-                    </CardDescription>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="line-clamp-2 text-base">{group.name}</CardTitle>
+                        {getRoleBadge(group.myRole)}
+                      </div>
+                      <CardDescription className="line-clamp-2">
+                        {group.description || 'Không có mô tả'}
+                      </CardDescription>
+                    </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-0">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Users className="w-4 h-4" />
                         <span>{group.memberCount} thành viên</span>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                     </div>
                   </CardContent>
                 </Card>
