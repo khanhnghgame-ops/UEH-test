@@ -93,6 +93,37 @@ export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCar
       return;
     }
 
+    // Soft-validate aspect ratio (recommended 1:1)
+    try {
+      const dims = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const img = new window.Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const width = img.naturalWidth || img.width;
+          const height = img.naturalHeight || img.height;
+          URL.revokeObjectURL(url);
+          resolve({ width, height });
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('Không thể đọc kích thước ảnh'));
+        };
+        img.src = url;
+      });
+
+      if (dims.width > 0 && dims.height > 0) {
+        const ratio = dims.width / dims.height;
+        if (Math.abs(ratio - 1) > 0.08) {
+          toast({
+            title: 'Khuyến nghị ảnh 1:1',
+            description: `Ảnh hiện tại ${dims.width}×${dims.height}. Để hiển thị đồng nhất, nên dùng ảnh vuông (ví dụ 500×500).`,
+          });
+        }
+      }
+    } catch {
+      // Ignore dimension read errors, do not block upload
+    }
+
     setIsUploadingImage(true);
     try {
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
