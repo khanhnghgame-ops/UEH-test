@@ -161,33 +161,36 @@ export default function Dashboard() {
                 <p className="text-sm">Liên hệ Leader để được thêm vào project</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {groups.map((group) => (
                   <Link
                     key={group.id}
                     to={`/groups/${group.id}`}
-                    className="group flex items-start gap-3 p-3 rounded-lg border bg-card hover:shadow-md hover:border-primary/30 transition-all"
+                    className="group flex items-center gap-4 p-4 rounded-xl border bg-card hover:shadow-md hover:border-primary/30 transition-all"
                   >
-                    {/* Thumbnail 1:1 - compact size */}
-                    <div className="relative w-14 h-14 flex-shrink-0 rounded-lg bg-muted overflow-hidden">
+                    {/* Thumbnail 1:1 - medium size */}
+                    <div className="relative w-20 h-20 flex-shrink-0 rounded-xl bg-muted overflow-hidden">
                       {group.image_url ? (
                         <img
                           src={group.image_url}
                           alt={group.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                          <FolderKanban className="w-6 h-6 text-primary/40" />
+                          <FolderKanban className="w-8 h-8 text-primary/40" />
                         </div>
                       )}
                     </div>
                     {/* Info */}
-                    <div className="flex-1 min-w-0 py-0.5">
-                      <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-base line-clamp-2 group-hover:text-primary transition-colors leading-snug">
                         {group.name}
                       </h3>
-                      <span className="text-xs text-muted-foreground mt-1 block">
+                      <p className="text-sm text-muted-foreground truncate mt-1">
+                        {group.description || 'Không có mô tả'}
+                      </p>
+                      <span className="text-xs text-muted-foreground/70 mt-1 block">
                         {new Date(group.created_at).toLocaleDateString('vi-VN')}
                       </span>
                     </div>
