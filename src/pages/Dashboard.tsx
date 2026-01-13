@@ -161,46 +161,35 @@ export default function Dashboard() {
                 <p className="text-sm">Liên hệ Leader để được thêm vào project</p>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {groups.map((group) => (
                   <Link
                     key={group.id}
                     to={`/groups/${group.id}`}
-                    className="group flex flex-col rounded-xl border bg-card hover:shadow-lg hover:border-primary/30 transition-all overflow-hidden"
+                    className="group flex items-start gap-3 p-3 rounded-lg border bg-card hover:shadow-md hover:border-primary/30 transition-all"
                   >
-                    {/* Project Cover Image - 1:1 aspect ratio */}
-                    <div className="relative aspect-square w-full bg-muted overflow-hidden">
+                    {/* Thumbnail 1:1 - compact size */}
+                    <div className="relative w-14 h-14 flex-shrink-0 rounded-lg bg-muted overflow-hidden">
                       {group.image_url ? (
                         <img
                           src={group.image_url}
                           alt={group.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                          <FolderKanban className="w-16 h-16 text-primary/40" />
+                          <FolderKanban className="w-6 h-6 text-primary/40" />
                         </div>
                       )}
-                      {/* Overlay gradient */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                      {/* Title overlay on image */}
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <h3 className="font-semibold text-base text-white line-clamp-2 drop-shadow-md group-hover:text-accent transition-colors">
-                          {group.name}
-                        </h3>
-                      </div>
                     </div>
-                    {/* Info footer */}
-                    <div className="p-4 flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-muted-foreground truncate">
-                          {group.description || 'Không có mô tả'}
-                        </p>
-                        <span className="text-xs text-muted-foreground/70 mt-1 block">
-                          Tạo ngày {new Date(group.created_at).toLocaleDateString('vi-VN')}
-                        </span>
-                      </div>
-                      <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0 ml-2" />
+                    {/* Info */}
+                    <div className="flex-1 min-w-0 py-0.5">
+                      <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight">
+                        {group.name}
+                      </h3>
+                      <span className="text-xs text-muted-foreground mt-1 block">
+                        {new Date(group.created_at).toLocaleDateString('vi-VN')}
+                      </span>
                     </div>
                   </Link>
                 ))}
