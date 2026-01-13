@@ -172,9 +172,9 @@ export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCar
   return (
     <>
       <Card>
-        {/* Project Image Banner */}
+        {/* Project Image Banner - 1:1 Aspect Ratio */}
         {group.image_url && (
-          <div className="relative w-full h-40 overflow-hidden rounded-t-lg">
+          <div className="relative w-full aspect-square max-h-64 overflow-hidden rounded-t-lg">
             <img 
               src={group.image_url} 
               alt={group.name}
@@ -284,11 +284,11 @@ export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCar
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Image className="w-4 h-4" />
-                    Ảnh Project (16:9)
+                    Ảnh Project (Khuyến nghị 1:1)
                   </Label>
                   
                   {editImageUrl ? (
-                    <div className="relative group aspect-video">
+                    <div className="relative group aspect-square max-w-xs mx-auto">
                       <img 
                         src={editImageUrl} 
                         alt="Project preview"
@@ -322,7 +322,7 @@ export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCar
                     </div>
                   ) : (
                     <div
-                      className="aspect-video border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                      className="aspect-square max-w-xs mx-auto border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       {isUploadingImage ? (
@@ -335,7 +335,7 @@ export default function GroupInfoCard({ group, canEdit, onUpdate }: GroupInfoCar
                           <ImagePlus className="w-10 h-10 text-muted-foreground" />
                           <p className="text-sm text-muted-foreground text-center">
                             Nhấn để chọn ảnh<br/>
-                            <span className="text-xs">(Tối đa 5MB, khuyến nghị 1280x720)</span>
+                            <span className="text-xs">(Tối đa 5MB, khuyến nghị 500x500)</span>
                           </p>
                         </div>
                       )}
