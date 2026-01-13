@@ -211,6 +211,7 @@ export type Database = {
           leader_id: string | null
           name: string
           share_token: string | null
+          short_id: string
           show_activity_public: boolean
           show_members_public: boolean
           updated_at: string
@@ -230,6 +231,7 @@ export type Database = {
           leader_id?: string | null
           name: string
           share_token?: string | null
+          short_id?: string
           show_activity_public?: boolean
           show_members_public?: boolean
           updated_at?: string
@@ -249,6 +251,7 @@ export type Database = {
           leader_id?: string | null
           name?: string
           share_token?: string | null
+          short_id?: string
           show_activity_public?: boolean
           show_members_public?: boolean
           updated_at?: string
@@ -1094,6 +1097,7 @@ export type Database = {
           id: string
           is_restored: boolean
           max_file_size: number | null
+          short_id: string
           stage_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           submission_link: string | null
@@ -1110,6 +1114,7 @@ export type Database = {
           id?: string
           is_restored?: boolean
           max_file_size?: number | null
+          short_id?: string
           stage_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           submission_link?: string | null
@@ -1126,6 +1131,7 @@ export type Database = {
           id?: string
           is_restored?: boolean
           max_file_size?: number | null
+          short_id?: string
           stage_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           submission_link?: string | null
@@ -1179,6 +1185,7 @@ export type Database = {
       cleanup_old_notifications: { Args: never; Returns: undefined }
       ensure_admin_exists: { Args: never; Returns: undefined }
       generate_share_token: { Args: never; Returns: string }
+      generate_short_id: { Args: { length?: number }; Returns: string }
       get_email_by_student_id: {
         Args: { _student_id: string }
         Returns: string

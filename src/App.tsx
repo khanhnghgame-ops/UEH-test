@@ -32,14 +32,19 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      {/* Short URLs - new preferred format */}
+      <Route path="/p/:projectId" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
+      <Route path="/s/:shareToken" element={<PublicProjectView />} />
+      {/* Legacy URLs - backward compatibility */}
       <Route path="/public/project/:shareToken" element={<PublicProjectView />} />
+      <Route path="/groups/:groupId" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
+      {/* Other routes */}
       <Route path="/file-preview" element={<FilePreview />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/auth/member" element={<Navigate to="/auth" replace />} />
       <Route path="/auth/admin" element={<Navigate to="/auth" replace />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
-      <Route path="/groups/:groupId" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
       <Route path="/communication" element={<ProtectedRoute><Communication /></ProtectedRoute>} />
       <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
       <Route path="/members" element={<ProtectedRoute><MemberManagement /></ProtectedRoute>} />
