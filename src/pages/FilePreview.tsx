@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,7 @@ import {
 import uehLogo from '@/assets/ueh-logo-new.png';
 import TaskNotes from '@/components/TaskNotes';
 import JSZip from 'jszip';
+import { isUUID } from '@/lib/urlUtils';
 
 interface TaskFile {
   file_path: string;
@@ -96,6 +97,13 @@ const isAudioFile = (fileName: string) => {
 };
 
 export default function FilePreview() {
+  // Support both semantic routes and legacy query params
+  const { projectSlug, taskSlug, shareToken, fileIndex: fileIndexParam } = useParams<{
+    projectSlug?: string;
+    taskSlug?: string;
+    shareToken?: string;
+    fileIndex?: string;
+  }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
@@ -105,46 +113,124 @@ export default function FilePreview() {
   const [taskTitle, setTaskTitle] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'preview' | 'notes'>('preview');
   const [showNotesSidebar, setShowNotesSidebar] = useState(false);
+  const [resolvedTaskId, setResolvedTaskId] = useState<string | null>(null);
+  const [resolvedProjectSlug, setResolvedProjectSlug] = useState<string | null>(null);
 
-  const filePath = searchParams.get('path');
-  const fileName = searchParams.get('name') || 'file';
-  const fileSize = parseInt(searchParams.get('size') || '0');
-  const taskId = searchParams.get('taskId') || searchParams.get('t');
-  const groupId = searchParams.get('groupId') || searchParams.get('p'); // Support both old and new params
+  // Determine file index from route or query params
+  const fileIndex = fileIndexParam ? parseInt(fileIndexParam) : null;
+  
+  // Legacy query params for backward compatibility
+  const legacyFilePath = searchParams.get('path');
+  const legacyFileName = searchParams.get('name') || 'file';
+  const legacyFileSize = parseInt(searchParams.get('size') || '0');
+  const legacyTaskId = searchParams.get('taskId') || searchParams.get('t');
+  const legacyGroupId = searchParams.get('groupId') || searchParams.get('p');
 
-  const currentFileIndex = useMemo(() => {
-    if (!filePath || taskFiles.length === 0) return -1;
-    return taskFiles.findIndex(f => f.file_path === filePath);
-  }, [filePath, taskFiles]);
+  // Computed values
+  const isSemanticRoute = !!(projectSlug && taskSlug);
+  const isPublicRoute = !!shareToken;
 
   const handleGoBack = () => {
-    if (groupId) {
-      // groupId might be slug, short_id or UUID - just use it directly with /p/ prefix
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(groupId);
-      const projectPath = isUUID ? `/groups/${groupId}` : `/p/${groupId}`;
-      navigate(`${projectPath}?tab=tasks${taskId ? `&task=${taskId}` : ''}`);
+    if (isSemanticRoute || resolvedProjectSlug) {
+      const slug = resolvedProjectSlug || projectSlug;
+      navigate(`/p/${slug}?tab=tasks${resolvedTaskId ? `&task=${resolvedTaskId}` : ''}`);
+    } else if (isPublicRoute) {
+      navigate(`/s/${shareToken}`);
+    } else if (legacyGroupId) {
+      const projectPath = isUUID(legacyGroupId) ? `/groups/${legacyGroupId}` : `/p/${legacyGroupId}`;
+      navigate(`${projectPath}?tab=tasks${legacyTaskId ? `&task=${legacyTaskId}` : ''}`);
     } else {
       navigate(-1);
     }
   };
 
-  // Fetch task files and title
+  // Resolve task from semantic slug or legacy params
   useEffect(() => {
-    if (taskId) {
-      fetchTaskData();
+    if (isSemanticRoute) {
+      resolveTaskFromSlugs();
+    } else if (legacyTaskId) {
+      setResolvedTaskId(legacyTaskId);
+      fetchTaskData(legacyTaskId);
     }
-  }, [taskId]);
+  }, [projectSlug, taskSlug, legacyTaskId]);
 
-  const fetchTaskData = async () => {
+  const resolveTaskFromSlugs = async () => {
+    if (!projectSlug || !taskSlug) return;
+    
+    try {
+      // Find project by slug
+      const { data: group } = await supabase
+        .from('groups')
+        .select('id, slug')
+        .eq('slug', projectSlug)
+        .single();
+
+      if (!group) {
+        setError('Không tìm thấy project');
+        setIsLoading(false);
+        return;
+      }
+
+      setResolvedProjectSlug(group.slug);
+
+      // Find task by slug within project
+      const { data: task } = await supabase
+        .from('tasks')
+        .select('id, title, submission_link')
+        .eq('group_id', group.id)
+        .eq('slug', taskSlug)
+        .single();
+
+      if (!task) {
+        setError('Không tìm thấy task');
+        setIsLoading(false);
+        return;
+      }
+
+      setResolvedTaskId(task.id);
+      setTaskTitle(task.title || '');
+      
+      // Parse files from task
+      if (task.submission_link) {
+        try {
+          const parsed = JSON.parse(task.submission_link);
+          if (Array.isArray(parsed)) {
+            const files = parsed.filter((item: any) => item.file_path) as TaskFile[];
+            setTaskFiles(files);
+            
+            // Load file by index
+            const idx = fileIndex ?? 0;
+            if (files[idx]) {
+              loadFileByPath(files[idx].file_path);
+            } else {
+              setError('File không tồn tại');
+              setIsLoading(false);
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing submission_link:', e);
+        }
+      }
+    } catch (error) {
+      console.error('Error resolving task:', error);
+      setError('Có lỗi xảy ra');
+      setIsLoading(false);
+    }
+  };
+
+  const fetchTaskData = async (taskId: string) => {
     try {
       const { data: task } = await supabase
         .from('tasks')
-        .select('title, submission_link')
+        .select('title, submission_link, groups(slug)')
         .eq('id', taskId)
         .single();
 
       if (task) {
         setTaskTitle(task.title || '');
+        if ((task as any).groups?.slug) {
+          setResolvedProjectSlug((task as any).groups.slug);
+        }
         
         // Parse files from submission_link
         if (task.submission_link) {
@@ -164,22 +250,35 @@ export default function FilePreview() {
     }
   };
 
+  // Load file for legacy route
   useEffect(() => {
-    if (filePath) {
-      loadFile();
-    } else {
-      setError('Không tìm thấy file');
-      setIsLoading(false);
+    if (!isSemanticRoute && legacyFilePath) {
+      loadFileByPath(legacyFilePath);
     }
-  }, [filePath]);
+  }, [legacyFilePath, isSemanticRoute]);
 
-  const loadFile = async () => {
+  // Computed current file info
+  const currentFileIndex = useMemo(() => {
+    if (isSemanticRoute) {
+      return fileIndex ?? 0;
+    }
+    if (!legacyFilePath || taskFiles.length === 0) return -1;
+    return taskFiles.findIndex(f => f.file_path === legacyFilePath);
+  }, [legacyFilePath, taskFiles, isSemanticRoute, fileIndex]);
+
+  const currentFile = taskFiles[currentFileIndex] || null;
+  const filePath = currentFile?.file_path || legacyFilePath;
+  const fileName = currentFile?.file_name || legacyFileName || 'file';
+  const fileSize = currentFile?.file_size || legacyFileSize || 0;
+  const taskId = resolvedTaskId || legacyTaskId;
+
+  const loadFileByPath = async (path: string) => {
     setIsLoading(true);
     setError(null);
     try {
       const { data } = supabase.storage
         .from('task-submissions')
-        .getPublicUrl(filePath!);
+        .getPublicUrl(path);
 
       if (data?.publicUrl) {
         setFileUrl(data.publicUrl);
@@ -247,23 +346,29 @@ export default function FilePreview() {
     }
   };
 
-  const navigateToFile = (file: TaskFile) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('path', file.file_path);
-    params.set('name', file.file_name);
-    params.set('size', file.file_size.toString());
-    setSearchParams(params);
+  const navigateToFile = (file: TaskFile, index: number) => {
+    if (isSemanticRoute) {
+      // Use semantic URL
+      navigate(`/p/${projectSlug}/t/${taskSlug}/f/${index}`);
+    } else {
+      // Legacy query params
+      const params = new URLSearchParams(searchParams);
+      params.set('path', file.file_path);
+      params.set('name', file.file_name);
+      params.set('size', file.file_size.toString());
+      setSearchParams(params);
+    }
   };
 
   const goToPrevFile = () => {
     if (currentFileIndex > 0) {
-      navigateToFile(taskFiles[currentFileIndex - 1]);
+      navigateToFile(taskFiles[currentFileIndex - 1], currentFileIndex - 1);
     }
   };
 
   const goToNextFile = () => {
     if (currentFileIndex < taskFiles.length - 1) {
-      navigateToFile(taskFiles[currentFileIndex + 1]);
+      navigateToFile(taskFiles[currentFileIndex + 1], currentFileIndex + 1);
     }
   };
 
@@ -378,7 +483,7 @@ export default function FilePreview() {
                   {taskFiles.map((file, index) => (
                     <button
                       key={file.file_path}
-                      onClick={() => navigateToFile(file)}
+                      onClick={() => navigateToFile(file, index)}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors shrink-0 ${
                         index === currentFileIndex
                           ? 'bg-primary text-primary-foreground'

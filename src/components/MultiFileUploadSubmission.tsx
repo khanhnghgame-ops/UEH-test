@@ -268,12 +268,11 @@ export default function MultiFileUploadSubmission({
   };
 
   const handlePreviewFile = (file: UploadedFile) => {
-    const params = new URLSearchParams({
-      path: file.file_path,
-      name: file.file_name,
-      size: file.file_size.toString(),
-      taskId: taskId
-    });
+    const params = new URLSearchParams();
+    params.set('path', file.file_path);
+    params.set('name', file.file_name);
+    params.set('size', file.file_size.toString());
+    params.set('taskId', taskId);
     navigate(`/file-preview?${params.toString()}`);
   };
 

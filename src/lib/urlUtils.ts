@@ -48,29 +48,32 @@ export function getPublicProjectUrl(shareToken: string): string {
 }
 
 /**
- * Generate file preview URL with minimal params using slugs
+ * Generate file preview URL - semantic format
+ * Format: /p/{project-slug}/t/{task-slug}/f/{file-index}
+ * Fallback: /f?p={project}&t={task}&i={index}
  */
-export function getFilePreviewUrl(filePath: string, projectSlug?: string, taskSlug?: string): string {
+export function getFilePreviewUrl(
+  projectSlug: string,
+  taskSlug: string,
+  fileIndex: number = 0
+): string {
+  return `/p/${projectSlug}/t/${taskSlug}/f/${fileIndex}`;
+}
+
+/**
+ * Legacy file preview URL for backward compatibility
+ * Used when only file path is available without context
+ */
+export function getLegacyFilePreviewUrl(
+  filePath: string,
+  projectSlug?: string,
+  taskSlug?: string
+): string {
   const params = new URLSearchParams();
   params.set('file', filePath);
   if (projectSlug) params.set('p', projectSlug);
   if (taskSlug) params.set('t', taskSlug);
   return `/file-preview?${params.toString()}`;
-}
-
-/**
- * Parse file preview URL params
- */
-export function parseFilePreviewParams(searchParams: URLSearchParams): {
-  filePath: string | null;
-  projectSlug: string | null;
-  taskSlug: string | null;
-} {
-  return {
-    filePath: searchParams.get('file'),
-    projectSlug: searchParams.get('p') || searchParams.get('group'), // backward compat
-    taskSlug: searchParams.get('t') || searchParams.get('task'), // backward compat
-  };
 }
 
 /**

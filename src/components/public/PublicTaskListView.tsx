@@ -129,11 +129,10 @@ export default function PublicTaskListView({ stages, tasks, groupId }: PublicTas
     if (e) e.stopPropagation();
     
     if (item.type === 'file' && item.file_path) {
-      const params = new URLSearchParams({
-        path: item.file_path,
-        name: item.file_name || 'file',
-        size: (item.file_size || 0).toString()
-      });
+      const params = new URLSearchParams();
+      params.set('path', item.file_path);
+      params.set('name', item.file_name || 'file');
+      params.set('size', (item.file_size || 0).toString());
       if (taskId) params.set('taskId', taskId);
       if (groupId) params.set('groupId', groupId);
       navigate(`/file-preview?${params.toString()}`);

@@ -151,13 +151,12 @@ export default function SubmissionHistoryPopup({
   };
 
   const handleViewFile = (filePath: string, fileName: string, fileSize: number) => {
-    const params = new URLSearchParams({
-      path: filePath,
-      name: fileName,
-      size: fileSize.toString(),
-      taskId: taskId,
-      ...(groupId && { groupId })
-    });
+    const params = new URLSearchParams();
+    params.set('path', filePath);
+    params.set('name', fileName);
+    params.set('size', fileSize.toString());
+    params.set('taskId', taskId);
+    if (groupId) params.set('groupId', groupId);
     navigate(`/file-preview?${params.toString()}`);
     setIsOpen(false);
   };
