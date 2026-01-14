@@ -1,1 +1,4 @@
 project_id = "stkelhsnhflxxkxlgjrn"
+
+[functions.team-assistant]
+verify_jwt = false
