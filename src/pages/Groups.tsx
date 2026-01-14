@@ -260,7 +260,7 @@ export default function Groups() {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {groups.map((group) => (
-              <Link key={group.id} to={`/p/${group.short_id}`}>
+              <Link key={group.id} to={`/p/${group.slug}`}>
                 <Card className="h-full hover:shadow-md transition-shadow cursor-pointer group overflow-hidden">
                   <CardHeader className="flex flex-row items-start gap-4 pb-3">
                     {/* Thumbnail 1:1 - consistent with Dashboard */}

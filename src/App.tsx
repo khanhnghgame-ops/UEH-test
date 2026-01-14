@@ -32,12 +32,14 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      {/* Short URLs - new preferred format */}
-      <Route path="/p/:projectId" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
+      {/* Semantic URLs - new preferred format with slugs */}
+      <Route path="/p/:projectSlug" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
+      <Route path="/p/:projectSlug/t/:taskSlug" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
       <Route path="/s/:shareToken" element={<PublicProjectView />} />
       {/* Legacy URLs - backward compatibility */}
       <Route path="/public/project/:shareToken" element={<PublicProjectView />} />
       <Route path="/groups/:groupId" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
+      <Route path="/groups/:groupId/tasks/:taskId" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
       {/* Other routes */}
       <Route path="/file-preview" element={<FilePreview />} />
       <Route path="/auth" element={<Auth />} />

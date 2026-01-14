@@ -165,7 +165,7 @@ export default function Dashboard() {
                 {groups.map((group) => (
                   <Link
                     key={group.id}
-                    to={`/p/${group.short_id}`}
+                    to={`/p/${group.slug}`}
                     className="group flex items-center gap-4 p-4 rounded-xl border bg-card hover:shadow-md hover:border-primary/30 transition-all"
                   >
                     {/* Thumbnail 1:1 - larger size for better recognition */}

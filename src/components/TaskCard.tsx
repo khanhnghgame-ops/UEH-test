@@ -7,14 +7,16 @@ import { CountdownTimer } from '@/components/CountdownTimer';
 import { FileText, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import type { Task, TaskAssignment, Profile } from '@/types/database';
 import { isDeadlineOverdue } from '@/lib/datetime';
+import { getProjectUrl, getTaskUrl } from '@/lib/urlUtils';
 
 interface TaskCardProps {
   task: Task & { task_assignments?: (TaskAssignment & { profiles?: Profile })[] };
   groupId: string;
+  groupSlug?: string;
   showLink?: boolean;
 }
 
-export function TaskCard({ task, groupId, showLink = true }: TaskCardProps) {
+export function TaskCard({ task, groupId, groupSlug, showLink = true }: TaskCardProps) {
   const isOverdue = isDeadlineOverdue(task.deadline);
   const taskIsOverdue = isOverdue && task.status !== 'DONE' && task.status !== 'VERIFIED';
 
@@ -120,8 +122,12 @@ export function TaskCard({ task, groupId, showLink = true }: TaskCardProps) {
   );
 
   if (showLink) {
+    // Use semantic URL with slugs if available
+    const projectPath = groupSlug ? `/p/${groupSlug}` : `/groups/${groupId}`;
+    const taskPath = task.slug ? `${projectPath}/t/${task.slug}` : `${projectPath}?tab=tasks&task=${task.id}`;
+    
     return (
-      <Link to={`/groups/${groupId}/tasks/${task.id}`} className="block">
+      <Link to={taskPath} className="block">
         {content}
       </Link>
     );
