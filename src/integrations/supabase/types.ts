@@ -1193,6 +1193,14 @@ export type Database = {
       generate_share_token: { Args: never; Returns: string }
       generate_short_id: { Args: { length?: number }; Returns: string }
       generate_slug: { Args: { input_text: string }; Returns: string }
+      generate_unique_group_slug: {
+        Args: { group_id: string; group_name: string }
+        Returns: string
+      }
+      generate_unique_task_slug: {
+        Args: { task_group_id: string; task_id: string; task_title: string }
+        Returns: string
+      }
       get_email_by_student_id: {
         Args: { _student_id: string }
         Returns: string

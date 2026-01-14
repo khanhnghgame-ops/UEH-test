@@ -132,29 +132,23 @@ export default function GroupDetail() {
     if (!routeId) return;
     
     try {
-      // Support UUID, short_id, and slug lookup
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(routeId);
-      const isShortIdFormat = /^[a-z0-9]{8}$/i.test(routeId);
+      // Support UUID, short_id, and semantic slug lookup
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const shortIdPattern = /^[a-z0-9]{8}$/i;
       
       let groupData;
-      if (isUUID) {
+      if (uuidPattern.test(routeId)) {
+        // Lookup by UUID
         const { data } = await supabase.from('groups').select('*').eq('id', routeId).single();
         groupData = data;
-      } else if (isShortIdFormat) {
-        // Lookup by short_id
+      } else if (shortIdPattern.test(routeId)) {
+        // Lookup by short_id (legacy support)
         const { data } = await supabase.from('groups').select('*').eq('short_id', routeId).single();
         groupData = data;
       } else {
-        // Lookup by slug (contains short_id at start)
+        // Lookup by semantic slug (primary method)
         const { data } = await supabase.from('groups').select('*').eq('slug', routeId).single();
-        if (!data) {
-          // Fallback: try extracting short_id from slug
-          const shortId = routeId.substring(0, 8);
-          const { data: fallbackData } = await supabase.from('groups').select('*').eq('short_id', shortId).single();
-          groupData = fallbackData;
-        } else {
-          groupData = data;
-        }
+        groupData = data;
       }
       
       if (!groupData) {

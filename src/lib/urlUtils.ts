@@ -1,6 +1,6 @@
 // URL utilities for semantic, human-readable URLs
-// Format: /p/{short_id}-{name-slug} for projects
-// Format: /p/{project-slug}/t/{stage}.{order}-{task-slug} for tasks
+// Format: /p/{name-slug} for projects (clean, no random IDs)
+// Format: /p/{project-slug}/t/{task-slug} for tasks
 
 /**
  * Check if a string looks like a UUID (36 chars with dashes)
@@ -17,29 +17,19 @@ export function isShortId(id: string): boolean {
 }
 
 /**
- * Check if a string looks like a slug (short_id + name)
+ * Check if a string is a semantic slug (name-based, no random prefix)
  */
 export function isSlug(id: string): boolean {
-  // Slug format: 8 char short_id + hyphen + name-slug
-  return /^[a-z0-9]{8}-.+$/i.test(id);
+  // Slug is any non-UUID, non-shortId string with at least one character
+  return !isUUID(id) && !isShortId(id) && id.length > 0;
 }
 
 /**
- * Extract short_id from a slug
+ * Generate project URL using slug
+ * Format: /p/{name-slug}
  */
-export function extractShortIdFromSlug(slug: string): string {
-  if (isUUID(slug)) return slug;
-  if (isShortId(slug)) return slug;
-  // Slug format: first 8 chars are the short_id
-  return slug.substring(0, 8);
-}
-
-/**
- * Generate project URL using slug (preferred) or short_id (fallback)
- * Format: /p/{short_id}-{name-slug}
- */
-export function getProjectUrl(slugOrShortId: string): string {
-  return `/p/${slugOrShortId}`;
+export function getProjectUrl(slug: string): string {
+  return `/p/${slug}`;
 }
 
 /**
@@ -51,7 +41,7 @@ export function getTaskUrl(projectSlug: string, taskSlug: string): string {
 }
 
 /**
- * Generate public project URL with shorter token
+ * Generate public project URL with share token
  */
 export function getPublicProjectUrl(shareToken: string): string {
   return `${window.location.origin}/s/${shareToken}`;
@@ -73,13 +63,13 @@ export function getFilePreviewUrl(filePath: string, projectSlug?: string, taskSl
  */
 export function parseFilePreviewParams(searchParams: URLSearchParams): {
   filePath: string | null;
-  projectId: string | null;
-  taskId: string | null;
+  projectSlug: string | null;
+  taskSlug: string | null;
 } {
   return {
     filePath: searchParams.get('file'),
-    projectId: searchParams.get('p') || searchParams.get('group'), // backward compat
-    taskId: searchParams.get('t') || searchParams.get('task'), // backward compat
+    projectSlug: searchParams.get('p') || searchParams.get('group'), // backward compat
+    taskSlug: searchParams.get('t') || searchParams.get('task'), // backward compat
   };
 }
 
