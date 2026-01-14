@@ -44,10 +44,17 @@ interface ExtendedGroup extends Group {
 }
 
 export default function GroupDetail() {
-  const { groupId, projectId } = useParams<{ groupId?: string; projectId?: string }>();
+  const { groupId, projectId, projectSlug, taskSlug, taskId: routeTaskId } = useParams<{ 
+    groupId?: string; 
+    projectId?: string; 
+    projectSlug?: string;
+    taskSlug?: string;
+    taskId?: string;
+  }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const routeId = projectId || groupId; // Support both /p/:projectId and /groups/:groupId
+  // Support all URL formats: /p/:projectSlug, /p/:projectId, /groups/:groupId
+  const routeId = projectSlug || projectId || groupId;
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const { currentTab, setCurrentTab, goBack, goNext, canGoBack, canGoNext, isFirstTab, isLastTab } = useNavigation();
@@ -125,17 +132,29 @@ export default function GroupDetail() {
     if (!routeId) return;
     
     try {
-      // Support both UUID and short_id lookup
+      // Support UUID, short_id, and slug lookup
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(routeId);
+      const isShortIdFormat = /^[a-z0-9]{8}$/i.test(routeId);
       
       let groupData;
       if (isUUID) {
         const { data } = await supabase.from('groups').select('*').eq('id', routeId).single();
         groupData = data;
-      } else {
+      } else if (isShortIdFormat) {
         // Lookup by short_id
         const { data } = await supabase.from('groups').select('*').eq('short_id', routeId).single();
         groupData = data;
+      } else {
+        // Lookup by slug (contains short_id at start)
+        const { data } = await supabase.from('groups').select('*').eq('slug', routeId).single();
+        if (!data) {
+          // Fallback: try extracting short_id from slug
+          const shortId = routeId.substring(0, 8);
+          const { data: fallbackData } = await supabase.from('groups').select('*').eq('short_id', shortId).single();
+          groupData = fallbackData;
+        } else {
+          groupData = data;
+        }
       }
       
       if (!groupData) {
@@ -185,10 +204,10 @@ export default function GroupDetail() {
   };
 
   const handleCreateStage = async () => {
-    if (!newStageName.trim()) return;
+    if (!newStageName.trim() || !group) return;
     setIsCreatingStage(true);
     try {
-      await supabase.from('stages').insert({ group_id: groupId, name: newStageName.trim(), description: newStageDescription.trim() || null, order_index: stages.length });
+      await supabase.from('stages').insert({ group_id: group.id, name: newStageName.trim(), description: newStageDescription.trim() || null, order_index: stages.length });
       toast({ title: 'Thành công', description: 'Đã tạo giai đoạn mới' });
       setIsStageDialogOpen(false);
       setNewStageName('');
@@ -257,7 +276,7 @@ export default function GroupDetail() {
   };
 
   const handleDeleteGroup = async () => {
-    if (deleteConfirmText !== group?.name) return;
+    if (deleteConfirmText !== group?.name || !group) return;
     setIsDeletingGroup(true);
     try {
       const taskIds = tasks.map(t => t.id);
@@ -266,14 +285,14 @@ export default function GroupDetail() {
         await supabase.from('task_scores').delete().in('task_id', taskIds);
         await supabase.from('submission_history').delete().in('task_id', taskIds);
       }
-      await supabase.from('tasks').delete().eq('group_id', groupId);
+      await supabase.from('tasks').delete().eq('group_id', group.id);
       const stageIds = stages.map(s => s.id);
       if (stageIds.length > 0) await supabase.from('member_stage_scores').delete().in('stage_id', stageIds);
-      await supabase.from('stages').delete().eq('group_id', groupId);
-      await supabase.from('pending_approvals').delete().eq('group_id', groupId);
-      await supabase.from('group_members').delete().eq('group_id', groupId);
-      await supabase.from('activity_logs').delete().eq('group_id', groupId);
-      await supabase.from('groups').delete().eq('id', groupId);
+      await supabase.from('stages').delete().eq('group_id', group.id);
+      await supabase.from('pending_approvals').delete().eq('group_id', group.id);
+      await supabase.from('group_members').delete().eq('group_id', group.id);
+      await supabase.from('activity_logs').delete().eq('group_id', group.id);
+      await supabase.from('groups').delete().eq('id', group.id);
       toast({ title: 'Thành công', description: 'Đã xóa project' });
       navigate('/groups');
     } catch (error: any) {
@@ -550,16 +569,16 @@ export default function GroupDetail() {
             </TabsContent>
 
             <TabsContent value="tasks" className="mt-6">
-              <TaskListView stages={stages} tasks={tasks} members={members} isLeaderInGroup={isLeaderInGroup} groupId={groupId!} onRefresh={fetchGroupData} onEditTask={setEditingTask} onCreateTask={(stageId) => { setNewTaskStageId(stageId); setIsTaskDialogOpen(true); }} onEditStage={setEditingStage} onDeleteStage={setStageToDelete} />
+              <TaskListView stages={stages} tasks={tasks} members={members} isLeaderInGroup={isLeaderInGroup} groupId={group.id} groupSlug={group.slug} onRefresh={fetchGroupData} onEditTask={setEditingTask} onCreateTask={(stageId) => { setNewTaskStageId(stageId); setIsTaskDialogOpen(true); }} onEditStage={setEditingStage} onDeleteStage={setStageToDelete} />
             </TabsContent>
 
             <TabsContent value="members" className="mt-6">
-              <MemberManagementCard members={members} availableProfiles={availableProfiles} isLeaderInGroup={isLeaderInGroup} isGroupCreator={isGroupCreator} groupId={groupId!} currentUserId={user?.id || ''} groupCreatorId={group.created_by} onRefresh={fetchGroupData} />
+              <MemberManagementCard members={members} availableProfiles={availableProfiles} isLeaderInGroup={isLeaderInGroup} isGroupCreator={isGroupCreator} groupId={group.id} currentUserId={user?.id || ''} groupCreatorId={group.created_by} onRefresh={fetchGroupData} />
             </TabsContent>
 
             <TabsContent value="scores" className="mt-6">
               <ProcessScores 
-                groupId={groupId!} 
+                groupId={group.id} 
                 stages={stages} 
                 members={members} 
                 tasks={tasks} 
@@ -568,13 +587,13 @@ export default function GroupDetail() {
             </TabsContent>
 
             <TabsContent value="logs" className="mt-6">
-              <ProjectActivityLog groupId={groupId!} />
+              <ProjectActivityLog groupId={group.id} />
             </TabsContent>
 
             {isLeaderInGroup && group.created_by === user?.id && (
               <TabsContent value="settings" className="mt-6 space-y-6">
                 <ShareSettingsCard
-                  groupId={groupId!}
+                  groupId={group.id}
                   isPublic={group.is_public || false}
                   shareToken={group.share_token || null}
                   showMembersPublic={group.show_members_public ?? true}
@@ -593,7 +612,7 @@ export default function GroupDetail() {
 
       <TaskEditDialog task={editingTask} stages={stages} members={members} isOpen={!!editingTask} onClose={() => setEditingTask(null)} onSave={fetchGroupData} canEdit={isLeaderInGroup} />
       
-      <StageEditDialog stage={editingStage} isOpen={!!editingStage} onClose={() => setEditingStage(null)} onSave={fetchGroupData} groupId={groupId!} />
+      <StageEditDialog stage={editingStage} isOpen={!!editingStage} onClose={() => setEditingStage(null)} onSave={fetchGroupData} groupId={group.id} />
       
       <AlertDialog open={!!stageToDelete} onOpenChange={() => setStageToDelete(null)}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Xác nhận xóa giai đoạn</AlertDialogTitle><AlertDialogDescription>Task trong giai đoạn này sẽ trở thành "Chưa phân giai đoạn".</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Hủy</AlertDialogCancel><AlertDialogAction onClick={handleDeleteStage} className="bg-destructive text-destructive-foreground">Xóa</AlertDialogAction></AlertDialogFooter></AlertDialogContent>

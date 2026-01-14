@@ -397,9 +397,8 @@ export default function AdminBackupRestore() {
 
       setImportProgress('Đang tạo project mới...');
 
-      // Create new group with new ID
-      const newGroupId = generateNewId();
-      const { error: groupError } = await supabase
+      // Create new group - let database generate the ID
+      const { data: newGroup, error: groupError } = await supabase
         .from('groups')
         .insert({
           name: `${backupData.group.name} (Bản sao)`,
@@ -417,7 +416,9 @@ export default function AdminBackupRestore() {
         .select()
         .single();
 
-      if (groupError) throw groupError;
+      if (groupError || !newGroup) throw groupError || new Error('Không thể tạo project');
+      
+      const newGroupId = newGroup.id;
 
       setImportProgress('Đang thêm thành viên...');
 
@@ -534,10 +535,8 @@ export default function AdminBackupRestore() {
 
       // Create tasks with is_restored = true to prevent notifications
       for (const task of backupData.tasks) {
-        const newTaskId = generateNewId();
-        
         // Insert task with is_restored = true to skip notifications
-        await supabase
+        const { data: newTask } = await supabase
           .from('tasks')
           .insert({
             group_id: newGroupId,
@@ -553,6 +552,9 @@ export default function AdminBackupRestore() {
           })
           .select()
           .single();
+        
+        const newTaskId = newTask?.id;
+        if (!newTaskId) continue;
 
         // Create task assignments (no notification will be sent due to is_restored flag)
         const assignmentInserts = task.assignments

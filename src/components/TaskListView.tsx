@@ -495,6 +495,7 @@ interface TaskListViewProps {
   members: GroupMember[];
   isLeaderInGroup: boolean;
   groupId: string;
+  groupSlug?: string;
   onRefresh: () => void;
   onEditTask: (task: Task) => void;
   onCreateTask: (stageId: string) => void;
@@ -508,6 +509,7 @@ export default function TaskListView({
   members,
   isLeaderInGroup,
   groupId,
+  groupSlug,
   onRefresh,
   onEditTask,
   onCreateTask,

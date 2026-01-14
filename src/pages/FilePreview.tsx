@@ -119,9 +119,9 @@ export default function FilePreview() {
 
   const handleGoBack = () => {
     if (groupId) {
-      // Use short format if groupId looks like a short_id (8 chars alphanumeric)
-      const isShortId = /^[a-z0-9]{8}$/i.test(groupId);
-      const projectPath = isShortId ? `/p/${groupId}` : `/groups/${groupId}`;
+      // groupId might be slug, short_id or UUID - just use it directly with /p/ prefix
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(groupId);
+      const projectPath = isUUID ? `/groups/${groupId}` : `/p/${groupId}`;
       navigate(`${projectPath}?tab=tasks${taskId ? `&task=${taskId}` : ''}`);
     } else {
       navigate(-1);
