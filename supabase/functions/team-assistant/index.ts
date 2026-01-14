@@ -6,6 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Usage limits
+const MAX_QUESTIONS_PER_DAY = 50;
+const MAX_MESSAGE_LENGTH = 500;
+
 interface ProjectContext {
   project: {
     name: string;
@@ -38,10 +42,9 @@ interface ProjectContext {
   };
 }
 
-function buildSystemPrompt(context: ProjectContext): string {
+function buildProjectContext(context: ProjectContext): string {
   const now = new Date();
   
-  // Build task summary
   const tasksByStatus = {
     TODO: context.tasks.filter(t => t.status === 'TODO'),
     IN_PROGRESS: context.tasks.filter(t => t.status === 'IN_PROGRESS'),
@@ -57,63 +60,63 @@ function buildSystemPrompt(context: ProjectContext): string {
     !t.isOverdue
   );
   
-  const userTasks = context.tasks.filter(t => 
-    t.assignees.includes(context.currentUser.name)
-  );
-  
-  return `Bạn là trợ lý AI thông minh cho team "${context.project.name}". Vai trò của bạn:
+  return `
+## PROJECT: ${context.project.name}
+- Mô tả: ${context.project.description || 'Không có mô tả'}
+- Mã lớp: ${context.project.classCode || 'N/A'}
+- Giảng viên: ${context.project.instructorName || 'N/A'}
 
-1. **Trả lời thắc mắc** về công việc, deadline, phân công, quy trình làm việc
-2. **Hỗ trợ tra cứu** thông tin nhanh chóng
-3. **Nhắc nhở nhẹ nhàng** khi có deadline gần hoặc task có nguy cơ trễ
-
-## THÔNG TIN PROJECT
-- **Tên project**: ${context.project.name}
-- **Mô tả**: ${context.project.description || 'Không có mô tả'}
-- **Mã lớp**: ${context.project.classCode || 'N/A'}
-- **Giảng viên**: ${context.project.instructorName || 'N/A'}
-
-## CÁC GIAI ĐOẠN (STAGES)
+## GIAI ĐOẠN
 ${context.stages.map(s => `- ${s.name}: ${s.taskCount} task`).join('\n')}
 
-## THÀNH VIÊN NHÓM (${context.members.length} người)
+## THÀNH VIÊN (${context.members.length} người)
 ${context.members.map(m => `- ${m.name} (${m.studentId}) - ${m.role === 'leader' ? 'Trưởng nhóm' : 'Thành viên'}`).join('\n')}
 
-## TỔNG QUAN CÔNG VIỆC
-- Chờ làm (TODO): ${tasksByStatus.TODO.length} task
-- Đang làm (IN_PROGRESS): ${tasksByStatus.IN_PROGRESS.length} task
-- Hoàn thành (DONE): ${tasksByStatus.DONE.length} task
-- Đã xác minh (VERIFIED): ${tasksByStatus.VERIFIED.length} task
-- Tổng cộng: ${context.tasks.length} task
+## TỔNG QUAN
+- TODO: ${tasksByStatus.TODO.length} | IN_PROGRESS: ${tasksByStatus.IN_PROGRESS.length} | DONE: ${tasksByStatus.DONE.length} | VERIFIED: ${tasksByStatus.VERIFIED.length}
 
-## DANH SÁCH CÔNG VIỆC CHI TIẾT
+## CÔNG VIỆC
 ${context.tasks.map(t => {
   const deadlineInfo = t.deadline 
-    ? (t.isOverdue 
-      ? `⚠️ QUÁ HẠN` 
-      : (t.daysUntilDeadline !== null && t.daysUntilDeadline <= 3 
-        ? `⏰ Còn ${t.daysUntilDeadline} ngày` 
-        : `📅 ${t.deadline}`))
-    : 'Không có deadline';
+    ? (t.isOverdue ? `⚠️ QUÁ HẠN` : (t.daysUntilDeadline !== null && t.daysUntilDeadline <= 3 ? `⏰ Còn ${t.daysUntilDeadline} ngày` : `📅 ${t.deadline}`))
+    : 'Không deadline';
   return `- "${t.title}" | ${t.status} | ${t.stageName || 'Chưa phân giai đoạn'} | ${deadlineInfo} | Người làm: ${t.assignees.join(', ') || 'Chưa phân công'}`;
 }).join('\n')}
 
 ## CẢNH BÁO
-${overdueTasks.length > 0 ? `🚨 **${overdueTasks.length} TASK QUÁ HẠN**: ${overdueTasks.map(t => t.title).join(', ')}` : '✅ Không có task quá hạn'}
-${upcomingTasks.length > 0 ? `⏰ **${upcomingTasks.length} task sắp đến hạn (trong 3 ngày)**: ${upcomingTasks.map(t => t.title).join(', ')}` : ''}
+${overdueTasks.length > 0 ? `🚨 ${overdueTasks.length} task quá hạn: ${overdueTasks.map(t => t.title).join(', ')}` : '✅ Không có task quá hạn'}
+${upcomingTasks.length > 0 ? `⏰ ${upcomingTasks.length} task sắp đến hạn: ${upcomingTasks.map(t => t.title).join(', ')}` : ''}
 
-## NGƯỜI DÙNG HIỆN TẠI
-- **Tên**: ${context.currentUser.name}
-- **Vai trò**: ${context.currentUser.role === 'leader' ? 'Trưởng nhóm' : 'Thành viên'}
-- **Công việc được giao**: ${context.currentUser.assignedTasks.length > 0 ? context.currentUser.assignedTasks.join(', ') : 'Chưa có'}
+## VAI TRÒ NGƯỜI DÙNG TRONG PROJECT
+- Tên: ${context.currentUser.name}
+- Vai trò: ${context.currentUser.role === 'leader' ? 'Trưởng nhóm' : 'Thành viên'}
+- Task được giao: ${context.currentUser.assignedTasks.length > 0 ? context.currentUser.assignedTasks.join(', ') : 'Chưa có'}
+`;
+}
+
+function buildSystemPrompt(userName: string, projectContexts: string[]): string {
+  const now = new Date();
+  
+  return `Bạn là trợ lý AI thông minh của hệ thống quản lý teamwork. Vai trò của bạn:
+
+1. **Giải đáp thắc mắc** về công việc, task, deadline, phân công và quy trình làm việc
+2. **Hỗ trợ tra cứu** thông tin nhanh chóng
+3. **Nhắc nhở nhẹ nhàng** (chỉ khi thật sự cần thiết) về deadline gần hoặc task có nguy cơ trễ
+
+## THÔNG TIN NGƯỜI DÙNG
+- Tên: ${userName}
+
+${projectContexts.length > 0 ? `## DỮ LIỆU CÁC PROJECT CỦA NGƯỜI DÙNG
+${projectContexts.join('\n---\n')}` : '## Người dùng chưa tham gia project nào.'}
 
 ## NGUYÊN TẮC TRẢ LỜI
 1. Trả lời ngắn gọn, súc tích, đi thẳng vào vấn đề
 2. Sử dụng tiếng Việt tự nhiên, thân thiện
-3. Khi nhắc deadline, ưu tiên nhắc cá nhân trước, không làm phiền cả team
-4. Nếu người dùng hỏi về task của mình, ưu tiên hiển thị thông tin đó trước
+3. Chỉ nhắc deadline khi người dùng hỏi hoặc khi có task sắp đến hạn của họ
+4. Ưu tiên thông tin liên quan đến người dùng trước
 5. Đưa ra gợi ý hành động cụ thể khi phù hợp
-6. Nếu có task quá hạn hoặc sắp đến hạn của người dùng, nhắc nhở nhẹ nhàng
+6. Không nói quá dài, tập trung vào câu trả lời
+7. Nếu không biết hoặc không có thông tin, nói rõ ràng
 
 Thời gian hiện tại: ${now.toLocaleString('vi-VN')}`;
 }
@@ -131,131 +134,84 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Get authorization header for Supabase client
-    const authHeader = req.headers.get("Authorization");
+    // Validate message length
+    const lastMessage = messages?.[messages.length - 1];
+    if (lastMessage?.content && lastMessage.content.length > MAX_MESSAGE_LENGTH) {
+      return new Response(JSON.stringify({ 
+        error: `Câu hỏi quá dài. Vui lòng giới hạn trong ${MAX_MESSAGE_LENGTH} ký tự.`,
+        code: "MESSAGE_TOO_LONG"
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader || "" } }
-    });
+    // Use service role to bypass RLS for AI queries
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Get user from auth header
+    const authHeader = req.headers.get("Authorization");
+    let userId: string | null = null;
+    let userEmail: string | null = null;
+
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: `Bearer ${token}` } }
       });
+      const { data: { user } } = await anonClient.auth.getUser();
+      if (user) {
+        userId = user.id;
+        userEmail = user.email || null;
+      }
     }
 
-    // Fetch project context
-    const { data: project } = await supabase
-      .from('groups')
-      .select('*')
-      .eq('id', projectId)
-      .single();
-
-    if (!project) {
-      return new Response(JSON.stringify({ error: "Project not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Get user profile
+    let userName = userEmail || "Người dùng";
+    if (userId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+      if (profile?.full_name) {
+        userName = profile.full_name;
+      }
     }
 
-    // Fetch stages
-    const { data: stages } = await supabase
-      .from('stages')
-      .select('*')
-      .eq('group_id', projectId)
-      .order('order_index');
+    // Build project contexts
+    const projectContexts: string[] = [];
 
-    // Fetch members with profiles
-    const { data: members } = await supabase
-      .from('group_members')
-      .select('*')
-      .eq('group_id', projectId);
+    // If projectId is provided, fetch that specific project
+    if (projectId && userId) {
+      const context = await fetchProjectContext(supabase, projectId, userId);
+      if (context) {
+        projectContexts.push(buildProjectContext(context));
+      }
+    } else if (userId) {
+      // Fetch all projects user is a member of
+      const { data: memberships } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', userId);
 
-    const memberUserIds = members?.map(m => m.user_id) || [];
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', memberUserIds);
-
-    const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-    // Fetch tasks with assignments
-    const { data: tasks } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('group_id', projectId);
-
-    const taskIds = tasks?.map(t => t.id) || [];
-    const { data: assignments } = await supabase
-      .from('task_assignments')
-      .select('*')
-      .in('task_id', taskIds);
-
-    // Build context
-    const now = new Date();
-    const stageMap = new Map(stages?.map(s => [s.id, s.name]) || []);
-
-    const context: ProjectContext = {
-      project: {
-        name: project.name,
-        description: project.description,
-        classCode: project.class_code,
-        instructorName: project.instructor_name,
-      },
-      stages: (stages || []).map(s => ({
-        name: s.name,
-        taskCount: tasks?.filter(t => t.stage_id === s.id).length || 0,
-      })),
-      members: (members || []).map(m => {
-        const profile = profilesMap.get(m.user_id);
-        return {
-          name: profile?.full_name || 'Unknown',
-          role: m.role,
-          studentId: profile?.student_id || '',
-        };
-      }),
-      tasks: (tasks || []).map(t => {
-        const taskAssignees = assignments?.filter(a => a.task_id === t.id) || [];
-        const assigneeNames = taskAssignees.map(a => {
-          const profile = profilesMap.get(a.user_id);
-          return profile?.full_name || 'Unknown';
-        });
-
-        let isOverdue = false;
-        let daysUntilDeadline: number | null = null;
-
-        if (t.deadline) {
-          const deadline = new Date(t.deadline);
-          const diffTime = deadline.getTime() - now.getTime();
-          daysUntilDeadline = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          isOverdue = diffTime < 0 && t.status !== 'DONE' && t.status !== 'VERIFIED';
+      if (memberships && memberships.length > 0) {
+        // Limit to 5 most recent projects for performance
+        const projectIds = memberships.slice(0, 5).map(m => m.group_id);
+        
+        for (const pId of projectIds) {
+          const context = await fetchProjectContext(supabase, pId, userId);
+          if (context) {
+            projectContexts.push(buildProjectContext(context));
+          }
         }
+      }
+    }
 
-        return {
-          title: t.title,
-          status: t.status,
-          deadline: t.deadline ? new Date(t.deadline).toLocaleDateString('vi-VN') : null,
-          stageName: t.stage_id ? stageMap.get(t.stage_id) || null : null,
-          assignees: assigneeNames,
-          isOverdue,
-          daysUntilDeadline,
-        };
-      }),
-      currentUser: {
-        name: profilesMap.get(user.id)?.full_name || user.email || 'User',
-        role: members?.find(m => m.user_id === user.id)?.role || 'member',
-        assignedTasks: (tasks || [])
-          .filter(t => assignments?.some(a => a.task_id === t.id && a.user_id === user.id))
-          .map(t => t.title),
-      },
-    };
-
-    const systemPrompt = buildSystemPrompt(context);
+    const systemPrompt = buildSystemPrompt(userName, projectContexts);
 
     // Call Lovable AI Gateway with streaming
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -276,13 +232,19 @@ serve(async (req) => {
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Đã vượt quá giới hạn request, vui lòng thử lại sau." }), {
+        return new Response(JSON.stringify({ 
+          error: "Đã vượt quá giới hạn request, vui lòng thử lại sau.",
+          code: "RATE_LIMITED"
+        }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Cần nạp thêm credits để sử dụng AI." }), {
+        return new Response(JSON.stringify({ 
+          error: "Hệ thống AI tạm thời không khả dụng.",
+          code: "CREDITS_EXHAUSTED"
+        }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -306,3 +268,110 @@ serve(async (req) => {
     });
   }
 });
+
+async function fetchProjectContext(
+  supabase: any, 
+  projectId: string, 
+  userId: string
+): Promise<ProjectContext | null> {
+  const now = new Date();
+
+  // Fetch project
+  const { data: project } = await supabase
+    .from('groups')
+    .select('*')
+    .eq('id', projectId)
+    .single();
+
+  if (!project) return null;
+
+  // Fetch stages
+  const { data: stages } = await supabase
+    .from('stages')
+    .select('*')
+    .eq('group_id', projectId)
+    .order('order_index');
+
+  // Fetch members with profiles
+  const { data: members } = await supabase
+    .from('group_members')
+    .select('*')
+    .eq('group_id', projectId);
+
+  const memberUserIds = members?.map((m: any) => m.user_id) || [];
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', memberUserIds);
+
+  const profilesMap = new Map(profiles?.map((p: any) => [p.id, p]) || []);
+
+  // Fetch tasks with assignments
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('group_id', projectId);
+
+  const taskIds = tasks?.map((t: any) => t.id) || [];
+  const { data: assignments } = await supabase
+    .from('task_assignments')
+    .select('*')
+    .in('task_id', taskIds.length > 0 ? taskIds : ['none']);
+
+  const stageMap = new Map(stages?.map((s: any) => [s.id, s.name]) || []);
+
+  return {
+    project: {
+      name: project.name,
+      description: project.description,
+      classCode: project.class_code,
+      instructorName: project.instructor_name,
+    },
+    stages: (stages || []).map((s: any) => ({
+      name: s.name,
+      taskCount: tasks?.filter((t: any) => t.stage_id === s.id).length || 0,
+    })),
+    members: (members || []).map((m: any) => {
+      const profile = profilesMap.get(m.user_id) as any;
+      return {
+        name: profile?.full_name || 'Unknown',
+        role: m.role,
+        studentId: profile?.student_id || '',
+      };
+    }),
+    tasks: (tasks || []).map((t: any) => {
+      const taskAssignees = assignments?.filter((a: any) => a.task_id === t.id) || [];
+      const assigneeNames = taskAssignees.map((a: any) => {
+        const profile = profilesMap.get(a.user_id) as any;
+        return profile?.full_name || 'Unknown';
+      });
+
+      let isOverdue = false;
+      let daysUntilDeadline: number | null = null;
+
+      if (t.deadline) {
+        const deadline = new Date(t.deadline);
+        const diffTime = deadline.getTime() - now.getTime();
+        daysUntilDeadline = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        isOverdue = diffTime < 0 && t.status !== 'DONE' && t.status !== 'VERIFIED';
+      }
+
+      return {
+        title: t.title,
+        status: t.status,
+        deadline: t.deadline ? new Date(t.deadline).toLocaleDateString('vi-VN') : null,
+        stageName: t.stage_id ? stageMap.get(t.stage_id) || null : null,
+        assignees: assigneeNames,
+        isOverdue,
+        daysUntilDeadline,
+      };
+    }),
+    currentUser: {
+      name: (profilesMap.get(userId) as any)?.full_name || 'User',
+      role: members?.find((m: any) => m.user_id === userId)?.role || 'member',
+      assignedTasks: (tasks || [])
+        .filter((t: any) => assignments?.some((a: any) => a.task_id === t.id && a.user_id === userId))
+        .map((t: any) => t.title),
+    },
+  };
+}
