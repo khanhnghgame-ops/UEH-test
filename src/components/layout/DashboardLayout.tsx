@@ -37,6 +37,7 @@ import uehLogo from '@/assets/ueh-logo-new.png';
 import UserChangePasswordDialog from '@/components/UserChangePasswordDialog';
 import NotificationBell from '@/components/NotificationBell';
 import AvatarUpload from '@/components/AvatarUpload';
+import AIAssistantButton from '@/components/ai/AIAssistantButton';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -245,6 +246,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* AI Assistant - Available on all pages */}
+      <AIAssistantButton />
     </div>
   );
 }
