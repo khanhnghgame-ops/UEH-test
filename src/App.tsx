@@ -32,15 +32,17 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      {/* Semantic URLs - new preferred format with slugs */}
+      {/* Semantic URLs - clean, readable format */}
       <Route path="/p/:projectSlug" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
       <Route path="/p/:projectSlug/t/:taskSlug" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
+      <Route path="/p/:projectSlug/t/:taskSlug/f/:fileIndex" element={<ProtectedRoute><FilePreview /></ProtectedRoute>} />
       <Route path="/s/:shareToken" element={<PublicProjectView />} />
+      <Route path="/s/:shareToken/t/:taskSlug/f/:fileIndex" element={<FilePreview />} />
       {/* Legacy URLs - backward compatibility */}
       <Route path="/public/project/:shareToken" element={<PublicProjectView />} />
       <Route path="/groups/:groupId" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
       <Route path="/groups/:groupId/tasks/:taskId" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
-      {/* Other routes */}
+      {/* Legacy file preview - backward compatibility */}
       <Route path="/file-preview" element={<FilePreview />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/auth/member" element={<Navigate to="/auth" replace />} />

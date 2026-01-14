@@ -107,14 +107,28 @@ export default function SubmissionButton({
     }
     
     if (item.type === 'file' && item.file_path) {
-      const params = new URLSearchParams({
-        path: item.file_path,
-        name: item.file_name || 'file',
-        size: (item.file_size || 0).toString(),
-        ...(taskId && { taskId }),
-        ...(groupId && { groupId })
-      });
-      navigate(`/file-preview?${params.toString()}`);
+      // Find file index in items array
+      const fileItems = items.filter(i => i.type === 'file' && i.file_path);
+      const fileIndex = fileItems.findIndex(f => f.file_path === item.file_path);
+      
+      // Use semantic URL if we have groupId (project slug)
+      if (groupId && taskId) {
+        // For now, use legacy URL until task slug is available
+        const params = new URLSearchParams();
+        params.set('path', item.file_path);
+        if (item.file_name) params.set('name', item.file_name);
+        if (item.file_size) params.set('size', item.file_size.toString());
+        params.set('taskId', taskId);
+        params.set('groupId', groupId);
+        navigate(`/file-preview?${params.toString()}`);
+      } else {
+        const params = new URLSearchParams();
+        params.set('path', item.file_path);
+        if (item.file_name) params.set('name', item.file_name);
+        if (item.file_size) params.set('size', item.file_size.toString());
+        if (taskId) params.set('taskId', taskId);
+        navigate(`/file-preview?${params.toString()}`);
+      }
     } else if (item.url) {
       window.open(item.url, '_blank', 'noopener,noreferrer');
     }
