@@ -1,4 +1,6 @@
-// URL utilities for short ID handling
+// URL utilities for semantic, human-readable URLs
+// Format: /p/{short_id}-{name-slug} for projects
+// Format: /p/{project-slug}/t/{stage}.{order}-{task-slug} for tasks
 
 /**
  * Check if a string looks like a UUID (36 chars with dashes)
@@ -15,27 +17,54 @@ export function isShortId(id: string): boolean {
 }
 
 /**
- * Generate project URL using short_id
+ * Check if a string looks like a slug (short_id + name)
  */
-export function getProjectUrl(shortId: string): string {
-  return `/p/${shortId}`;
+export function isSlug(id: string): boolean {
+  // Slug format: 8 char short_id + hyphen + name-slug
+  return /^[a-z0-9]{8}-.+$/i.test(id);
 }
 
 /**
- * Generate public project URL
+ * Extract short_id from a slug
+ */
+export function extractShortIdFromSlug(slug: string): string {
+  if (isUUID(slug)) return slug;
+  if (isShortId(slug)) return slug;
+  // Slug format: first 8 chars are the short_id
+  return slug.substring(0, 8);
+}
+
+/**
+ * Generate project URL using slug (preferred) or short_id (fallback)
+ * Format: /p/{short_id}-{name-slug}
+ */
+export function getProjectUrl(slugOrShortId: string): string {
+  return `/p/${slugOrShortId}`;
+}
+
+/**
+ * Generate task URL with context
+ * Format: /p/{project-slug}/t/{task-slug}
+ */
+export function getTaskUrl(projectSlug: string, taskSlug: string): string {
+  return `/p/${projectSlug}/t/${taskSlug}`;
+}
+
+/**
+ * Generate public project URL with shorter token
  */
 export function getPublicProjectUrl(shareToken: string): string {
   return `${window.location.origin}/s/${shareToken}`;
 }
 
 /**
- * Generate file preview URL with minimal params
+ * Generate file preview URL with minimal params using slugs
  */
-export function getFilePreviewUrl(filePath: string, projectShortId?: string, taskShortId?: string): string {
+export function getFilePreviewUrl(filePath: string, projectSlug?: string, taskSlug?: string): string {
   const params = new URLSearchParams();
   params.set('file', filePath);
-  if (projectShortId) params.set('p', projectShortId);
-  if (taskShortId) params.set('t', taskShortId);
+  if (projectSlug) params.set('p', projectSlug);
+  if (taskSlug) params.set('t', taskSlug);
   return `/file-preview?${params.toString()}`;
 }
 
@@ -52,4 +81,65 @@ export function parseFilePreviewParams(searchParams: URLSearchParams): {
     projectId: searchParams.get('p') || searchParams.get('group'), // backward compat
     taskId: searchParams.get('t') || searchParams.get('task'), // backward compat
   };
+}
+
+/**
+ * Generate Vietnamese-safe slug from text
+ * This is a client-side helper that mirrors the database function
+ */
+export function generateSlug(text: string): string {
+  if (!text) return '';
+  
+  let result = text.toLowerCase();
+  
+  // Vietnamese character mappings
+  const vietnameseMap: Record<string, string> = {
+    'à': 'a', 'á': 'a', 'ả': 'a', 'ã': 'a', 'ạ': 'a',
+    'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ẳ': 'a', 'ẵ': 'a', 'ặ': 'a',
+    'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ẩ': 'a', 'ẫ': 'a', 'ậ': 'a',
+    'è': 'e', 'é': 'e', 'ẻ': 'e', 'ẽ': 'e', 'ẹ': 'e',
+    'ê': 'e', 'ề': 'e', 'ế': 'e', 'ể': 'e', 'ễ': 'e', 'ệ': 'e',
+    'ì': 'i', 'í': 'i', 'ỉ': 'i', 'ĩ': 'i', 'ị': 'i',
+    'ò': 'o', 'ó': 'o', 'ỏ': 'o', 'õ': 'o', 'ọ': 'o',
+    'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ổ': 'o', 'ỗ': 'o', 'ộ': 'o',
+    'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ở': 'o', 'ỡ': 'o', 'ợ': 'o',
+    'ù': 'u', 'ú': 'u', 'ủ': 'u', 'ũ': 'u', 'ụ': 'u',
+    'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ử': 'u', 'ữ': 'u', 'ự': 'u',
+    'ỳ': 'y', 'ý': 'y', 'ỷ': 'y', 'ỹ': 'y', 'ỵ': 'y',
+    'đ': 'd'
+  };
+  
+  result = result.split('').map(char => vietnameseMap[char] || char).join('');
+  
+  // Replace non-alphanumeric with hyphens
+  result = result.replace(/[^a-z0-9]+/g, '-');
+  
+  // Remove leading/trailing hyphens
+  result = result.replace(/^-+|-+$/g, '');
+  
+  // Limit length
+  return result.substring(0, 50);
+}
+
+/**
+ * Format task code for display: [Stage.Order] or just [Order] if no stage
+ */
+export function getTaskCode(
+  task: { stage_id: string | null; created_at: string },
+  stages: { id: string; order_index: number }[],
+  allTasksInStage: { id: string; created_at: string }[]
+): string {
+  const stage = stages.find(s => s.id === task.stage_id);
+  const stageNum = stage ? stage.order_index + 1 : 0;
+  
+  // Calculate task order within stage
+  const sortedTasks = [...allTasksInStage].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  const taskOrder = sortedTasks.findIndex(t => t.created_at === task.created_at) + 1;
+  
+  if (stageNum > 0) {
+    return `${stageNum}.${taskOrder}`;
+  }
+  return `${taskOrder}`;
 }
