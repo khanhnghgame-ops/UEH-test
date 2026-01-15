@@ -524,36 +524,51 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
           email: string
           full_name: string
           id: string
           is_approved: boolean
+          major: string | null
           must_change_password: boolean
+          phone: string | null
+          skills: string | null
           student_id: string
           updated_at: string
+          year_batch: string | null
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           email: string
           full_name: string
           id: string
           is_approved?: boolean
+          major?: string | null
           must_change_password?: boolean
+          phone?: string | null
+          skills?: string | null
           student_id: string
           updated_at?: string
+          year_batch?: string | null
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           email?: string
           full_name?: string
           id?: string
           is_approved?: boolean
+          major?: string | null
           must_change_password?: boolean
+          phone?: string | null
+          skills?: string | null
           student_id?: string
           updated_at?: string
+          year_batch?: string | null
         }
         Relationships: []
       }

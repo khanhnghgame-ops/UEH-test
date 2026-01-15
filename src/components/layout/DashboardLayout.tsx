@@ -56,6 +56,7 @@ const navigation: NavItem[] = [
   { name: 'DASHBOARD', href: '/dashboard', icon: LayoutDashboard },
   { name: 'PROJECTS', href: '/groups', icon: FolderKanban },
   { name: 'TRAO ĐỔI', href: '/communication', icon: MessageSquare },
+  { name: 'THÔNG TIN', href: '/personal-info', icon: UserCircle },
   { name: 'GÓP Ý', href: '/feedback', icon: Lightbulb },
   { name: 'THÀNH VIÊN', href: '/members', icon: Users, requiresAdmin: true },
   { name: 'SAO LƯU', href: '/admin/backup', icon: FolderArchive, requiresAdmin: true },

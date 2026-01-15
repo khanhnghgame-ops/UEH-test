@@ -48,12 +48,14 @@ import {
   Shield,
   UserCheck,
   Download,
+  Eye,
 } from 'lucide-react';
 import { exportMembersToExcel, getRoleDisplayName } from '@/lib/excelExport';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import UserAvatar from '@/components/UserAvatar';
+import ProfileViewDialog from '@/components/ProfileViewDialog';
 import type { GroupMember, Profile } from '@/types/database';
 
 interface MemberManagementCardProps {
@@ -101,7 +103,10 @@ export default function MemberManagementCard({
   // New role for change role dialog
   const [newRole, setNewRole] = useState<'member' | 'leader'>('member');
 
-  // Avatar is now handled by UserAvatar component - no need for initials
+  // Profile view dialog
+  const [profileToView, setProfileToView] = useState<Profile | null>(null);
+  const [profileViewRole, setProfileViewRole] = useState<'admin' | 'leader' | 'member'>('member');
+  const [profileViewIsCreator, setProfileViewIsCreator] = useState(false);
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -410,7 +415,17 @@ export default function MemberManagementCard({
         <CardContent>
           <div className="space-y-3">
             {members.map((member) => (
-              <div key={member.id} className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
+              <div 
+                key={member.id} 
+                className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                onClick={() => {
+                  if (member.profiles) {
+                    setProfileToView(member.profiles as Profile);
+                    setProfileViewRole(member.role as 'admin' | 'leader' | 'member');
+                    setProfileViewIsCreator(isMemberGroupCreator(member.user_id));
+                  }
+                }}
+              >
                 <UserAvatar 
                   src={member.profiles?.avatar_url} 
                   name={member.profiles?.full_name}
@@ -437,13 +452,17 @@ export default function MemberManagementCard({
                   {(canChangeRole(member) || canDeleteMember(member)) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (member.profiles) { setProfileToView(member.profiles as Profile); setProfileViewRole(member.role as any); setProfileViewIsCreator(isMemberGroupCreator(member.user_id)); } }}>
+                          <Eye className="w-4 h-4 mr-2" />
+                          Xem hồ sơ
+                        </DropdownMenuItem>
                         {canChangeRole(member) && (
-                          <DropdownMenuItem onClick={() => openChangeRoleDialog(member)}>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openChangeRoleDialog(member); }}>
                             <Shield className="w-4 h-4 mr-2" />
                             Đổi vai trò
                           </DropdownMenuItem>
@@ -451,7 +470,7 @@ export default function MemberManagementCard({
                         {canDeleteMember(member) && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => setMemberToDelete(member)} className="text-destructive">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setMemberToDelete(member); }} className="text-destructive">
                               <Trash2 className="w-4 h-4 mr-2" />
                               Xóa khỏi project
                             </DropdownMenuItem>
@@ -804,6 +823,15 @@ export default function MemberManagementCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Profile View Dialog */}
+      <ProfileViewDialog
+        open={!!profileToView}
+        onOpenChange={(open) => { if (!open) setProfileToView(null); }}
+        profile={profileToView}
+        role={profileViewRole}
+        isGroupCreator={profileViewIsCreator}
+      />
     </>
   );
 }
