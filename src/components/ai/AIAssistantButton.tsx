@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import AIAssistantPanel from './AIAssistantPanel';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import aiLogo from '@/assets/ai-assistant-logo.png';
 
 interface AIAssistantButtonProps {
@@ -13,47 +13,52 @@ interface AIAssistantButtonProps {
 
 const TOOLTIP_MESSAGES = [
   "Bạn có câu hỏi gì không?",
-  "Cần hỗ trợ gì không?",
-  "Hỏi tôi về task nhé!",
+  "Tôi có thể giúp gì cho bạn?",
+  "Cần hỗ trợ nhanh không?",
+  "Hỏi tôi về nội dung bạn đang xem nhé",
+  "Bạn đang gặp khó khăn chỗ nào không?",
 ];
 
 export default function AIAssistantButton({ projectId, projectName }: AIAssistantButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipIndex, setTooltipIndex] = useState(0);
-  const [tooltipDismissCount, setTooltipDismissCount] = useState(0);
+  const [currentMessage, setCurrentMessage] = useState('');
 
-  // Show tooltip periodically - more frequent but not spammy
+  // Get random message
+  const getRandomMessage = useCallback(() => {
+    const randomIndex = Math.floor(Math.random() * TOOLTIP_MESSAGES.length);
+    return TOOLTIP_MESSAGES[randomIndex];
+  }, []);
+
+  // Show tooltip every 15 seconds, display for 3 seconds
   useEffect(() => {
-    if (isOpen || tooltipDismissCount >= 3) return; // Stop after 3 dismissals
+    if (isOpen) return;
 
-    // Show tooltip after 5 seconds initially
-    const initialTimeout = setTimeout(() => {
+    const showTooltipCycle = () => {
+      setCurrentMessage(getRandomMessage());
       setShowTooltip(true);
-      // Auto-hide after 4 seconds
-      setTimeout(() => setShowTooltip(false), 4000);
-    }, 5000);
+      
+      // Hide after 3 seconds
+      setTimeout(() => {
+        setShowTooltip(false);
+      }, 3000);
+    };
 
-    // Then show every 45 seconds (more frequent than before)
+    // Initial show after 5 seconds
+    const initialTimeout = setTimeout(showTooltipCycle, 5000);
+
+    // Then show every 15 seconds
     const interval = setInterval(() => {
-      if (!isOpen && tooltipDismissCount < 3) {
-        setTooltipIndex(prev => (prev + 1) % TOOLTIP_MESSAGES.length);
-        setShowTooltip(true);
-        setTimeout(() => setShowTooltip(false), 4000);
+      if (!isOpen) {
+        showTooltipCycle();
       }
-    }, 45000);
+    }, 15000);
 
     return () => {
       clearTimeout(initialTimeout);
       clearInterval(interval);
     };
-  }, [isOpen, tooltipDismissCount]);
-
-  const handleDismissTooltip = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowTooltip(false);
-    setTooltipDismissCount(prev => prev + 1);
-  };
+  }, [isOpen, getRandomMessage]);
 
   const handleOpen = () => {
     setIsOpen(true);
@@ -62,29 +67,25 @@ export default function AIAssistantButton({ projectId, projectName }: AIAssistan
 
   return (
     <>
-      {/* Tooltip Bubble */}
-      {showTooltip && !isOpen && (
-        <div 
-          className={cn(
-            "fixed bottom-28 right-6 z-50",
-            "bg-card border border-border rounded-2xl shadow-xl",
-            "px-4 py-3 max-w-[200px]",
-            "animate-fade-in",
-            "before:content-[''] before:absolute before:bottom-[-8px] before:right-10",
-            "before:border-8 before:border-transparent before:border-t-card"
-          )}
-        >
-          <button
-            onClick={handleDismissTooltip}
-            className="absolute -top-2 -right-2 w-5 h-5 bg-muted rounded-full flex items-center justify-center hover:bg-muted-foreground/20 transition-colors"
-          >
-            <X className="w-3 h-3 text-muted-foreground" />
-          </button>
-          <p className="text-sm text-foreground font-medium">
-            {TOOLTIP_MESSAGES[tooltipIndex]}
-          </p>
-        </div>
-      )}
+      {/* Tooltip Bubble - positioned to not cover main content */}
+      <div 
+        className={cn(
+          "fixed bottom-28 right-6 z-40",
+          "bg-card/95 backdrop-blur-sm border border-border/80 rounded-2xl shadow-lg",
+          "px-4 py-2.5 max-w-[220px]",
+          "transition-all duration-300 ease-out",
+          "before:content-[''] before:absolute before:bottom-[-6px] before:right-10",
+          "before:w-3 before:h-3 before:bg-card/95 before:border-r before:border-b before:border-border/80",
+          "before:rotate-45 before:rounded-sm",
+          showTooltip && !isOpen
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 translate-y-2 pointer-events-none"
+        )}
+      >
+        <p className="text-sm text-foreground/90 font-medium leading-snug">
+          {currentMessage}
+        </p>
+      </div>
 
       {/* AI Button - With continuous subtle animations */}
       <div className="fixed bottom-6 right-6 z-50">
