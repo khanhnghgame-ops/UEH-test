@@ -37,7 +37,7 @@ export default function ProjectNavigation({
   );
 
   return (
-    <div className="w-full bg-gradient-to-r from-primary/8 via-primary/5 to-primary/8 border-b border-primary/15">
+    <div className="w-full bg-gradient-to-r from-primary/8 via-primary/5 to-primary/8 border-b border-primary/15 sticky top-14 z-40 backdrop-blur-sm bg-background/95">
       <div className="max-w-[1600px] mx-auto px-4 flex items-center justify-between">
         {/* Spacer to match logo area width */}
         <div className="hidden md:block w-[140px] shrink-0" />
