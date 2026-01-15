@@ -317,7 +317,7 @@ export default function FirstTimeOnboarding({
           {/* Right side - Form content */}
           <div className="flex-1 p-6 md:p-8 flex flex-col overflow-hidden">
             {currentStep === 'password' ? (
-              <>
+              <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
                 <DialogHeader className="mb-6">
                   <DialogTitle className="flex items-center gap-2 text-xl">
                     <ShieldAlert className="w-6 h-6 text-amber-500" />
@@ -328,7 +328,7 @@ export default function FirstTimeOnboarding({
                   </DialogDescription>
                 </DialogHeader>
                 
-                <form onSubmit={handlePasswordSubmit} className="space-y-5 flex-1">
+                <form onSubmit={handlePasswordSubmit} className="space-y-5">
                   <div className="space-y-2">
                     <Label htmlFor="newPassword" className="text-sm font-medium">
                       Mật khẩu mới
@@ -378,7 +378,7 @@ export default function FirstTimeOnboarding({
                     <ChevronRight className="w-4 h-4 ml-2" />
                   </Button>
                 </form>
-              </>
+              </div>
             ) : (
               <>
                 <DialogHeader className="mb-4 shrink-0">

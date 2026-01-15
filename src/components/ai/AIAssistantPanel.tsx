@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, Loader2, Sparkles, AlertCircle, Info, MessageCircle } from 'lucide-react';
+import { Send, Loader2, Sparkles, AlertCircle, Info, MessageCircle, AlertTriangle, FolderKanban, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -25,9 +25,9 @@ interface AIAssistantPanelProps {
   projectName?: string;
 }
 
-// Usage limits - reduced as requested
+// Usage limits
 const MAX_MESSAGE_WORDS = 100;
-const MAX_QUESTIONS_PER_DAY = 10;
+const QUESTIONS_PER_PROJECT = 10;
 
 const SUGGESTED_QUESTIONS = [
   "Công việc nào của tôi sắp đến hạn?",
@@ -35,8 +35,9 @@ const SUGGESTED_QUESTIONS = [
   "Tiến độ project hiện tại ra sao?",
 ];
 
-// Simple local storage key for tracking daily usage
+// Get usage key based on user and date
 const getUsageKey = (userId: string) => `ai_usage_${userId}_${new Date().toDateString()}`;
+const getProjectCountKey = (userId: string) => `ai_project_count_${userId}`;
 
 // Count words in a string
 const countWords = (text: string): number => {
@@ -54,18 +55,48 @@ export default function AIAssistantPanel({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [questionsToday, setQuestionsToday] = useState(0);
+  const [projectCount, setProjectCount] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { user, profile } = useAuth();
   const { toast } = useToast();
 
-  // Load usage count from localStorage
+  // Calculate max questions based on project count
+  const maxQuestions = QUESTIONS_PER_PROJECT * projectCount;
+
+  // Load usage count and project count
   useEffect(() => {
-    if (user?.id) {
+    const loadData = async () => {
+      if (!user?.id) return;
+
+      // Load usage count
       const usageKey = getUsageKey(user.id);
       const stored = localStorage.getItem(usageKey);
       setQuestionsToday(stored ? parseInt(stored, 10) : 0);
-    }
+
+      // Fetch project count from database
+      try {
+        const { count, error } = await supabase
+          .from('group_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        if (!error && count !== null) {
+          setProjectCount(Math.max(1, count)); // At least 1
+          localStorage.setItem(getProjectCountKey(user.id), count.toString());
+        } else {
+          // Fallback to cached value
+          const cached = localStorage.getItem(getProjectCountKey(user.id));
+          if (cached) setProjectCount(Math.max(1, parseInt(cached, 10)));
+        }
+      } catch {
+        // Fallback to cached value
+        const cached = localStorage.getItem(getProjectCountKey(user.id));
+        if (cached) setProjectCount(Math.max(1, parseInt(cached, 10)));
+      }
+    };
+
+    if (isOpen) loadData();
   }, [user?.id, isOpen]);
 
   // Auto scroll to bottom
@@ -107,10 +138,10 @@ export default function AIAssistantPanel({
     }
 
     // Check daily limit
-    if (questionsToday >= MAX_QUESTIONS_PER_DAY) {
+    if (questionsToday >= maxQuestions) {
       toast({
         title: 'Đã hết lượt hỏi hôm nay',
-        description: `Bạn đã sử dụng ${MAX_QUESTIONS_PER_DAY} câu hỏi. Vui lòng quay lại ngày mai.`,
+        description: `Bạn đã sử dụng ${maxQuestions} câu hỏi (${projectCount} project × ${QUESTIONS_PER_PROJECT} lượt). Vui lòng quay lại ngày mai.`,
         variant: 'destructive',
       });
       return;
@@ -275,7 +306,7 @@ export default function AIAssistantPanel({
     sendMessage(question);
   };
 
-  const remainingQuestions = MAX_QUESTIONS_PER_DAY - questionsToday;
+  const remainingQuestions = maxQuestions - questionsToday;
   const wordCount = countWords(input);
   const isOverLimit = wordCount > MAX_MESSAGE_WORDS;
 
@@ -306,11 +337,46 @@ export default function AIAssistantPanel({
           </SheetDescription>
         </SheetHeader>
 
+        {/* Scope indicator - prominent display */}
+        <div className={cn(
+          "px-4 py-2.5 border-b flex items-center gap-2 text-xs",
+          projectId ? "bg-blue-50 dark:bg-blue-950/30" : "bg-amber-50 dark:bg-amber-950/30"
+        )}>
+          {projectId ? (
+            <>
+              <FolderKanban className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+              <div>
+                <span className="font-medium text-blue-700 dark:text-blue-300">
+                  AI đang hỗ trợ Project: {projectName}
+                </span>
+                <span className="text-blue-600/80 dark:text-blue-400/80 block">
+                  Chỉ trả lời dựa trên dữ liệu của project này
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <Globe className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <div>
+                <span className="font-medium text-amber-700 dark:text-amber-300">
+                  AI đang trả lời tổng quan trên toàn hệ thống
+                </span>
+                <span className="text-amber-600/80 dark:text-amber-400/80 block">
+                  Có thể truy cập thông tin từ tất cả project của bạn
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
         {/* Usage indicator */}
         <div className="px-4 py-2 bg-muted/30 border-b flex items-center justify-between text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Info className="h-3.5 w-3.5" />
-            <span>Còn {remainingQuestions}/{MAX_QUESTIONS_PER_DAY} câu hỏi hôm nay</span>
+            <span>
+              Còn {remainingQuestions}/{maxQuestions} lượt 
+              <span className="hidden sm:inline"> ({projectCount} project × {QUESTIONS_PER_PROJECT})</span>
+            </span>
           </div>
           <span className="text-muted-foreground">Tối đa {MAX_MESSAGE_WORDS} từ/câu</span>
         </div>
@@ -431,6 +497,17 @@ export default function AIAssistantPanel({
             </div>
           )}
         </ScrollArea>
+
+        {/* Disclaimer */}
+        <div className="px-4 py-2 border-t bg-amber-50/50 dark:bg-amber-950/20">
+          <div className="flex items-start gap-2 text-[10px] text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>
+              Câu trả lời của AI được tạo tự động dựa trên dữ liệu hiện có trong hệ thống. 
+              Vui lòng kiểm tra lại thông tin quan trọng như task, deadline trước khi thực hiện.
+            </span>
+          </div>
+        </div>
 
         {/* Input Area */}
         <div className="border-t p-3 bg-background">
