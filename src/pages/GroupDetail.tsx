@@ -318,7 +318,7 @@ export default function GroupDetail() {
 
 
   return (
-    <DashboardLayout>
+    <DashboardLayout projectId={group.id} projectName={group.name}>
       <div className="space-y-0 -mx-6 -mt-6">
         {/* Project Navigation Bar - immediately below main nav */}
         <ProjectNavigation

@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, Loader2, Sparkles, User, AlertCircle, Info } from 'lucide-react';
+import { Send, Loader2, Sparkles, AlertCircle, Info, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import aiLogo from '@/assets/ai-assistant-logo.png';
+import ReactMarkdown from 'react-markdown';
+import UserAvatar from '@/components/UserAvatar';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -23,19 +25,23 @@ interface AIAssistantPanelProps {
   projectName?: string;
 }
 
-// Usage limits (must match backend)
-const MAX_MESSAGE_LENGTH = 500;
-const MAX_QUESTIONS_PER_DAY = 50;
+// Usage limits - reduced as requested
+const MAX_MESSAGE_WORDS = 100;
+const MAX_QUESTIONS_PER_DAY = 10;
 
 const SUGGESTED_QUESTIONS = [
   "Công việc nào của tôi sắp đến hạn?",
   "Ai đang làm task nào?",
   "Tiến độ project hiện tại ra sao?",
-  "Có task nào đang trễ không?",
 ];
 
 // Simple local storage key for tracking daily usage
 const getUsageKey = (userId: string) => `ai_usage_${userId}_${new Date().toDateString()}`;
+
+// Count words in a string
+const countWords = (text: string): number => {
+  return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+};
 
 export default function AIAssistantPanel({ 
   isOpen, 
@@ -49,7 +55,7 @@ export default function AIAssistantPanel({
   const [error, setError] = useState<string | null>(null);
   const [questionsToday, setQuestionsToday] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { user, profile } = useAuth();
   const { toast } = useToast();
 
@@ -69,10 +75,10 @@ export default function AIAssistantPanel({
     }
   }, [messages]);
 
-  // Focus input when opened
+  // Focus textarea when opened
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+    if (isOpen && textareaRef.current) {
+      setTimeout(() => textareaRef.current?.focus(), 100);
     }
   }, [isOpen]);
 
@@ -88,11 +94,13 @@ export default function AIAssistantPanel({
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || isLoading) return;
 
-    // Check message length
-    if (messageText.length > MAX_MESSAGE_LENGTH) {
+    const wordCount = countWords(messageText);
+
+    // Check word limit
+    if (wordCount > MAX_MESSAGE_WORDS) {
       toast({
         title: 'Câu hỏi quá dài',
-        description: `Vui lòng giới hạn câu hỏi trong ${MAX_MESSAGE_LENGTH} ký tự.`,
+        description: `Vui lòng giới hạn câu hỏi trong ${MAX_MESSAGE_WORDS} từ (hiện tại: ${wordCount} từ).`,
         variant: 'destructive',
       });
       return;
@@ -113,6 +121,9 @@ export default function AIAssistantPanel({
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+
+    // Add thinking message immediately
+    setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     let assistantContent = '';
 
@@ -155,9 +166,6 @@ export default function AIAssistantPanel({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let textBuffer = '';
-
-      // Add empty assistant message to update progressively
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -256,33 +264,40 @@ export default function AIAssistantPanel({
     sendMessage(input);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input);
+    }
+  };
+
   const handleSuggestionClick = (question: string) => {
     sendMessage(question);
   };
 
   const remainingQuestions = MAX_QUESTIONS_PER_DAY - questionsToday;
-  const charCount = input.length;
-  const isOverLimit = charCount > MAX_MESSAGE_LENGTH;
+  const wordCount = countWords(input);
+  const isOverLimit = wordCount > MAX_MESSAGE_WORDS;
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent 
         side="right" 
-        className="w-full sm:max-w-lg p-0 flex flex-col"
+        className="w-full sm:max-w-md p-0 flex flex-col"
       >
         {/* Header */}
-        <SheetHeader className="px-6 py-4 border-b bg-gradient-to-r from-primary/5 to-primary/10">
+        <SheetHeader className="px-4 py-3 border-b bg-gradient-to-r from-primary/10 to-primary/5">
           <SheetTitle className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
+            <Avatar className="h-9 w-9 ring-2 ring-primary/20">
               <AvatarImage src={aiLogo} alt="AI Assistant" />
               <AvatarFallback className="bg-primary/10">
-                <Sparkles className="h-5 w-5 text-primary" />
+                <Sparkles className="h-4 w-4 text-primary" />
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col items-start">
-              <span className="text-base font-semibold">Trợ lý AI</span>
+              <span className="text-sm font-semibold">Trợ lý AI</span>
               <span className="text-xs text-muted-foreground font-normal">
-                {projectName || 'Hỗ trợ công việc'}
+                {projectName ? `Project: ${projectName}` : 'Hỗ trợ chung'}
               </span>
             </div>
           </SheetTitle>
@@ -297,6 +312,7 @@ export default function AIAssistantPanel({
             <Info className="h-3.5 w-3.5" />
             <span>Còn {remainingQuestions}/{MAX_QUESTIONS_PER_DAY} câu hỏi hôm nay</span>
           </div>
+          <span className="text-muted-foreground">Tối đa {MAX_MESSAGE_WORDS} từ/câu</span>
         </div>
 
         {/* Messages Area */}
@@ -305,28 +321,34 @@ export default function AIAssistantPanel({
           className="flex-1 px-4 py-4"
         >
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full py-8 px-4">
-              <Avatar className="h-16 w-16 mb-4">
+            <div className="flex flex-col items-center justify-center h-full py-6 px-2">
+              <Avatar className="h-14 w-14 mb-3 ring-2 ring-primary/20">
                 <AvatarImage src={aiLogo} alt="AI Assistant" />
                 <AvatarFallback className="bg-primary/10">
-                  <Sparkles className="h-8 w-8 text-primary" />
+                  <Sparkles className="h-7 w-7 text-primary" />
                 </AvatarFallback>
               </Avatar>
-              <h3 className="text-lg font-medium mb-2">Xin chào{profile?.full_name ? `, ${profile.full_name.split(' ').pop()}` : ''}!</h3>
-              <p className="text-sm text-muted-foreground text-center mb-6">
-                Tôi có thể giúp bạn tra cứu thông tin về công việc, deadline, phân công và tiến độ của team.
+              <h3 className="text-base font-medium mb-1">
+                Xin chào{profile?.full_name ? `, ${profile.full_name.split(' ').pop()}` : ''}!
+              </h3>
+              <p className="text-xs text-muted-foreground text-center mb-4 px-4">
+                {projectName 
+                  ? `Tôi có thể giúp bạn về project "${projectName}".`
+                  : 'Tôi có thể giúp bạn tra cứu thông tin về công việc và deadline.'
+                }
               </p>
               
               {/* Suggested Questions */}
               <div className="w-full space-y-2">
-                <p className="text-xs text-muted-foreground font-medium mb-3">Gợi ý câu hỏi:</p>
+                <p className="text-xs text-muted-foreground font-medium mb-2">Gợi ý câu hỏi:</p>
                 {SUGGESTED_QUESTIONS.map((question, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSuggestionClick(question)}
-                    className="w-full text-left px-4 py-3 rounded-lg border bg-card hover:bg-accent hover:border-primary/30 transition-colors text-sm"
+                    className="w-full text-left px-3 py-2.5 rounded-xl border bg-card hover:bg-accent hover:border-primary/30 transition-all text-sm flex items-center gap-2"
                   >
-                    {question}
+                    <MessageCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span>{question}</span>
                   </button>
                 ))}
               </div>
@@ -337,38 +359,63 @@ export default function AIAssistantPanel({
                 <div
                   key={idx}
                   className={cn(
-                    "flex gap-3",
+                    "flex gap-2.5",
                     message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                   )}
                 >
-                  <Avatar className="h-8 w-8 shrink-0">
-                    {message.role === 'assistant' ? (
-                      <>
-                        <AvatarImage src={aiLogo} alt="AI" />
-                        <AvatarFallback className="bg-primary/10 text-primary">
-                          <Sparkles className="h-4 w-4" />
-                        </AvatarFallback>
-                      </>
-                    ) : (
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        <User className="h-4 w-4" />
+                  {/* Avatar */}
+                  {message.role === 'assistant' ? (
+                    <Avatar className="h-8 w-8 shrink-0 ring-1 ring-border">
+                      <AvatarImage src={aiLogo} alt="AI" />
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        <Sparkles className="h-4 w-4" />
                       </AvatarFallback>
-                    )}
-                  </Avatar>
+                    </Avatar>
+                  ) : (
+                    <UserAvatar 
+                      src={profile?.avatar_url}
+                      name={profile?.full_name}
+                      size="sm"
+                      className="ring-1 ring-border shrink-0"
+                    />
+                  )}
+
+                  {/* Message Bubble */}
                   <div
                     className={cn(
-                      "max-w-[85%] rounded-2xl px-4 py-3 text-sm",
+                      "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
                       message.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                        : 'bg-muted rounded-tl-sm'
+                        ? 'bg-primary text-primary-foreground rounded-br-md'
+                        : 'bg-muted border border-border rounded-bl-md'
                     )}
                   >
                     {message.content ? (
-                      <div className="whitespace-pre-wrap">{message.content}</div>
+                      message.role === 'assistant' ? (
+                        <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-strong:text-foreground">
+                          <ReactMarkdown
+                            components={{
+                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                              ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                              li: ({ children }) => <li className="text-sm">{children}</li>,
+                              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                              em: ({ children }) => <em className="italic">{children}</em>,
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap">{message.content}</div>
+                      )
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-muted-foreground">Đang suy nghĩ...</span>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="flex gap-1">
+                          <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                        <span className="text-xs">Đang suy nghĩ...</span>
                       </div>
                     )}
                   </div>
@@ -376,8 +423,8 @@ export default function AIAssistantPanel({
               ))}
 
               {error && (
-                <div className="flex items-center gap-2 text-destructive text-sm p-3 bg-destructive/10 rounded-lg">
-                  <AlertCircle className="h-4 w-4" />
+                <div className="flex items-center gap-2 text-destructive text-xs p-3 bg-destructive/10 rounded-xl">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
@@ -386,33 +433,34 @@ export default function AIAssistantPanel({
         </ScrollArea>
 
         {/* Input Area */}
-        <div className="border-t p-4 bg-background">
+        <div className="border-t p-3 bg-background">
           <form onSubmit={handleSubmit} className="flex gap-2">
             <div className="flex-1 relative">
-              <Input
-                ref={inputRef}
+              <Textarea
+                ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Hỏi về công việc, deadline, phân công..."
+                onKeyDown={handleKeyDown}
+                placeholder="Hỏi về công việc, deadline..."
                 disabled={isLoading || remainingQuestions <= 0}
                 className={cn(
-                  "pr-16",
+                  "min-h-[44px] max-h-[120px] resize-none pr-14 text-sm",
                   isOverLimit && "border-destructive focus-visible:ring-destructive"
                 )}
-                maxLength={MAX_MESSAGE_LENGTH + 50} // Allow some overflow for UX
+                rows={1}
               />
               <span className={cn(
-                "absolute right-3 top-1/2 -translate-y-1/2 text-xs",
-                isOverLimit ? "text-destructive" : "text-muted-foreground"
+                "absolute right-3 bottom-2 text-[10px]",
+                isOverLimit ? "text-destructive font-medium" : "text-muted-foreground"
               )}>
-                {charCount}/{MAX_MESSAGE_LENGTH}
+                {wordCount}/{MAX_MESSAGE_WORDS}
               </span>
             </div>
             <Button 
               type="submit" 
               size="icon" 
               disabled={!input.trim() || isLoading || isOverLimit || remainingQuestions <= 0}
-              className="shrink-0"
+              className="shrink-0 h-11 w-11"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -427,8 +475,8 @@ export default function AIAssistantPanel({
             </p>
           )}
           {remainingQuestions > 0 && (
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              AI có thể đưa ra thông tin không chính xác. Vui lòng xác minh các thông tin quan trọng.
+            <p className="text-[10px] text-muted-foreground text-center mt-2">
+              Nhấn Enter để gửi, Shift+Enter để xuống dòng
             </p>
           )}
         </div>

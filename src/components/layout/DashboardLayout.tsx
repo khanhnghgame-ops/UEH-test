@@ -41,6 +41,8 @@ import AIAssistantButton from '@/components/ai/AIAssistantButton';
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  projectId?: string;
+  projectName?: string;
 }
 
 interface NavItem {
@@ -59,7 +61,7 @@ const navigation: NavItem[] = [
   { name: 'SAO LƯU', href: '/admin/backup', icon: FolderArchive, requiresAdmin: true },
 ];
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, projectId, projectName }: DashboardLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, isAdmin, isLeader, signOut } = useAuth();
@@ -248,7 +250,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </Dialog>
 
       {/* AI Assistant - Available on all pages */}
-      <AIAssistantButton />
+      <AIAssistantButton projectId={projectId} projectName={projectName} />
     </div>
   );
 }

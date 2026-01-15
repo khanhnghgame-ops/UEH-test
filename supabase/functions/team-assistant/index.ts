@@ -6,9 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Usage limits
-const MAX_QUESTIONS_PER_DAY = 50;
-const MAX_MESSAGE_LENGTH = 500;
+// Usage limits - 10 questions/day, 100 words/message
+const MAX_QUESTIONS_PER_DAY = 10;
+const MAX_MESSAGE_WORDS = 100;
 
 interface ProjectContext {
   project: {
@@ -94,29 +94,41 @@ ${upcomingTasks.length > 0 ? `⏰ ${upcomingTasks.length} task sắp đến hạ
 `;
 }
 
-function buildSystemPrompt(userName: string, projectContexts: string[]): string {
+function buildSystemPrompt(userName: string, projectContexts: string[], isProjectSpecific: boolean, projectName?: string): string {
   const now = new Date();
   
-  return `Bạn là trợ lý AI thông minh của hệ thống quản lý teamwork. Vai trò của bạn:
+  const contextInstructions = isProjectSpecific
+    ? `## PHẠM VI TRẢ LỜI
+⚠️ QUAN TRỌNG: Người dùng đang ở trong project "${projectName}". 
+- CHỈ trả lời về project này
+- KHÔNG suy luận hay tham chiếu sang project khác
+- Nếu câu hỏi không liên quan đến project này, nhẹ nhàng hướng dẫn người dùng hỏi đúng chủ đề`
+    : `## PHẠM VI TRẢ LỜI
+Người dùng đang ở ngoài phạm vi project cụ thể.
+- Có thể trả lời tổng quan về tất cả các project
+- Có thể so sánh thông tin giữa các project
+- Đưa ra cái nhìn toàn diện về công việc của họ`;
 
-1. **Giải đáp thắc mắc** về công việc, task, deadline, phân công và quy trình làm việc
+  return `Bạn là trợ lý AI của hệ thống quản lý teamwork. Vai trò:
+
+1. **Giải đáp thắc mắc** về công việc, task, deadline, phân công
 2. **Hỗ trợ tra cứu** thông tin nhanh chóng
-3. **Nhắc nhở nhẹ nhàng** (chỉ khi thật sự cần thiết) về deadline gần hoặc task có nguy cơ trễ
+3. **Nhắc nhở nhẹ nhàng** chỉ khi thật sự cần thiết
 
 ## THÔNG TIN NGƯỜI DÙNG
 - Tên: ${userName}
 
-${projectContexts.length > 0 ? `## DỮ LIỆU CÁC PROJECT CỦA NGƯỜI DÙNG
+${contextInstructions}
+
+${projectContexts.length > 0 ? `## DỮ LIỆU PROJECT
 ${projectContexts.join('\n---\n')}` : '## Người dùng chưa tham gia project nào.'}
 
 ## NGUYÊN TẮC TRẢ LỜI
-1. Trả lời ngắn gọn, súc tích, đi thẳng vào vấn đề
-2. Sử dụng tiếng Việt tự nhiên, thân thiện
-3. Chỉ nhắc deadline khi người dùng hỏi hoặc khi có task sắp đến hạn của họ
-4. Ưu tiên thông tin liên quan đến người dùng trước
-5. Đưa ra gợi ý hành động cụ thể khi phù hợp
-6. Không nói quá dài, tập trung vào câu trả lời
-7. Nếu không biết hoặc không có thông tin, nói rõ ràng
+1. Trả lời ngắn gọn, súc tích
+2. Tiếng Việt tự nhiên, thân thiện
+3. Chỉ nhắc deadline khi người dùng hỏi hoặc task sắp đến hạn
+4. Ưu tiên thông tin liên quan đến người dùng
+5. Nếu không có thông tin, nói rõ
 
 Thời gian hiện tại: ${now.toLocaleString('vi-VN')}`;
 }
@@ -134,16 +146,19 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Validate message length
+    // Validate message word count
     const lastMessage = messages?.[messages.length - 1];
-    if (lastMessage?.content && lastMessage.content.length > MAX_MESSAGE_LENGTH) {
-      return new Response(JSON.stringify({ 
-        error: `Câu hỏi quá dài. Vui lòng giới hạn trong ${MAX_MESSAGE_LENGTH} ký tự.`,
-        code: "MESSAGE_TOO_LONG"
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (lastMessage?.content) {
+      const wordCount = lastMessage.content.trim().split(/\s+/).filter((w: string) => w.length > 0).length;
+      if (wordCount > MAX_MESSAGE_WORDS) {
+        return new Response(JSON.stringify({ 
+          error: `Câu hỏi quá dài. Vui lòng giới hạn trong ${MAX_MESSAGE_WORDS} từ.`,
+          code: "MESSAGE_TOO_LONG"
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -184,15 +199,19 @@ serve(async (req) => {
 
     // Build project contexts
     const projectContexts: string[] = [];
+    let isProjectSpecific = false;
+    let currentProjectName: string | undefined;
 
-    // If projectId is provided, fetch that specific project
+    // If projectId is provided, fetch that specific project only
     if (projectId && userId) {
+      isProjectSpecific = true;
       const context = await fetchProjectContext(supabase, projectId, userId);
       if (context) {
+        currentProjectName = context.project.name;
         projectContexts.push(buildProjectContext(context));
       }
     } else if (userId) {
-      // Fetch all projects user is a member of
+      // Fetch all projects user is a member of (general context)
       const { data: memberships } = await supabase
         .from('group_members')
         .select('group_id')
@@ -211,7 +230,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(userName, projectContexts);
+    const systemPrompt = buildSystemPrompt(userName, projectContexts, isProjectSpecific, currentProjectName);
 
     // Call Lovable AI Gateway with streaming
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
