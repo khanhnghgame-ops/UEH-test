@@ -257,13 +257,13 @@ export default function FirstTimeOnboarding({
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
-        className="sm:max-w-4xl w-[95vw] aspect-video max-h-[85vh] p-0 overflow-hidden"
+        className="w-[95vw] max-w-[1280px] h-[90vh] max-h-[720px] p-0 overflow-hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <div className="flex h-full">
           {/* Left side - Visual/Branding */}
-          <div className="hidden md:flex w-2/5 bg-gradient-to-br from-primary via-primary/90 to-primary/80 p-8 flex-col justify-between text-primary-foreground">
+          <div className="hidden md:flex w-[320px] shrink-0 bg-gradient-to-br from-primary via-primary/90 to-primary/80 p-8 flex-col justify-between text-primary-foreground">
             <div>
               <Sparkles className="w-10 h-10 mb-4 opacity-90" />
               <h2 className="text-2xl font-bold mb-2">Chào mừng bạn!</h2>
@@ -308,14 +308,14 @@ export default function FirstTimeOnboarding({
                   currentStep === 'profile' ? "text-white" : "text-white/60"
                 )}>
                   Bổ sung thông tin
-                  <span className="block text-xs text-white/50">Khuyến nghị</span>
+                  <span className="block text-xs text-white/50">Không bắt buộc</span>
                 </div>
               </div>
             </div>
           </div>
           
           {/* Right side - Form content */}
-          <div className="flex-1 p-6 md:p-8 flex flex-col overflow-y-auto">
+          <div className="flex-1 p-6 md:p-8 flex flex-col overflow-hidden">
             {currentStep === 'password' ? (
               <>
                 <DialogHeader className="mb-6">
@@ -381,32 +381,32 @@ export default function FirstTimeOnboarding({
               </>
             ) : (
               <>
-                <DialogHeader className="mb-4">
+                <DialogHeader className="mb-4 shrink-0">
                   <DialogTitle className="flex items-center gap-2 text-xl">
                     <User className="w-6 h-6 text-primary" />
                     Thông tin cá nhân
                   </DialogTitle>
                   <DialogDescription>
-                    Xem lại thông tin Leader đã nhập và bổ sung thêm thông tin (không bắt buộc)
+                    Xem lại thông tin và bổ sung thêm (không bắt buộc - có thể bỏ qua)
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 space-y-4 overflow-y-auto">
+                <div className="flex-1 space-y-4 overflow-y-auto pr-2">
                   {/* Read-only info from Leader */}
                   <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-                    <p className="text-xs text-muted-foreground font-medium mb-3">Thông tin do Leader nhập (không thể sửa)</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <p className="text-xs text-muted-foreground font-medium mb-3">Thông tin đã được nhập sẵn</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="flex items-center gap-2 text-sm">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">{userFullName}</span>
+                        <User className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="font-medium truncate">{userFullName}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
-                        <GraduationCap className="w-4 h-4 text-muted-foreground" />
-                        <span>{userStudentId}</span>
+                        <GraduationCap className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="truncate">{userStudentId}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm col-span-2">
-                        <Mail className="w-4 h-4 text-muted-foreground" />
-                        <span>{userEmail}</span>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="truncate">{userEmail}</span>
                       </div>
                     </div>
                   </div>
@@ -526,14 +526,14 @@ export default function FirstTimeOnboarding({
                   </div>
                 </div>
                 
-                <DialogFooter className="gap-2 sm:gap-3 mt-4 pt-4 border-t">
+                <DialogFooter className="gap-2 sm:gap-3 mt-4 pt-4 border-t shrink-0">
                   <Button 
-                    variant="ghost" 
+                    variant="outline" 
                     onClick={handleSkip}
                     disabled={isSaving}
                     className="flex-1 sm:flex-none"
                   >
-                    Bỏ qua
+                    Bỏ qua, vào hệ thống
                   </Button>
                   <Button 
                     onClick={handleComplete} 
@@ -541,7 +541,7 @@ export default function FirstTimeOnboarding({
                     className="flex-1 sm:flex-none"
                   >
                     {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Hoàn tất
+                    Lưu và tiếp tục
                     <Check className="w-4 h-4 ml-2" />
                   </Button>
                 </DialogFooter>

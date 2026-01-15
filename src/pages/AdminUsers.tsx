@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import UserAvatar from '@/components/UserAvatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import ProfileViewDialog from '@/components/ProfileViewDialog';
 
 import {
   Loader2,
@@ -25,6 +26,7 @@ import {
   LayoutDashboard,
   History,
   ShieldCheck,
+  Eye,
 } from 'lucide-react';
 import type { Profile } from '@/types/database';
 
@@ -65,6 +67,10 @@ export default function AdminUsers() {
 
   const [approvals, setApprovals] = useState<PendingApprovalRow[]>([]);
   const [isLoadingApprovals, setIsLoadingApprovals] = useState(true);
+
+  // Profile view dialog state
+  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   const canAccess = isAdmin || isLeader;
 
@@ -136,12 +142,12 @@ export default function AdminUsers() {
     const groupIds = Array.from(new Set(gmData.map((m) => m.group_id)));
 
     const [{ data: profileData }, { data: groupData }] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, student_id, email').in('id', userIds),
+      supabase.from('profiles').select('id, full_name, student_id, email, avatar_url, year_batch, major, phone, skills, bio').in('id', userIds),
       supabase.from('groups').select('id, name').in('id', groupIds),
     ]);
 
     const profilesMap = new Map(
-      (profileData || []).map((p) => [p.id, { fullName: p.full_name, studentId: p.student_id, email: p.email }])
+      (profileData || []).map((p) => [p.id, { fullName: p.full_name, studentId: p.student_id, email: p.email, avatarUrl: p.avatar_url }])
     );
 
     const groupsMap = new Map((groupData || []).map((g) => [g.id, g.name as string]));
@@ -158,6 +164,7 @@ export default function AdminUsers() {
         studentId: p?.studentId,
         email: p?.email,
         groupName: groupsMap.get(m.group_id) || 'Không rõ nhóm',
+        avatarUrl: p?.avatarUrl,
       };
     });
 
@@ -308,6 +315,22 @@ export default function AdminUsers() {
     fetchApprovals();
   };
 
+  const handleViewProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      toast({ title: 'Lỗi', description: 'Không thể tải thông tin hồ sơ', variant: 'destructive' });
+      return;
+    }
+
+    setSelectedProfile(data as Profile);
+    setProfileDialogOpen(true);
+  };
+
   // ====== DERIVED ======
   const pendingUsers = useMemo(() => profiles.filter((u) => !u.is_approved), [profiles]);
   const approvedUsers = useMemo(() => profiles.filter((u) => u.is_approved), [profiles]);
@@ -422,6 +445,14 @@ export default function AdminUsers() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs"
+                            onClick={() => handleViewProfile(m.userId)}
+                          >
+                            <Eye className="w-4 h-4 mr-1" /> Xem hồ sơ
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -693,6 +724,14 @@ export default function AdminUsers() {
           </Card>
         )}
       </div>
+
+      {/* Profile View Dialog */}
+      <ProfileViewDialog
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+        profile={selectedProfile}
+        role={selectedProfile ? (profiles.find(p => p.id === selectedProfile.id) ? 'member' : 'member') : 'member'}
+      />
     </DashboardLayout>
   );
 }
