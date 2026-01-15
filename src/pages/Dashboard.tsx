@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import UserAvatar from '@/components/UserAvatar';
 import { supabase } from '@/integrations/supabase/client';
-import ChangePasswordDialog from '@/components/ChangePasswordDialog';
+import FirstTimeOnboarding from '@/components/FirstTimeOnboarding';
 import {
   FolderKanban,
   ArrowRight,
@@ -84,12 +84,13 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      {/* Password change dialog for first login */}
-      {user && mustChangePassword && (
-        <ChangePasswordDialog 
+      {/* First-time onboarding: Password change + Avatar upload */}
+      {user && profile && mustChangePassword && (
+        <FirstTimeOnboarding 
           open={mustChangePassword} 
-          userId={user.id} 
-          onPasswordChanged={refreshProfile} 
+          userId={user.id}
+          userFullName={profile.full_name}
+          onComplete={refreshProfile} 
         />
       )}
       
