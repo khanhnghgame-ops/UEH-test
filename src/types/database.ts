@@ -12,6 +12,12 @@ export interface Profile {
   must_change_password: boolean;
   created_at: string;
   updated_at: string;
+  // Extended profile fields
+  year_batch: string | null;
+  major: string | null;
+  phone: string | null;
+  skills: string | null;
+  bio: string | null;
 }
 
 export interface UserRole {

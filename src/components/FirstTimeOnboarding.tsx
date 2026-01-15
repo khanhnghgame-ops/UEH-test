@@ -1,13 +1,28 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Key, ShieldAlert, Camera, User, Check, ChevronRight, Sparkles } from 'lucide-react';
+import { 
+  Loader2, 
+  Key, 
+  ShieldAlert, 
+  Camera, 
+  User, 
+  Check, 
+  ChevronRight, 
+  Sparkles,
+  GraduationCap,
+  BookOpen,
+  Phone,
+  FileText,
+  Mail
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -16,15 +31,19 @@ interface FirstTimeOnboardingProps {
   open: boolean;
   userId: string;
   userFullName: string;
+  userEmail: string;
+  userStudentId: string;
   onComplete: () => void;
 }
 
-type Step = 'password' | 'avatar';
+type Step = 'password' | 'profile';
 
 export default function FirstTimeOnboarding({ 
   open, 
   userId, 
   userFullName,
+  userEmail,
+  userStudentId,
   onComplete 
 }: FirstTimeOnboardingProps) {
   const { toast } = useToast();
@@ -43,6 +62,14 @@ export default function FirstTimeOnboarding({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Extended profile state
+  const [yearBatch, setYearBatch] = useState('');
+  const [major, setMajor] = useState('');
+  const [phone, setPhone] = useState('');
+  const [skills, setSkills] = useState('');
+  const [bio, setBio] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const getInitials = (name: string) => {
     return name
@@ -109,8 +136,8 @@ export default function FirstTimeOnboarding({
       description: 'Tài khoản của bạn đã được bảo mật',
     });
 
-    // Move to avatar step
-    setCurrentStep('avatar');
+    // Move to profile step
+    setCurrentStep('profile');
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,58 +175,81 @@ export default function FirstTimeOnboarding({
     }
   };
 
-  const handleAvatarUpload = async () => {
-    if (!selectedFile) return;
-
-    setIsUploading(true);
+  const handleComplete = async () => {
+    setIsSaving(true);
     try {
-      const fileExt = selectedFile.name.split('.').pop();
-      const filePath = `${userId}/${Date.now()}.${fileExt}`;
+      // Upload avatar if selected
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${userId}/${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, selectedFile, { 
-          upsert: true,
-          contentType: selectedFile.type 
-        });
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, selectedFile, { 
+            upsert: true,
+            contentType: selectedFile.type 
+          });
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+        const { data: urlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
 
-      const newAvatarUrl = urlData.publicUrl;
+        const newAvatarUrl = urlData.publicUrl;
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: newAvatarUrl })
-        .eq('id', userId);
+        // Update profile with avatar and extended info
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            avatar_url: newAvatarUrl,
+            year_batch: yearBatch || null,
+            major: major || null,
+            phone: phone || null,
+            skills: skills || null,
+            bio: bio || null,
+          })
+          .eq('id', userId);
 
-      if (updateError) throw updateError;
+        if (updateError) throw updateError;
+      } else {
+        // Update only extended info
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            year_batch: yearBatch || null,
+            major: major || null,
+            phone: phone || null,
+            skills: skills || null,
+            bio: bio || null,
+          })
+          .eq('id', userId);
+
+        if (updateError) throw updateError;
+      }
 
       toast({
         title: 'Hoàn tất! 🎉',
-        description: 'Ảnh đại diện đã được cập nhật',
+        description: 'Chào mừng bạn đến với hệ thống',
       });
 
       await refreshProfile();
       onComplete();
     } catch (error: any) {
       toast({
-        title: 'Lỗi tải ảnh',
-        description: error.message || 'Có lỗi xảy ra khi tải ảnh lên',
+        title: 'Lỗi',
+        description: error.message || 'Có lỗi xảy ra',
         variant: 'destructive',
       });
     } finally {
-      setIsUploading(false);
+      setIsSaving(false);
     }
   };
 
-  const handleSkipAvatar = () => {
+  const handleSkip = () => {
     toast({
       title: 'Chào mừng bạn! 🎉',
-      description: 'Bạn có thể cập nhật ảnh đại diện sau trong cài đặt',
+      description: 'Bạn có thể cập nhật thông tin sau trong mục Thông tin cá nhân',
     });
     onComplete();
   };
@@ -231,7 +281,7 @@ export default function FirstTimeOnboarding({
                     ? "bg-white text-primary" 
                     : "bg-white/20 text-white"
                 )}>
-                  {currentStep === 'avatar' ? <Check className="w-4 h-4" /> : '1'}
+                  {currentStep === 'profile' ? <Check className="w-4 h-4" /> : '1'}
                 </div>
                 <div className={cn(
                   "text-sm font-medium",
@@ -247,7 +297,7 @@ export default function FirstTimeOnboarding({
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors",
-                  currentStep === 'avatar' 
+                  currentStep === 'profile' 
                     ? "bg-white text-primary" 
                     : "bg-white/20 text-white/60"
                 )}>
@@ -255,9 +305,9 @@ export default function FirstTimeOnboarding({
                 </div>
                 <div className={cn(
                   "text-sm font-medium",
-                  currentStep === 'avatar' ? "text-white" : "text-white/60"
+                  currentStep === 'profile' ? "text-white" : "text-white/60"
                 )}>
-                  Ảnh đại diện
+                  Bổ sung thông tin
                   <span className="block text-xs text-white/50">Khuyến nghị</span>
                 </div>
               </div>
@@ -265,7 +315,7 @@ export default function FirstTimeOnboarding({
           </div>
           
           {/* Right side - Form content */}
-          <div className="flex-1 p-6 md:p-8 flex flex-col justify-center">
+          <div className="flex-1 p-6 md:p-8 flex flex-col overflow-y-auto">
             {currentStep === 'password' ? (
               <>
                 <DialogHeader className="mb-6">
@@ -278,7 +328,7 @@ export default function FirstTimeOnboarding({
                   </DialogDescription>
                 </DialogHeader>
                 
-                <form onSubmit={handlePasswordSubmit} className="space-y-5">
+                <form onSubmit={handlePasswordSubmit} className="space-y-5 flex-1">
                   <div className="space-y-2">
                     <Label htmlFor="newPassword" className="text-sm font-medium">
                       Mật khẩu mới
@@ -331,77 +381,166 @@ export default function FirstTimeOnboarding({
               </>
             ) : (
               <>
-                <DialogHeader className="mb-6">
+                <DialogHeader className="mb-4">
                   <DialogTitle className="flex items-center gap-2 text-xl">
                     <User className="w-6 h-6 text-primary" />
-                    Ảnh đại diện
+                    Thông tin cá nhân
                   </DialogTitle>
-                  <DialogDescription className="text-base">
-                    Thêm ảnh đại diện giúp đồng đội dễ dàng nhận diện bạn trong hệ thống.
+                  <DialogDescription>
+                    Xem lại thông tin Leader đã nhập và bổ sung thêm thông tin (không bắt buộc)
                   </DialogDescription>
                 </DialogHeader>
-                
-                <div className="flex flex-col items-center gap-6 py-4">
-                  {/* Avatar preview/upload area */}
-                  <div 
-                    className="relative group cursor-pointer"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
-                      {previewUrl ? (
-                        <AvatarImage src={previewUrl} alt="Preview" />
-                      ) : (
-                        <AvatarFallback className="bg-muted text-muted-foreground text-3xl">
-                          {getInitials(userFullName)}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    
-                    {/* Camera overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Camera className="w-8 h-8 text-white" />
+
+                <div className="flex-1 space-y-4 overflow-y-auto">
+                  {/* Read-only info from Leader */}
+                  <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium mb-3">Thông tin do Leader nhập (không thể sửa)</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium">{userFullName}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <GraduationCap className="w-4 h-4 text-muted-foreground" />
+                        <span>{userStudentId}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm col-span-2">
+                        <Mail className="w-4 h-4 text-muted-foreground" />
+                        <span>{userEmail}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Avatar upload */}
+                  <div className="flex items-center gap-4">
+                    <div 
+                      className="relative group cursor-pointer shrink-0"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Avatar className="h-16 w-16 border-2 border-background shadow-lg">
+                        {previewUrl ? (
+                          <AvatarImage src={previewUrl} alt="Preview" />
+                        ) : (
+                          <AvatarFallback className="bg-muted text-muted-foreground text-lg">
+                            {getInitials(userFullName)}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Camera className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Camera className="w-4 h-4 mr-2" />
+                        {previewUrl ? 'Đổi ảnh' : 'Thêm ảnh đại diện'}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">Tối đa 5MB</p>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                  </div>
+
+                  {/* Extended profile fields */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="yearBatch" className="text-xs flex items-center gap-1.5">
+                        <GraduationCap className="w-3.5 h-3.5" />
+                        Khóa
+                      </Label>
+                      <Input
+                        id="yearBatch"
+                        placeholder="VD: K47, K48..."
+                        value={yearBatch}
+                        onChange={(e) => setYearBatch(e.target.value)}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="major" className="text-xs flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        Ngành
+                      </Label>
+                      <Input
+                        id="major"
+                        placeholder="VD: Quản trị kinh doanh..."
+                        value={major}
+                        onChange={(e) => setMajor(e.target.value)}
+                        className="h-9"
+                      />
                     </div>
                   </div>
                   
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  
-                  <div className="text-center">
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="mb-2"
-                    >
-                      <Camera className="w-4 h-4 mr-2" />
-                      {previewUrl ? 'Chọn ảnh khác' : 'Chọn ảnh'}
-                    </Button>
-                    <p className="text-xs text-muted-foreground">
-                      JPEG, PNG, GIF hoặc WebP • Tối đa 5MB
-                    </p>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone" className="text-xs flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5" />
+                      Số điện thoại
+                    </Label>
+                    <Input
+                      id="phone"
+                      placeholder="VD: 0901234567"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="skills" className="text-xs flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Kỹ năng / Thế mạnh
+                    </Label>
+                    <Textarea
+                      id="skills"
+                      placeholder="VD: Thiết kế, PowerPoint, Excel, Thuyết trình..."
+                      value={skills}
+                      onChange={(e) => setSkills(e.target.value)}
+                      rows={2}
+                      className="resize-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bio" className="text-xs flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5" />
+                      Giới thiệu ngắn
+                    </Label>
+                    <Textarea
+                      id="bio"
+                      placeholder="Viết vài dòng về bản thân..."
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      rows={2}
+                      className="resize-none"
+                    />
                   </div>
                 </div>
                 
-                <DialogFooter className="gap-2 sm:gap-3 mt-4">
+                <DialogFooter className="gap-2 sm:gap-3 mt-4 pt-4 border-t">
                   <Button 
                     variant="ghost" 
-                    onClick={handleSkipAvatar}
-                    disabled={isUploading}
+                    onClick={handleSkip}
+                    disabled={isSaving}
                     className="flex-1 sm:flex-none"
                   >
                     Bỏ qua
                   </Button>
                   <Button 
-                    onClick={handleAvatarUpload} 
-                    disabled={!selectedFile || isUploading}
+                    onClick={handleComplete} 
+                    disabled={isSaving}
                     className="flex-1 sm:flex-none"
                   >
-                    {isUploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Hoàn tất
                     <Check className="w-4 h-4 ml-2" />
                   </Button>

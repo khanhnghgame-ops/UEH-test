@@ -90,6 +90,8 @@ export default function Dashboard() {
           open={mustChangePassword} 
           userId={user.id}
           userFullName={profile.full_name}
+          userEmail={profile.email}
+          userStudentId={profile.student_id}
           onComplete={refreshProfile} 
         />
       )}
