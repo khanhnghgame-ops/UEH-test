@@ -82,27 +82,26 @@ export default function AIAssistantButton({ projectId, projectName }: AIAssistan
         </div>
       )}
 
-      {/* AI Button */}
+      {/* AI Button - Larger and more prominent */}
       <Button
         onClick={handleOpen}
         size="lg"
         className={cn(
-          "fixed bottom-6 right-6 z-50 rounded-full h-16 w-16 shadow-xl p-0",
+          "fixed bottom-6 right-6 z-50 rounded-full h-20 w-20 shadow-2xl p-0",
           "bg-gradient-to-br from-primary via-primary to-primary/80",
           "hover:from-primary/90 hover:to-primary/70",
           "transition-all duration-300 hover:scale-110 hover:shadow-2xl",
           "group overflow-hidden",
-          "animate-[pulse_3s_ease-in-out_infinite]",
-          "ring-4 ring-primary/20"
+          "ring-4 ring-primary/30"
         )}
         style={{
           animation: 'breathe 3s ease-in-out infinite',
         }}
       >
-        <Avatar className="h-11 w-11 transition-transform group-hover:scale-110">
+        <Avatar className="h-14 w-14 transition-transform group-hover:scale-110">
           <AvatarImage src={aiLogo} alt="AI Assistant" className="object-cover" />
           <AvatarFallback className="bg-transparent">
-            <Sparkles className="h-7 w-7 text-primary-foreground" />
+            <Sparkles className="h-8 w-8 text-primary-foreground" />
           </AvatarFallback>
         </Avatar>
         <span className="sr-only">Mở trợ lý AI</span>

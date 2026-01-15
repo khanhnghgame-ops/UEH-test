@@ -283,7 +283,7 @@ export default function AIAssistantPanel({
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent 
         side="right" 
-        className="w-full sm:max-w-md p-0 flex flex-col"
+        className="w-full sm:max-w-2xl p-0 flex flex-col h-full"
       >
         {/* Header */}
         <SheetHeader className="px-4 py-3 border-b bg-gradient-to-r from-primary/10 to-primary/5">
