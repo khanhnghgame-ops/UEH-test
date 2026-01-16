@@ -210,12 +210,21 @@ function TaskRow({
   // Leader or Assignee → open submission/edit popup
   // Non-assignee (not leader) → open view-only popup
   const handleRowClick = (e: React.MouseEvent) => {
-    // Don't trigger if clicking on interactive elements
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('[role="button"]') || target.closest('a') || target.closest('[data-no-drill]')) {
+    const rowEl = e.currentTarget as HTMLElement;
+
+    // Don't trigger if clicking on interactive elements inside the row
+    if (target.closest('button, a, input, textarea, select, [data-no-drill]')) {
       return;
     }
-    
+
+    // Some components use role="button" internally (Radix triggers, etc.)
+    // Ignore those, but allow the row itself (which also has role="button")
+    const roleButtonEl = target.closest('[role="button"]') as HTMLElement | null;
+    if (roleButtonEl && roleButtonEl !== rowEl) {
+      return;
+    }
+
     // Leader or Assignee can submit/edit → open submission dialog
     if (isLeaderInGroup || isAssignee) {
       openSubmissionDialog(task);
@@ -402,14 +411,10 @@ function TaskRow({
                         <MoreVertical className="w-3.5 h-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
-                      <DropdownMenuItem onClick={() => openSubmissionDialog(task)} className="text-xs">
-                        <Send className="w-3.5 h-3.5 mr-2" />
-                        Nộp / Sửa bài
-                      </DropdownMenuItem>
+                    <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
                       <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
                         <Edit className="w-3.5 h-3.5 mr-2" />
-                        Sửa thông tin
+                        Chỉnh sửa
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
@@ -506,13 +511,9 @@ function TaskRow({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
-                  <DropdownMenuItem onClick={() => openSubmissionDialog(task)} className="text-xs">
-                    <Send className="w-3.5 h-3.5 mr-2" />
-                    Nộp / Sửa bài
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
                     <Edit className="w-3.5 h-3.5 mr-2" />
-                    Sửa thông tin
+                    Chỉnh sửa
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
