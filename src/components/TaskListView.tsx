@@ -402,10 +402,14 @@ function TaskRow({
                         <MoreVertical className="w-3.5 h-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
+                      <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
+                      <DropdownMenuItem onClick={() => openSubmissionDialog(task)} className="text-xs">
+                        <Send className="w-3.5 h-3.5 mr-2" />
+                        Nộp / Sửa bài
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
                         <Edit className="w-3.5 h-3.5 mr-2" />
-                        Chỉnh sửa
+                        Sửa thông tin
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
@@ -502,9 +506,13 @@ function TaskRow({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
+                  <DropdownMenuItem onClick={() => openSubmissionDialog(task)} className="text-xs">
+                    <Send className="w-3.5 h-3.5 mr-2" />
+                    Nộp / Sửa bài
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
                     <Edit className="w-3.5 h-3.5 mr-2" />
-                    Chỉnh sửa
+                    Sửa thông tin
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
