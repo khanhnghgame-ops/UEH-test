@@ -32,6 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -54,9 +55,14 @@ import {
   Upload,
   FileText,
   MessagesSquare,
-  Sparkles
+  ChevronDown,
+  Star,
+  Award,
+  HardDrive,
+  Globe
 } from 'lucide-react';
 import type { Task, TaskStatus } from '@/types/database';
+import type { TaskScore } from '@/types/processScores';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { parseLocalDateTime } from '@/lib/datetime';
@@ -115,6 +121,8 @@ export default function TaskSubmissionDialog({
   const [note, setNote] = useState('');
   const [taskAssignees, setTaskAssignees] = useState<TaskAssignee[]>([]);
   const [showLateWarning, setShowLateWarning] = useState(false);
+  const [taskScore, setTaskScore] = useState<TaskScore | null>(null);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
 
   // Get max file size from task (cast since not in types yet)
   const taskWithSize = task as (Task & { max_file_size?: number }) | null;
@@ -137,18 +145,38 @@ export default function TaskSubmissionDialog({
   const totalFileSize = uploadedFiles.reduce((sum, f) => sum + f.file_size, 0);
   const hasContent = filesCount > 0 || validLinksCount > 0;
 
+  // Fetch task score from database
+  useEffect(() => {
+    const fetchTaskScore = async () => {
+      if (!task || !user) return;
+      
+      const { data } = await supabase
+        .from('task_scores')
+        .select('*')
+        .eq('task_id', task.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      setTaskScore(data as TaskScore | null);
+    };
+    
+    if (task && isOpen && user) {
+      fetchTaskScore();
+    }
+  }, [task, isOpen, user]);
+
   useEffect(() => {
     if (task && isOpen) {
       setStatus(task.status);
       setNote('');
       setUploadedFiles([]);
       setSubmissionLinks([]);
-      setActiveTab('requirements'); // Reset to default tab when opening
+      setActiveTab('requirements');
+      setIsNotesOpen(false);
       
       try {
         const parsed = task.submission_link ? JSON.parse(task.submission_link) : [];
         if (Array.isArray(parsed)) {
-          // Separate links and files
           const links: SubmissionLink[] = [];
           const files: UploadedFile[] = [];
           
@@ -171,7 +199,6 @@ export default function TaskSubmissionDialog({
           setSubmissionLinks(links);
           setUploadedFiles(files);
         } else {
-          // Legacy: plain string URL
           setSubmissionLinks([{ title: 'Bài nộp', url: task.submission_link }]);
         }
       } catch {
@@ -520,202 +547,207 @@ export default function TaskSubmissionDialog({
 
           {/* Tab Content - Scrollable per page */}
           <div className="flex-1 overflow-hidden">
-            {/* Tab 1: Yêu cầu Task */}
+            {/* Tab 1: Yêu cầu Task - Optimized compact layout */}
             <TabsContent value="requirements" className="h-full m-0 data-[state=inactive]:hidden">
               <ScrollArea className="h-full">
-                <div className="p-6">
-                  {/* Two Column Layout for better space usage */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column - Main Content */}
-                    <div className="lg:col-span-2 space-y-5">
-                      {/* Task Title Card */}
-                      <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-muted/40 to-muted/20 overflow-hidden">
-                        <div className="px-5 py-3 border-b border-border/30 bg-muted/30">
+                <div className="p-5">
+                  {/* Compact Two Column Layout */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    {/* Left Column - Main Content (8 cols) */}
+                    <div className="lg:col-span-8 space-y-4">
+                      {/* Task Title & Description - Combined for compactness */}
+                      <div className="rounded-xl border border-border/50 bg-gradient-to-br from-muted/30 to-background overflow-hidden">
+                        <div className="px-4 py-2.5 border-b border-border/30 bg-primary/5">
                           <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-primary/10">
-                              <Sparkles className="w-4 h-4 text-primary" />
-                            </div>
-                            <span className="text-sm font-semibold text-foreground">Tiêu đề công việc</span>
+                            <Target className="w-4 h-4 text-primary" />
+                            <span className="text-sm font-bold text-primary">Yêu cầu Task</span>
                           </div>
                         </div>
-                        <div className="px-5 py-4">
-                          <h2 className="text-xl font-bold text-foreground leading-tight">{task?.title}</h2>
+                        <div className="p-4 space-y-3">
+                          <h2 className="text-lg font-bold text-foreground leading-tight">{task?.title}</h2>
+                          {task?.description && (
+                            <div className="pt-2 border-t border-border/30">
+                              <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{task.description}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      {/* Description Card */}
-                      {task?.description && (
-                        <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-muted/40 to-muted/20 overflow-hidden">
-                          <div className="px-5 py-3 border-b border-border/30 bg-muted/30">
-                            <div className="flex items-center gap-2">
-                              <div className="p-1.5 rounded-lg bg-blue-500/10">
-                                <FileText className="w-4 h-4 text-blue-500" />
-                              </div>
-                              <span className="text-sm font-semibold text-foreground">Mô tả & Yêu cầu</span>
-                            </div>
-                          </div>
-                          <div className="px-5 py-4">
-                            <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{task.description}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Notes Section */}
-                      {task && (
-                        <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-muted/40 to-muted/20 overflow-hidden">
-                          <div className="px-5 py-3 border-b border-border/30 bg-muted/30">
-                            <div className="flex items-center gap-2">
-                              <div className="p-1.5 rounded-lg bg-amber-500/10">
-                                <FileText className="w-4 h-4 text-amber-500" />
-                              </div>
-                              <span className="text-sm font-semibold text-foreground">Ghi chú trong Task</span>
-                            </div>
-                          </div>
-                          <div className="h-[200px]">
-                            <CompactTaskNotes 
-                              taskId={task.id}
-                              className="h-full"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Right Column - Meta Info */}
-                    <div className="space-y-4">
-                      {/* Deadline Card */}
-                      <div className={`rounded-2xl border overflow-hidden ${isOverdue ? 'border-destructive/30 bg-destructive/5' : 'border-border/50 bg-gradient-to-br from-muted/40 to-muted/20'}`}>
-                        <div className={`px-4 py-3 border-b ${isOverdue ? 'border-destructive/20 bg-destructive/10' : 'border-border/30 bg-muted/30'}`}>
-                          <div className="flex items-center gap-2">
-                            <div className={`p-1.5 rounded-lg ${isOverdue ? 'bg-destructive/20' : 'bg-orange-500/10'}`}>
-                              <Calendar className={`w-4 h-4 ${isOverdue ? 'text-destructive' : 'text-orange-500'}`} />
-                            </div>
-                            <span className={`text-sm font-semibold ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>Thời hạn</span>
-                          </div>
-                        </div>
-                        <div className="px-4 py-4">
+                      {/* Quick Stats Row */}
+                      <div className="grid grid-cols-3 gap-3">
+                        {/* Deadline */}
+                        <div className={`rounded-xl border p-3 text-center ${isOverdue ? 'border-destructive/30 bg-destructive/5' : 'border-border/50 bg-muted/20'}`}>
+                          <Calendar className={`w-4 h-4 mx-auto mb-1.5 ${isOverdue ? 'text-destructive' : 'text-orange-500'}`} />
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Thời hạn</p>
                           {deadlineDate ? (
-                            <div className="text-center">
-                              <p className={`text-2xl font-bold ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>
+                            <>
+                              <p className={`text-sm font-bold ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>
                                 {format(deadlineDate, "dd/MM/yyyy", { locale: vi })}
                               </p>
-                              <p className={`text-lg font-medium mt-1 ${isOverdue ? 'text-destructive/70' : 'text-primary'}`}>
-                                {format(deadlineDate, "HH:mm", { locale: vi })}
+                              <p className={`text-xs ${isOverdue ? 'text-destructive/70' : 'text-primary'}`}>
+                                {format(deadlineDate, "HH:mm")}
                               </p>
-                              {timeStatus && (
-                                <Badge 
-                                  variant={timeStatus.isOverdue ? "destructive" : "secondary"}
-                                  className="mt-3"
-                                >
-                                  {timeStatus.text}
+                            </>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Không có</p>
+                          )}
+                        </div>
+
+                        {/* Status */}
+                        <div className="rounded-xl border border-border/50 bg-muted/20 p-3 text-center">
+                          <StatusIcon className={`w-4 h-4 mx-auto mb-1.5 ${task?.status === 'VERIFIED' ? 'text-success' : task?.status === 'DONE' ? 'text-primary' : 'text-warning'}`} />
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Trạng thái</p>
+                          <Badge className={`${statusConfig.color} gap-1 border text-xs px-2 py-0.5`}>
+                            {statusConfig.label}
+                          </Badge>
+                        </div>
+
+                        {/* Score from database */}
+                        <div className="rounded-xl border border-border/50 bg-muted/20 p-3 text-center">
+                          <Award className="w-4 h-4 mx-auto mb-1.5 text-amber-500" />
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Điểm</p>
+                          {taskScore ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <span className={`text-lg font-bold ${
+                                taskScore.final_score >= 90 ? 'text-green-600' :
+                                taskScore.final_score >= 70 ? 'text-primary' :
+                                taskScore.final_score >= 50 ? 'text-yellow-600' : 'text-destructive'
+                              }`}>
+                                {taskScore.final_score}
+                              </span>
+                              {taskScore.adjustment !== 0 && (
+                                <Badge variant={taskScore.adjustment > 0 ? "default" : "destructive"} className={`text-[10px] px-1 ${taskScore.adjustment > 0 ? 'bg-green-500' : ''}`}>
+                                  {taskScore.adjustment > 0 ? '+' : ''}{taskScore.adjustment}
                                 </Badge>
                               )}
                             </div>
                           ) : (
-                            <p className="text-sm text-muted-foreground text-center">Không có thời hạn</p>
+                            <p className="text-xs text-muted-foreground">Chưa chấm</p>
                           )}
                         </div>
                       </div>
 
-                      {/* Status Card */}
-                      <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-muted/40 to-muted/20 overflow-hidden">
-                        <div className="px-4 py-3 border-b border-border/30 bg-muted/30">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-violet-500/10">
-                              <Target className="w-4 h-4 text-violet-500" />
+                      {/* Assignees - Horizontal compact */}
+                      <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Users className="w-4 h-4 text-emerald-500" />
+                          <span className="text-xs font-semibold text-foreground">Người thực hiện</span>
+                          <Badge variant="secondary" className="text-[10px] ml-auto">{taskAssignees.length}</Badge>
+                        </div>
+                        {taskAssignees.length > 0 ? (
+                          <TooltipProvider delayDuration={200}>
+                            <div className="flex flex-wrap gap-2">
+                              {taskAssignees.map((assignee, idx) => (
+                                <Tooltip key={idx}>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-background/60 border border-border/30 hover:border-primary/30 cursor-pointer transition-all">
+                                      <UserAvatar 
+                                        src={assignee.avatar_url} 
+                                        name={assignee.full_name} 
+                                        size="xs"
+                                      />
+                                      <span className="text-xs font-medium text-foreground truncate max-w-24">
+                                        {assignee.full_name}
+                                      </span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="text-xs">
+                                    <div className="font-medium">{assignee.full_name}</div>
+                                    {assignee.student_id && (
+                                      <div className="text-muted-foreground">MSSV: {assignee.student_id}</div>
+                                    )}
+                                  </TooltipContent>
+                                </Tooltip>
+                              ))}
                             </div>
-                            <span className="text-sm font-semibold text-foreground">Trạng thái</span>
-                          </div>
-                        </div>
-                        <div className="px-4 py-4 flex justify-center">
-                          <Badge className={`${statusConfig.color} gap-1.5 border text-sm px-4 py-1.5`}>
-                            <StatusIcon className="w-4 h-4" />
-                            {statusConfig.label}
-                          </Badge>
-                        </div>
+                          </TooltipProvider>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Chưa phân công</p>
+                        )}
                       </div>
 
-                      {/* Assignees Card */}
-                      <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-muted/40 to-muted/20 overflow-hidden">
-                        <div className="px-4 py-3 border-b border-border/30 bg-muted/30">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-emerald-500/10">
-                              <Users className="w-4 h-4 text-emerald-500" />
-                            </div>
-                            <span className="text-sm font-semibold text-foreground">Người thực hiện</span>
-                          </div>
-                        </div>
-                        <div className="px-4 py-4">
-                          {taskAssignees.length > 0 ? (
-                            <TooltipProvider delayDuration={200}>
-                              <div className="space-y-2">
-                                {taskAssignees.map((assignee, idx) => (
-                                  <Tooltip key={idx}>
-                                    <TooltipTrigger asChild>
-                                      <div className="flex items-center gap-3 p-2.5 rounded-xl bg-background/60 border border-border/30 hover:bg-background/80 hover:border-primary/30 cursor-pointer transition-all group">
-                                        <UserAvatar 
-                                          src={assignee.avatar_url} 
-                                          name={assignee.full_name} 
-                                          size="sm" 
-                                          className="ring-2 ring-background group-hover:ring-primary/20"
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-medium text-foreground truncate">
-                                            {assignee.full_name}
-                                          </p>
-                                          {assignee.student_id && (
-                                            <p className="text-xs text-muted-foreground truncate">
-                                              {assignee.student_id}
-                                            </p>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="left" className="text-xs">
-                                      <div className="font-medium">{assignee.full_name}</div>
-                                      {assignee.student_id && (
-                                        <div className="text-muted-foreground">MSSV: {assignee.student_id}</div>
-                                      )}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                ))}
+                      {/* Notes - Collapsible for compactness */}
+                      {task && (
+                        <Collapsible open={isNotesOpen} onOpenChange={setIsNotesOpen}>
+                          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
+                            <CollapsibleTrigger className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-amber-500/10 transition-colors">
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-amber-500" />
+                                <span className="text-xs font-semibold text-foreground">Ghi chú Task</span>
+                                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/30">Thông tin phụ</Badge>
                               </div>
-                            </TooltipProvider>
-                          ) : (
-                            <p className="text-sm text-muted-foreground text-center py-2">Chưa phân công</p>
-                          )}
+                              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isNotesOpen ? 'rotate-180' : ''}`} />
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="h-[150px] border-t border-amber-500/20">
+                                <CompactTaskNotes 
+                                  taskId={task.id}
+                                  className="h-full"
+                                />
+                              </div>
+                            </CollapsibleContent>
+                          </div>
+                        </Collapsible>
+                      )}
+                    </div>
+
+                    {/* Right Column - Submission Summary (4 cols) */}
+                    <div className="lg:col-span-4 space-y-4">
+                      {/* Submission Summary Card */}
+                      <div className="rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="p-1.5 rounded-lg bg-primary/20">
+                            <Upload className="w-4 h-4 text-primary" />
+                          </div>
+                          <span className="text-sm font-bold text-foreground">Bài đã nộp</span>
                         </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div className="text-center p-2 rounded-lg bg-background/60">
+                            <HardDrive className="w-4 h-4 mx-auto mb-1 text-emerald-500" />
+                            <p className="text-xl font-bold text-foreground">{filesCount}</p>
+                            <p className="text-[10px] text-muted-foreground">File</p>
+                          </div>
+                          <div className="text-center p-2 rounded-lg bg-background/60">
+                            <Globe className="w-4 h-4 mx-auto mb-1 text-blue-500" />
+                            <p className="text-xl font-bold text-foreground">{validLinksCount}</p>
+                            <p className="text-[10px] text-muted-foreground">Link</p>
+                          </div>
+                        </div>
+
+                        {totalFileSize > 0 && (
+                          <p className="text-xs text-muted-foreground text-center pt-2 border-t border-primary/20">
+                            Dung lượng: {formatFileSize(totalFileSize)}
+                          </p>
+                        )}
+
+                        {!hasContent && (
+                          <div className="text-center pt-2 border-t border-primary/20 mt-3">
+                            <p className="text-xs text-muted-foreground">Chưa có bài nộp</p>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Submission Stats Card */}
-                      <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-muted/40 to-muted/20 overflow-hidden">
-                        <div className="px-4 py-3 border-b border-border/30 bg-muted/30">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-primary/10">
-                              <Upload className="w-4 h-4 text-primary" />
-                            </div>
-                            <span className="text-sm font-semibold text-foreground">Đã nộp</span>
-                          </div>
+                      {/* Quick Action */}
+                      {canSubmit && (
+                        <Button 
+                          onClick={() => setActiveTab('submit')}
+                          className="w-full h-11 gap-2 shadow-lg"
+                        >
+                          <Send className="w-4 h-4" />
+                          Đi đến Nộp bài
+                        </Button>
+                      )}
+
+                      {/* Time remaining visual */}
+                      {timeStatus && (
+                        <div className={`rounded-xl p-3 text-center ${timeStatus.isOverdue ? 'bg-destructive/10 border border-destructive/30' : 'bg-muted/30 border border-border/50'}`}>
+                          <Clock className={`w-5 h-5 mx-auto mb-1 ${timeStatus.isOverdue ? 'text-destructive' : 'text-primary'}`} />
+                          <p className={`text-sm font-bold ${timeStatus.isOverdue ? 'text-destructive' : 'text-primary'}`}>
+                            {timeStatus.text}
+                          </p>
                         </div>
-                        <div className="px-4 py-4">
-                          <div className="flex items-center justify-around text-center">
-                            <div>
-                              <p className="text-2xl font-bold text-foreground">{filesCount}</p>
-                              <p className="text-xs text-muted-foreground">File</p>
-                            </div>
-                            <div className="w-px h-8 bg-border/50" />
-                            <div>
-                              <p className="text-2xl font-bold text-foreground">{validLinksCount}</p>
-                              <p className="text-xs text-muted-foreground">Link</p>
-                            </div>
-                          </div>
-                          {totalFileSize > 0 && (
-                            <p className="text-xs text-muted-foreground text-center mt-3 pt-3 border-t border-border/30">
-                              Tổng dung lượng: {formatFileSize(totalFileSize)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -748,233 +780,235 @@ export default function TaskSubmissionDialog({
               </div>
             </TabsContent>
 
-            {/* Tab 3: Nộp bài */}
+            {/* Tab 3: Nộp bài - Redesigned with clear submission methods */}
             <TabsContent value="submit" className="h-full m-0 data-[state=inactive]:hidden">
               <ScrollArea className="h-full">
-                <div className="p-6">
-                  {/* Submission Area - Prominent visual design */}
-                  <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/8 via-primary/4 to-background shadow-xl shadow-primary/10 overflow-hidden">
-                    {/* Header */}
-                    <div className="px-6 py-4 bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border-b border-primary/20">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="p-3 rounded-xl bg-primary/20 border border-primary/30 shadow-sm">
-                            <Send className="w-6 h-6 text-primary" />
+                <div className="p-5">
+                  {/* Header with submission summary */}
+                  <div className="mb-5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-primary/15 border border-primary/30">
+                        <Send className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-foreground">Nộp bài Task</h3>
+                        <p className="text-xs text-muted-foreground">Chọn một trong hai cách nộp bên dưới</p>
+                      </div>
+                    </div>
+                    {/* Submission count */}
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 border border-border/50">
+                      <div className="flex items-center gap-1.5">
+                        <HardDrive className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-sm font-bold text-foreground">{filesCount}</span>
+                        <span className="text-xs text-muted-foreground">file</span>
+                      </div>
+                      <div className="w-px h-4 bg-border/50" />
+                      <div className="flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-blue-500" />
+                        <span className="text-sm font-bold text-foreground">{validLinksCount}</span>
+                        <span className="text-xs text-muted-foreground">link</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Two Clear Submission Methods */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+                    {/* Method 1: File Upload */}
+                    <div className="rounded-xl border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-background overflow-hidden">
+                      {/* Method Header */}
+                      <div className="px-4 py-3 bg-emerald-500/10 border-b border-emerald-500/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30">
+                              <HardDrive className="w-4 h-4 text-emerald-600" />
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-bold text-foreground">Cách 1: Tải file lên</h4>
+                              <p className="text-[10px] text-muted-foreground">Upload trực tiếp từ máy tính</p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="text-lg font-bold text-foreground">Nộp bài tại đây</h3>
-                            <p className="text-sm text-muted-foreground">
-                              Tải file và/hoặc thêm liên kết bài làm
-                            </p>
-                          </div>
+                          <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">
+                            Tối đa {formatFileSize(maxFileSize)}
+                          </Badge>
                         </div>
-                        {/* Submission Summary */}
-                        {hasContent && (
-                          <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-background/60 border border-border/30">
-                            <div className="text-center">
-                              <p className="text-lg font-bold text-primary">{filesCount}</p>
-                              <p className="text-[10px] text-muted-foreground uppercase">Files</p>
+                      </div>
+                      {/* Upload Area */}
+                      <div className="p-4 min-h-[200px]">
+                        <MultiFileUploadSubmission
+                          onFilesChanged={setUploadedFiles}
+                          uploadedFiles={uploadedFiles}
+                          userId={user?.id || ''}
+                          taskId={task?.id || ''}
+                          disabled={!canSubmit}
+                          compact
+                          maxTotalSize={maxFileSize}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Method 2: External Links */}
+                    <div className="rounded-xl border-2 border-blue-500/30 bg-gradient-to-br from-blue-500/5 to-background overflow-hidden">
+                      {/* Method Header */}
+                      <div className="px-4 py-3 bg-blue-500/10 border-b border-blue-500/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-lg bg-blue-500/20 border border-blue-500/30">
+                              <Globe className="w-4 h-4 text-blue-600" />
                             </div>
-                            <div className="w-px h-8 bg-border/50" />
-                            <div className="text-center">
-                              <p className="text-lg font-bold text-primary">{validLinksCount}</p>
-                              <p className="text-[10px] text-muted-foreground uppercase">Links</p>
+                            <div>
+                              <h4 className="text-sm font-bold text-foreground">Cách 2: Dán liên kết</h4>
+                              <p className="text-[10px] text-muted-foreground">Drive, Dropbox, Github...</p>
                             </div>
+                          </div>
+                          {canSubmit && (
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={addSubmissionLink} 
+                              className="h-7 px-2 text-xs gap-1 border-blue-500/30 text-blue-600 hover:bg-blue-500/10"
+                            >
+                              <Plus className="w-3 h-3" />
+                              Thêm link
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      {/* Links Area */}
+                      <div className="p-4 min-h-[200px]">
+                        {submissionLinks.length > 0 ? (
+                          <div className="space-y-2.5">
+                            {submissionLinks.map((link, index) => (
+                              <div key={index} className="p-3 rounded-lg border border-blue-500/20 bg-blue-500/5 space-y-2 group hover:border-blue-500/40 transition-colors">
+                                <div className="flex items-center gap-2">
+                                  <Badge className="text-[10px] px-1.5 py-0.5 shrink-0 bg-blue-500/20 border-0 text-blue-600">
+                                    #{index + 1}
+                                  </Badge>
+                                  <Input
+                                    placeholder="Tên liên kết (VD: File báo cáo)"
+                                    value={link.title}
+                                    onChange={(e) => updateSubmissionLink(index, 'title', e.target.value)}
+                                    disabled={!canSubmit}
+                                    className="h-7 text-xs px-2 flex-1 border-blue-500/20 bg-background/80"
+                                  />
+                                </div>
+                                <div className="flex gap-1.5">
+                                  <Input
+                                    placeholder="https://drive.google.com/..."
+                                    value={link.url}
+                                    onChange={(e) => updateSubmissionLink(index, 'url', e.target.value)}
+                                    disabled={!canSubmit}
+                                    className="h-7 text-xs px-2 flex-1 font-mono border-blue-500/20 bg-background/80"
+                                  />
+                                  <div className="flex gap-0.5 shrink-0">
+                                    {link.url && (
+                                      <a href={link.url} target="_blank" rel="noopener noreferrer">
+                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10">
+                                          <ExternalLink className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </a>
+                                    )}
+                                    {canSubmit && (
+                                      <Button 
+                                        type="button" 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={() => removeSubmissionLink(index)}
+                                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div 
+                            onClick={() => canSubmit && addSubmissionLink()}
+                            className={`
+                              h-full min-h-[160px] border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-all
+                              ${canSubmit ? 'cursor-pointer border-blue-500/20 hover:border-blue-500/40 hover:bg-blue-500/5' : 'border-muted/30'}
+                            `}
+                          >
+                            <div className="p-2.5 rounded-full bg-blue-500/10 mb-2">
+                              <LinkIcon className="w-5 h-5 text-blue-500/50" />
+                            </div>
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {canSubmit ? 'Nhấn để thêm liên kết' : 'Chưa có liên kết'}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                              Google Drive, Dropbox, OneDrive...
+                            </p>
                           </div>
                         )}
                       </div>
                     </div>
-                    
-                    {/* Content */}
-                    <div className="p-6 space-y-6">
-                      {/* Two columns for upload methods */}
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* File Upload Card */}
-                        <div className="rounded-xl border border-border/50 bg-background/50 overflow-hidden">
-                          <div className="px-4 py-3 border-b border-border/30 bg-muted/30">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="p-1.5 rounded-lg bg-emerald-500/10">
-                                  <Upload className="w-4 h-4 text-emerald-500" />
-                                </div>
-                                <span className="text-sm font-semibold text-foreground">Tải file lên</span>
-                              </div>
-                              <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                                Tối đa: {formatFileSize(maxFileSize)}
-                              </Badge>
-                            </div>
+                  </div>
+
+                  {/* Bottom: Status & Note in compact row */}
+                  {canSubmit && (
+                    <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        {/* Status */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <Target className="w-3.5 h-3.5 text-primary" />
+                            <Label className="text-xs font-semibold text-foreground">Trạng thái sau khi nộp</Label>
                           </div>
-                          <div className="p-4 min-h-[220px]">
-                            <MultiFileUploadSubmission
-                              onFilesChanged={setUploadedFiles}
-                              uploadedFiles={uploadedFiles}
-                              userId={user?.id || ''}
-                              taskId={task?.id || ''}
-                              disabled={!canSubmit}
-                              compact
-                              maxTotalSize={maxFileSize}
-                            />
-                          </div>
+                          <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
+                            <SelectTrigger className="h-9 text-xs bg-background border-border/50">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="TODO">
+                                <span className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                                  Chờ làm
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="IN_PROGRESS">
+                                <span className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-warning" />
+                                  Đang làm
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="DONE">
+                                <span className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-primary" />
+                                  Hoàn thành
+                                </span>
+                              </SelectItem>
+                              {isLeaderInGroup && (
+                                <SelectItem value="VERIFIED">
+                                  <span className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-success" />
+                                    Đã duyệt
+                                  </span>
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
                         </div>
 
-                        {/* Links Card */}
-                        <div className="rounded-xl border border-border/50 bg-background/50 overflow-hidden">
-                          <div className="px-4 py-3 border-b border-border/30 bg-muted/30">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="p-1.5 rounded-lg bg-blue-500/10">
-                                  <LinkIcon className="w-4 h-4 text-blue-500" />
-                                </div>
-                                <span className="text-sm font-semibold text-foreground">Liên kết bài làm</span>
-                              </div>
-                              {canSubmit && (
-                                <Button 
-                                  type="button" 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={addSubmissionLink} 
-                                  className="h-7 px-2.5 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                  Thêm
-                                </Button>
-                              )}
-                            </div>
+                        {/* Note */}
+                        <div className="lg:col-span-2 space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                            <Label className="text-xs font-medium text-muted-foreground">Ghi chú nộp bài (tùy chọn)</Label>
                           </div>
-                          <div className="p-4 min-h-[220px]">
-                            {submissionLinks.length > 0 ? (
-                              <div className="space-y-3">
-                                {submissionLinks.map((link, index) => (
-                                  <div key={index} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2.5 group hover:border-primary/30 transition-colors">
-                                    <div className="flex items-center gap-2">
-                                      <Badge className="text-xs px-2 py-0.5 shrink-0 bg-primary/15 border-0 text-primary">
-                                        #{index + 1}
-                                      </Badge>
-                                      <Input
-                                        placeholder="Tiêu đề liên kết"
-                                        value={link.title}
-                                        onChange={(e) => updateSubmissionLink(index, 'title', e.target.value)}
-                                        disabled={!canSubmit}
-                                        className="h-8 text-sm px-3 flex-1 border-border/40 bg-background/50"
-                                      />
-                                    </div>
-                                    <div className="flex gap-2">
-                                      <Input
-                                        placeholder="https://..."
-                                        value={link.url}
-                                        onChange={(e) => updateSubmissionLink(index, 'url', e.target.value)}
-                                        disabled={!canSubmit}
-                                        className="h-8 text-sm px-3 flex-1 font-mono border-border/40 bg-background/50"
-                                      />
-                                      <div className="flex gap-1 shrink-0">
-                                        {link.url && (
-                                          <a href={link.url} target="_blank" rel="noopener noreferrer">
-                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
-                                              <ExternalLink className="w-4 h-4" />
-                                            </Button>
-                                          </a>
-                                        )}
-                                        {canSubmit && (
-                                          <Button 
-                                            type="button" 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            onClick={() => removeSubmissionLink(index)}
-                                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </Button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div 
-                                onClick={() => canSubmit && addSubmissionLink()}
-                                className={`
-                                  h-full min-h-[180px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all
-                                  ${canSubmit ? 'cursor-pointer border-primary/20 hover:border-primary/40 hover:bg-primary/5' : 'border-muted/30'}
-                                `}
-                              >
-                                <div className="p-3 rounded-full bg-muted/30 mb-3">
-                                  <LinkIcon className="w-6 h-6 text-muted-foreground/50" />
-                                </div>
-                                <p className="text-sm font-medium text-muted-foreground/70">
-                                  {canSubmit ? 'Nhấn để thêm liên kết' : 'Chưa có liên kết'}
-                                </p>
-                                <p className="text-xs text-muted-foreground/50 mt-1">
-                                  Google Drive, Dropbox, Github...
-                                </p>
-                              </div>
-                            )}
-                          </div>
+                          <Textarea
+                            placeholder="Thêm ghi chú cho bài nộp nếu cần..."
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            rows={1}
+                            className="resize-none text-xs min-h-[36px] border-border/50 bg-background"
+                          />
                         </div>
                       </div>
-
-                      {/* Bottom Row: Status & Note */}
-                      {canSubmit && (
-                        <div className="grid grid-cols-2 gap-6 pt-4 border-t border-primary/10">
-                          {/* Status */}
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Target className="w-4 h-4 text-primary" />
-                              <Label className="text-sm font-semibold text-foreground">Trạng thái sau khi nộp</Label>
-                            </div>
-                            <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
-                              <SelectTrigger className="h-10 text-sm bg-background border-primary/20 focus:ring-primary/30">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="TODO">
-                                  <span className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                                    Chờ làm
-                                  </span>
-                                </SelectItem>
-                                <SelectItem value="IN_PROGRESS">
-                                  <span className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-warning" />
-                                    Đang làm
-                                  </span>
-                                </SelectItem>
-                                <SelectItem value="DONE">
-                                  <span className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-primary" />
-                                    Hoàn thành
-                                  </span>
-                                </SelectItem>
-                                {isLeaderInGroup && (
-                                  <SelectItem value="VERIFIED">
-                                    <span className="flex items-center gap-2">
-                                      <div className="w-2 h-2 rounded-full bg-success" />
-                                      Đã duyệt
-                                    </span>
-                                  </SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {/* Note */}
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                              <Label className="text-sm font-medium text-muted-foreground">Ghi chú nộp bài (tùy chọn)</Label>
-                            </div>
-                            <Textarea
-                              placeholder="Thêm ghi chú cho bài nộp..."
-                              value={note}
-                              onChange={(e) => setNote(e.target.value)}
-                              rows={2}
-                              className="resize-none text-sm min-h-[40px] border-border/40 bg-background"
-                            />
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  </div>
+                  )}
                 </div>
               </ScrollArea>
             </TabsContent>
