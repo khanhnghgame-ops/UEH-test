@@ -59,7 +59,8 @@ import {
   Star,
   Award,
   HardDrive,
-  Globe
+  Globe,
+  Sparkles
 } from 'lucide-react';
 import type { Task, TaskStatus } from '@/types/database';
 import type { TaskScore } from '@/types/processScores';
@@ -92,6 +93,7 @@ interface TaskSubmissionDialogProps {
   onSave: () => void;
   isAssignee: boolean;
   isLeaderInGroup: boolean;
+  viewOnly?: boolean;
 }
 
 const formatFileSize = (bytes: number) => {
@@ -109,6 +111,7 @@ export default function TaskSubmissionDialog({
   onSave,
   isAssignee,
   isLeaderInGroup,
+  viewOnly = false,
 }: TaskSubmissionDialogProps) {
   const { toast } = useToast();
   const { user, profile } = useAuth();
@@ -136,7 +139,7 @@ export default function TaskSubmissionDialog({
   const hasExistingSubmission = !!task?.submission_link;
   
   // Permission logic
-  const canSubmit = isAssignee || isLeaderInGroup;
+  const canSubmit = !viewOnly && (isAssignee || isLeaderInGroup);
   const isSubmittingOnBehalf = isLeaderInGroup && !isAssignee;
 
   // Calculate submission stats
@@ -527,21 +530,29 @@ export default function TaskSubmissionDialog({
                 <MessagesSquare className="w-4 h-4" />
                 <span className="font-medium">Trao đổi</span>
               </TabsTrigger>
-              <TabsTrigger 
-                value="submit" 
-                className="h-10 px-5 gap-2 rounded-b-none border-b-2 border-transparent transition-all
-                  data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:border-primary
-                  data-[state=inactive]:bg-primary/10 data-[state=inactive]:text-primary data-[state=inactive]:hover:bg-primary/20
-                  animate-pulse data-[state=active]:animate-none"
-              >
-                <Send className="w-4 h-4" />
-                <span className="font-bold">Nộp bài</span>
-                {hasContent && (
-                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-background/80">
-                    {filesCount + validLinksCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
+              {!viewOnly && (
+                <TabsTrigger 
+                  value="submit" 
+                  className="h-10 px-5 gap-2 rounded-b-none border-b-2 border-transparent transition-all
+                    data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:border-primary
+                    data-[state=inactive]:bg-primary/10 data-[state=inactive]:text-primary data-[state=inactive]:hover:bg-primary/20
+                    animate-pulse data-[state=active]:animate-none"
+                >
+                  <Send className="w-4 h-4" />
+                  <span className="font-bold">Nộp bài</span>
+                  {hasContent && (
+                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-background/80">
+                      {filesCount + validLinksCount}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              )}
+              {viewOnly && (
+                <div className="flex items-center h-10 px-4 gap-2 text-muted-foreground">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-xs">Chế độ xem</span>
+                </div>
+              )}
             </TabsList>
           </div>
 

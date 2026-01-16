@@ -53,6 +53,7 @@ import {
   Target,
   GripVertical,
   Users,
+  Eye,
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { supabase } from '@/integrations/supabase/client';
@@ -179,6 +180,7 @@ interface TaskRowProps {
   groupId: string;
   onEditTask: (task: Task) => void;
   openSubmissionDialog: (task: Task) => void;
+  openDetailDialog: (task: Task) => void;
   setTaskToDelete: (task: Task) => void;
   dragHandleProps?: any;
   isDragging?: boolean;
@@ -193,6 +195,7 @@ function TaskRow({
   groupId,
   onEditTask,
   openSubmissionDialog,
+  openDetailDialog,
   setTaskToDelete,
   dragHandleProps,
   isDragging,
@@ -203,11 +206,31 @@ function TaskRow({
   const assignments = task.task_assignments || [];
   const hasMultipleAssignees = assignments.length > 1;
 
+  // Handle row click for drill-down
+  const handleRowClick = (e: React.MouseEvent) => {
+    // Don't trigger if clicking on interactive elements
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[role="button"]') || target.closest('a') || target.closest('[data-no-drill]')) {
+      return;
+    }
+    openDetailDialog(task);
+  };
+
   return (
     <div 
-      className={`group bg-card rounded-lg border transition-all hover:shadow-sm hover:border-primary/30 ${
-        taskIsOverdue ? 'border-destructive/40 bg-destructive/5' : 'border-border'
-      } ${isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
+      className={`group bg-card rounded-lg border transition-all cursor-pointer
+        hover:shadow-md hover:border-primary/40 hover:bg-accent/30
+        ${taskIsOverdue ? 'border-destructive/40 bg-destructive/5 hover:bg-destructive/10' : 'border-border'}
+        ${isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
+      onClick={handleRowClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openDetailDialog(task);
+        }
+      }}
     >
       {/* Responsive grid: desktop has fixed columns; mobile stacks meta/actions to avoid overlap */}
       <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_minmax(240px,1fr)_150px_96px_320px] gap-2 p-3 items-start md:items-center">
@@ -233,10 +256,7 @@ function TaskRow({
         </div>
         
         {/* Column 2: Task code + Title + Assignees (flexible) */}
-        <div 
-          className={`flex items-start gap-2 min-w-0 overflow-hidden ${isLeaderInGroup ? 'cursor-pointer' : ''}`}
-          onClick={() => isLeaderInGroup && onEditTask(task)}
-        >
+        <div className="flex items-start gap-2 min-w-0 overflow-hidden">
           {taskCode && (
             <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0.5 font-mono font-semibold bg-primary/5 border-primary/20 text-primary">
               {taskCode}
@@ -248,11 +268,11 @@ function TaskRow({
               {taskIsOverdue && (
                 <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
               )}
-              <h4 className={`font-medium text-sm line-clamp-2 ${
-                isLeaderInGroup ? 'group-hover:text-primary transition-colors' : ''
-              }`}>
+              <h4 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
                 {task.title}
               </h4>
+              {/* Drill-down indicator - shows on hover */}
+              <Eye className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
             
             {/* Assignees */}
@@ -527,6 +547,10 @@ export default function TaskListView({
   const [submissionTask, setSubmissionTask] = useState<Task | null>(null);
   const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
   
+  // Detail view dialog state (view-only for non-assignees)
+  const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  
   // Local task order for drag & drop (maps stage_id -> ordered task ids)
   const [localTaskOrder, setLocalTaskOrder] = useState<Record<string, string[]>>({});
 
@@ -650,6 +674,15 @@ export default function TaskListView({
     setSubmissionTask(task);
     setIsSubmissionOpen(true);
   };
+
+  // Open detail dialog (view-only mode for non-assignees)
+  const openDetailDialog = (task: Task) => {
+    setDetailTask(task);
+    setIsDetailOpen(true);
+  };
+
+  // Check if user is assignee for detail dialog
+  const isDetailAssignee = detailTask ? isUserAssignee(detailTask) : false;
 
   const filteredStages = filterStage === 'all' 
     ? stages 
@@ -813,6 +846,7 @@ export default function TaskListView({
                                       groupId={groupId}
                                       onEditTask={onEditTask}
                                       openSubmissionDialog={openSubmissionDialog}
+                                      openDetailDialog={openDetailDialog}
                                       setTaskToDelete={setTaskToDelete}
                                       dragHandleProps={provided.dragHandleProps}
                                       isDragging={snapshot.isDragging}
@@ -884,6 +918,7 @@ export default function TaskListView({
                                 groupId={groupId}
                                 onEditTask={onEditTask}
                                 openSubmissionDialog={openSubmissionDialog}
+                                openDetailDialog={openDetailDialog}
                                 setTaskToDelete={setTaskToDelete}
                                 dragHandleProps={provided.dragHandleProps}
                                 isDragging={snapshot.isDragging}
@@ -944,6 +979,20 @@ export default function TaskListView({
         onSave={onRefresh}
         isAssignee={submissionTask ? isUserAssignee(submissionTask) : false}
         isLeaderInGroup={isLeaderInGroup}
+      />
+
+      {/* Detail Dialog (view-only for non-assignees) */}
+      <TaskSubmissionDialog
+        task={detailTask}
+        isOpen={isDetailOpen}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setDetailTask(null);
+        }}
+        onSave={onRefresh}
+        isAssignee={isDetailAssignee}
+        isLeaderInGroup={isLeaderInGroup}
+        viewOnly={!isDetailAssignee && !isLeaderInGroup}
       />
     </>
   );
