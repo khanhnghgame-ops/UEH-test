@@ -207,13 +207,22 @@ function TaskRow({
   const hasMultipleAssignees = assignments.length > 1;
 
   // Handle row click for drill-down
+  // Leader or Assignee → open submission/edit popup
+  // Non-assignee (not leader) → open view-only popup
   const handleRowClick = (e: React.MouseEvent) => {
     // Don't trigger if clicking on interactive elements
     const target = e.target as HTMLElement;
     if (target.closest('button') || target.closest('[role="button"]') || target.closest('a') || target.closest('[data-no-drill]')) {
       return;
     }
-    openDetailDialog(task);
+    
+    // Leader or Assignee can submit/edit → open submission dialog
+    if (isLeaderInGroup || isAssignee) {
+      openSubmissionDialog(task);
+    } else {
+      // Non-assignee, non-leader → view-only mode
+      openDetailDialog(task);
+    }
   };
 
   return (
@@ -228,7 +237,11 @@ function TaskRow({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          openDetailDialog(task);
+          if (isLeaderInGroup || isAssignee) {
+            openSubmissionDialog(task);
+          } else {
+            openDetailDialog(task);
+          }
         }
       }}
     >
