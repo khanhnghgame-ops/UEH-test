@@ -268,18 +268,19 @@ export default function TaskComments({ taskId, groupId, className }: TaskComment
   }
 
   return (
-    <Card className={cn('flex flex-col', className)}>
-      <div className="p-3 border-b flex items-center gap-2">
+    <Card className={cn('flex flex-col h-full', className)}>
+      <div className="px-4 py-2.5 border-b flex items-center gap-2 shrink-0">
         <MessageSquare className="w-4 h-4 text-primary" />
         <span className="font-medium text-sm">Trao đổi trong task</span>
         <span className="text-xs text-muted-foreground">({comments.length})</span>
       </div>
 
-      <ScrollArea className="flex-1 p-3 max-h-64" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         {comments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-            <MessageSquare className="w-8 h-8 mb-2 opacity-30" />
-            <p className="text-sm">Chưa có bình luận</p>
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <MessageSquare className="w-10 h-10 mb-3 opacity-30" />
+            <p className="text-sm font-medium">Chưa có bình luận</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Hãy bắt đầu cuộc trao đổi</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -305,7 +306,7 @@ export default function TaskComments({ taskId, groupId, className }: TaskComment
                       </span>
                     )}
                     <div className={cn(
-                      'px-3 py-1.5 rounded-xl text-sm',
+                      'px-3 py-2 rounded-xl text-sm',
                       isOwn 
                         ? 'bg-primary text-primary-foreground rounded-br-sm' 
                         : 'bg-muted rounded-bl-sm'
@@ -345,7 +346,7 @@ export default function TaskComments({ taskId, groupId, className }: TaskComment
         )}
       </ScrollArea>
 
-      <div className="p-3 border-t">
+      <div className="p-3 border-t shrink-0 bg-muted/20">
         <MentionInput
           value={commentInput}
           onChange={setCommentInput}
