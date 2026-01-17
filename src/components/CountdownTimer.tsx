@@ -67,14 +67,27 @@ export function CountdownTimer({ deadline, showIcon = true, className = '' }: Co
     return 'text-muted-foreground';
   };
 
+  // Format time with 2 units for better readability
+  const formatTimeDisplay = () => {
+    const { days, hours, minutes, seconds } = timeLeft;
+    
+    if (days > 0) {
+      // Ngày + giờ
+      return `${days} ngày ${hours} giờ`;
+    } else if (hours > 0) {
+      // Giờ + phút
+      return `${hours} giờ ${minutes} phút`;
+    } else {
+      // Phút + giây
+      return `${minutes} phút ${seconds} giây`;
+    }
+  };
+
   return (
     <div className={`flex items-center gap-1.5 ${getColorClass()} ${className}`}>
       {showIcon && <Clock className="w-4 h-4" />}
       <span className="font-medium tabular-nums">
-        {timeLeft.days > 0 && `${timeLeft.days}d `}
-        {String(timeLeft.hours).padStart(2, '0')}:
-        {String(timeLeft.minutes).padStart(2, '0')}:
-        {String(timeLeft.seconds).padStart(2, '0')}
+        Còn {formatTimeDisplay()}
       </span>
     </div>
   );

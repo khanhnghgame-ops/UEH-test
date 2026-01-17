@@ -819,6 +819,7 @@ export type Database = {
           end_date: string | null
           group_id: string
           id: string
+          is_hidden: boolean
           name: string
           order_index: number
           start_date: string | null
@@ -830,6 +831,7 @@ export type Database = {
           end_date?: string | null
           group_id: string
           id?: string
+          is_hidden?: boolean
           name: string
           order_index?: number
           start_date?: string | null
@@ -841,6 +843,7 @@ export type Database = {
           end_date?: string | null
           group_id?: string
           id?: string
+          is_hidden?: boolean
           name?: string
           order_index?: number
           start_date?: string | null
@@ -1113,6 +1116,7 @@ export type Database = {
           description: string | null
           group_id: string
           id: string
+          is_hidden: boolean
           is_restored: boolean
           max_file_size: number | null
           short_id: string
@@ -1131,6 +1135,7 @@ export type Database = {
           description?: string | null
           group_id: string
           id?: string
+          is_hidden?: boolean
           is_restored?: boolean
           max_file_size?: number | null
           short_id?: string
@@ -1149,6 +1154,7 @@ export type Database = {
           description?: string | null
           group_id?: string
           id?: string
+          is_hidden?: boolean
           is_restored?: boolean
           max_file_size?: number | null
           short_id?: string

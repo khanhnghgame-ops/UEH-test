@@ -317,7 +317,7 @@ export default function TaskScoringDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-[90vw] aspect-video max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-[95vw] w-[1280px] h-[720px] max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
         {/* Header */}
         <DialogHeader className="shrink-0 p-6 pb-4 border-b">
           <div className="flex items-start gap-4">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -37,13 +37,13 @@ export default function StageEditDialog({
   const [name, setName] = useState(stage?.name || '');
   const [description, setDescription] = useState(stage?.description || '');
 
-  // Reset form when stage changes
-  useState(() => {
-    if (stage) {
+  // Reset form when stage changes or dialog opens
+  useEffect(() => {
+    if (stage && isOpen) {
       setName(stage.name);
       setDescription(stage.description || '');
     }
-  });
+  }, [stage, isOpen]);
 
   const handleSave = async () => {
     if (!stage) return;
@@ -98,11 +98,6 @@ export default function StageEditDialog({
     }
   };
 
-  // Update form when stage prop changes
-  if (stage && name !== stage.name && !isLoading) {
-    setName(stage.name);
-    setDescription(stage.description || '');
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
