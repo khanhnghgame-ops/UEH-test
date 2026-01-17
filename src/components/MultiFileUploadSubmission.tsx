@@ -91,6 +91,8 @@ export default function MultiFileUploadSubmission({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadedBytes, setUploadedBytes] = useState(0);
+  const [totalBytesToUpload, setTotalBytesToUpload] = useState(0);
   const [currentFileName, setCurrentFileName] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -121,16 +123,18 @@ export default function MultiFileUploadSubmission({
 
     setIsUploading(true);
     setUploadProgress(0);
+    setUploadedBytes(0);
 
     const newUploadedFiles: UploadedFile[] = [];
     const totalFiles = files.length;
-    let totalBytesToUpload = 0;
+    let totalBytes = 0;
     let bytesUploaded = 0;
 
     // Calculate total bytes
     for (let i = 0; i < files.length; i++) {
-      totalBytesToUpload += files[i].size;
+      totalBytes += files[i].size;
     }
+    setTotalBytesToUpload(totalBytes);
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -140,35 +144,26 @@ export default function MultiFileUploadSubmission({
         const storageName = generateSafeStorageName(file.name);
         const filePath = `${userId}/${taskId}/${storageName}`;
 
-        // Simulate smooth progress during upload
-        const startProgress = Math.round((bytesUploaded / totalBytesToUpload) * 100);
-        const endProgress = Math.round(((bytesUploaded + file.size) / totalBytesToUpload) * 100);
+        // Calculate progress for this file
+        const startProgress = Math.round((bytesUploaded / totalBytes) * 100);
+        const endProgress = Math.round(((bytesUploaded + file.size) / totalBytes) * 100);
         
-        // Start animation for this file
-        setUploadProgress(startProgress + 5);
+        // Set initial progress
+        setUploadProgress(startProgress);
+        setUploadedBytes(bytesUploaded);
 
-        // Create progress simulation interval for smooth animation
-        const progressInterval = setInterval(() => {
-          setUploadProgress(prev => {
-            const target = endProgress - 5;
-            if (prev >= target) {
-              clearInterval(progressInterval);
-              return prev;
-            }
-            // Increment by small steps for smooth animation
-            return Math.min(prev + 2, target);
-          });
-        }, 50);
-
-        // Thực hiện upload - không giới hạn loại file
+        // Use standard Supabase upload
         const { data, error } = await supabase.storage
           .from('task-submissions')
           .upload(filePath, file, {
             cacheControl: '3600',
-            upsert: true // Cho phép ghi đè nếu trùng tên
+            upsert: true
           });
 
-        clearInterval(progressInterval);
+        // Update progress after upload completes for this file
+        bytesUploaded += file.size;
+        setUploadProgress(Math.round((bytesUploaded / totalBytes) * 100));
+        setUploadedBytes(bytesUploaded);
 
         if (error) {
           // Log chi tiết lỗi để debug
@@ -198,8 +193,6 @@ export default function MultiFileUploadSubmission({
               file_size: file.size,
               storage_name: storageName
             });
-            bytesUploaded += file.size;
-            setUploadProgress(endProgress);
             continue;
           }
           
@@ -212,10 +205,6 @@ export default function MultiFileUploadSubmission({
           file_size: file.size,
           storage_name: storageName
         });
-
-        bytesUploaded += file.size;
-        // Cập nhật progress hoàn thành file này
-        setUploadProgress(endProgress);
       }
 
       // Hoàn thành 100% với animation
@@ -248,6 +237,8 @@ export default function MultiFileUploadSubmission({
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+      setUploadedBytes(0);
+      setTotalBytesToUpload(0);
       setCurrentFileName('');
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -324,11 +315,12 @@ export default function MultiFileUploadSubmission({
             <div className="flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
               <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                Đang tải... {uploadProgress}%
+                Đang tải... {formatFileSize(uploadedBytes)} / {formatFileSize(totalBytesToUpload)}
               </span>
             </div>
             <p className="text-[10px] text-muted-foreground truncate px-2">{currentFileName}</p>
             <Progress value={uploadProgress} className="h-2 transition-all duration-150" />
+            <p className="text-[10px] text-center text-muted-foreground">{uploadProgress}%</p>
           </div>
         ) : (
           <div className="flex items-center justify-center gap-2">

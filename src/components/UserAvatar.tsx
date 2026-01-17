@@ -1,6 +1,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import UserPresenceIndicator from './UserPresenceIndicator';
+import type { PresenceStatus } from '@/hooks/useUserPresence';
 
 interface UserAvatarProps {
   src?: string | null;
@@ -9,6 +11,8 @@ interface UserAvatarProps {
   fallbackClassName?: string;
   iconClassName?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  showPresence?: boolean;
+  presenceStatus?: PresenceStatus;
 }
 
 const sizeClasses = {
@@ -27,9 +31,26 @@ const iconSizeClasses = {
   xl: 'w-10 h-10',
 };
 
+const presenceSizeMap: Record<string, 'xs' | 'sm' | 'md'> = {
+  xs: 'xs',
+  sm: 'xs',
+  md: 'sm',
+  lg: 'sm',
+  xl: 'md',
+};
+
+const presencePositionClasses = {
+  xs: '-bottom-0.5 -right-0.5',
+  sm: '-bottom-0.5 -right-0.5',
+  md: '-bottom-0.5 -right-0.5',
+  lg: '-bottom-1 -right-1',
+  xl: '-bottom-1 -right-1',
+};
+
 /**
  * UserAvatar - Unified avatar component that always shows user image or a generic user icon.
  * NEVER shows initials/text as fallback - always uses the User icon for consistency.
+ * Supports optional presence indicator.
  */
 export default function UserAvatar({ 
   src, 
@@ -37,25 +58,37 @@ export default function UserAvatar({
   className, 
   fallbackClassName,
   iconClassName,
-  size = 'md' 
+  size = 'md',
+  showPresence = false,
+  presenceStatus = 'offline'
 }: UserAvatarProps) {
   return (
-    <Avatar className={cn(sizeClasses[size], className)}>
-      {src && (
-        <AvatarImage 
-          src={src} 
-          alt={name || 'User avatar'} 
-          className="object-cover"
-        />
-      )}
-      <AvatarFallback 
-        className={cn(
-          'bg-muted/80 text-muted-foreground',
-          fallbackClassName
+    <div className="relative inline-flex">
+      <Avatar className={cn(sizeClasses[size], className)}>
+        {src && (
+          <AvatarImage 
+            src={src} 
+            alt={name || 'User avatar'} 
+            className="object-cover"
+          />
         )}
-      >
-        <User className={cn(iconSizeClasses[size], iconClassName)} />
-      </AvatarFallback>
-    </Avatar>
+        <AvatarFallback 
+          className={cn(
+            'bg-muted/80 text-muted-foreground',
+            fallbackClassName
+          )}
+        >
+          <User className={cn(iconSizeClasses[size], iconClassName)} />
+        </AvatarFallback>
+      </Avatar>
+      {showPresence && (
+        <span className={cn('absolute', presencePositionClasses[size])}>
+          <UserPresenceIndicator 
+            status={presenceStatus} 
+            size={presenceSizeMap[size]}
+          />
+        </span>
+      )}
+    </div>
   );
 }
