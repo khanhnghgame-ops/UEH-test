@@ -49,12 +49,23 @@ interface ProjectContext {
   };
 }
 
+// Map internal status to user-friendly display labels
+function getStatusLabel(status: string): string {
+  const statusMap: Record<string, string> = {
+    'TODO': 'Chờ thực hiện',
+    'IN_PROGRESS': 'Đang thực hiện',
+    'DONE': 'Hoàn thành',
+    'VERIFIED': 'Đã duyệt'
+  };
+  return statusMap[status] || status;
+}
+
 function buildProjectContext(context: ProjectContext): string {
   const tasksByStatus = {
-    TODO: context.tasks.filter(t => t.status === 'TODO'),
-    IN_PROGRESS: context.tasks.filter(t => t.status === 'IN_PROGRESS'),
-    DONE: context.tasks.filter(t => t.status === 'DONE'),
-    VERIFIED: context.tasks.filter(t => t.status === 'VERIFIED'),
+    waiting: context.tasks.filter(t => t.status === 'TODO'),
+    inProgress: context.tasks.filter(t => t.status === 'IN_PROGRESS'),
+    done: context.tasks.filter(t => t.status === 'DONE'),
+    verified: context.tasks.filter(t => t.status === 'VERIFIED'),
   };
   
   const overdueTasks = context.tasks.filter(t => t.isOverdue);
@@ -65,58 +76,58 @@ function buildProjectContext(context: ProjectContext): string {
     !t.isOverdue
   );
   
-  // Build task list with clear identifiers
+  // Build task list with user-friendly display (NO technical IDs)
   const taskListFormatted = context.tasks.map((t, index) => {
     const deadlineInfo = t.deadlineFormatted 
       ? (t.isOverdue 
-          ? `⚠️ QUÁ HẠN (${t.deadlineFormatted})` 
+          ? `⚠️ Quá hạn (${t.deadlineFormatted})` 
           : (t.daysUntilDeadline !== null && t.daysUntilDeadline <= 3 
               ? `⏰ Còn ${t.daysUntilDeadline} ngày (${t.deadlineFormatted})` 
-              : `📅 ${t.deadlineFormatted}`))
+              : `${t.deadlineFormatted}`))
       : 'Không có deadline';
     
-    return `  ${index + 1}. [#${t.short_id}] "${t.title}"
-     - Trạng thái: ${t.status}
+    // Use display-friendly format without technical codes
+    return `  ${index + 1}. "${t.title}"
+     - Trạng thái: ${getStatusLabel(t.status)}
      - Giai đoạn: ${t.stageName || 'Chưa phân giai đoạn'}
      - Deadline: ${deadlineInfo}
      - Người thực hiện: ${t.assignees.length > 0 ? t.assignees.join(', ') : 'Chưa phân công'}`;
   }).join('\n');
 
   return `
-=== PROJECT: ${context.project.name} ===
-ID: ${context.project.id}
+=== DỰ ÁN: ${context.project.name} ===
 Mô tả: ${context.project.description || 'Không có mô tả'}
-Mã lớp: ${context.project.classCode || 'N/A'}
-Giảng viên: ${context.project.instructorName || 'N/A'}
+Mã lớp: ${context.project.classCode || 'Không có'}
+Giảng viên: ${context.project.instructorName || 'Không có'}
 
 --- GIAI ĐOẠN ---
-${context.stages.map((s, i) => `${i + 1}. "${s.name}" - ${s.taskCount} task`).join('\n')}
+${context.stages.map((s, i) => `${i + 1}. "${s.name}" - ${s.taskCount} công việc`).join('\n')}
 
 --- THÀNH VIÊN (${context.members.length} người) ---
-${context.members.map((m, i) => `${i + 1}. ${m.name} (MSSV: ${m.studentId}) - ${m.role === 'leader' ? 'Trưởng nhóm' : 'Thành viên'}`).join('\n')}
+${context.members.map((m, i) => `${i + 1}. ${m.name} - ${m.role === 'leader' ? 'Trưởng nhóm' : 'Thành viên'}`).join('\n')}
 
 --- TỔNG QUAN CÔNG VIỆC ---
-Tổng: ${context.tasks.length} task
-- TODO: ${tasksByStatus.TODO.length}
-- IN_PROGRESS: ${tasksByStatus.IN_PROGRESS.length}  
-- DONE: ${tasksByStatus.DONE.length}
-- VERIFIED: ${tasksByStatus.VERIFIED.length}
+Tổng: ${context.tasks.length} công việc
+- Chờ thực hiện: ${tasksByStatus.waiting.length}
+- Đang thực hiện: ${tasksByStatus.inProgress.length}
+- Hoàn thành: ${tasksByStatus.done.length}
+- Đã duyệt: ${tasksByStatus.verified.length}
 
---- DANH SÁCH TASK CHI TIẾT ---
-${taskListFormatted || '(Chưa có task nào)'}
+--- DANH SÁCH CÔNG VIỆC ---
+${taskListFormatted || '(Chưa có công việc nào)'}
 
---- CẢNH BÁO ---
+--- LƯU Ý ---
 ${overdueTasks.length > 0 
-  ? `🚨 ${overdueTasks.length} TASK QUÁ HẠN:\n${overdueTasks.map(t => `   - [#${t.short_id}] "${t.title}"`).join('\n')}` 
-  : '✅ Không có task quá hạn'}
+  ? `🚨 ${overdueTasks.length} công việc quá hạn:\n${overdueTasks.map(t => `   - "${t.title}"`).join('\n')}` 
+  : '✅ Không có công việc quá hạn'}
 ${upcomingTasks.length > 0 
-  ? `\n⏰ ${upcomingTasks.length} TASK SẮP ĐẾN HẠN (trong 3 ngày):\n${upcomingTasks.map(t => `   - [#${t.short_id}] "${t.title}" - còn ${t.daysUntilDeadline} ngày`).join('\n')}` 
+  ? `\n⏰ ${upcomingTasks.length} công việc sắp đến hạn (trong 3 ngày):\n${upcomingTasks.map(t => `   - "${t.title}" - còn ${t.daysUntilDeadline} ngày`).join('\n')}` 
   : ''}
 
---- VAI TRÒ CỦA BẠN TRONG PROJECT ---
+--- THÔNG TIN CỦA BẠN ---
 Tên: ${context.currentUser.name}
 Vai trò: ${context.currentUser.role === 'leader' ? 'Trưởng nhóm' : 'Thành viên'}
-Task được giao: ${context.currentUser.assignedTasks.length > 0 ? context.currentUser.assignedTasks.join(', ') : 'Chưa có task nào'}
+Công việc được giao: ${context.currentUser.assignedTasks.length > 0 ? context.currentUser.assignedTasks.join(', ') : 'Chưa có'}
 `;
 }
 
@@ -133,44 +144,55 @@ function buildSystemPrompt(userName: string, projectContexts: string[], isProjec
   });
   
   const contextInstructions = isProjectSpecific
-    ? `## PHẠM VI TRẢ LỜI - RẤT QUAN TRỌNG
-⚠️ NGƯỜI DÙNG ĐANG Ở TRONG PROJECT: "${projectName}"
+    ? `## PHẠM VI TRẢ LỜI
+⚠️ Người dùng đang ở trong dự án: "${projectName}"
 
-NGUYÊN TẮC BẮT BUỘC:
-1. CHỈ trả lời về project "${projectName}" này - KHÔNG BAO GIỜ đề cập đến project khác
-2. Khi đề cập đến task, LUÔN sử dụng mã task [#xxx] và tên chính xác từ dữ liệu
-3. Khi đề cập đến deadline, LUÔN lấy chính xác từ dữ liệu, KHÔNG được suy đoán
-4. Nếu câu hỏi không liên quan đến project này, nói rõ: "Câu hỏi này không liên quan đến project hiện tại"
-5. Nếu không tìm thấy thông tin, nói rõ: "Không tìm thấy thông tin này trong dữ liệu project"`
+NGUYÊN TẮC:
+1. CHỈ trả lời về dự án "${projectName}" - KHÔNG đề cập dự án khác
+2. Nếu câu hỏi không liên quan, nói: "Câu hỏi này không liên quan đến dự án hiện tại"
+3. Nếu không tìm thấy thông tin, nói: "Không tìm thấy thông tin này"`
     : `## PHẠM VI TRẢ LỜI
-Người dùng đang ở ngoài phạm vi project cụ thể.
-- Có thể trả lời tổng quan về tất cả các project
-- Có thể so sánh thông tin giữa các project
-- Khi đề cập đến task hoặc deadline, PHẢI nói rõ thuộc project nào`;
+Người dùng đang ở ngoài phạm vi dự án cụ thể.
+- Có thể trả lời tổng quan về tất cả các dự án
+- Khi đề cập đến công việc, PHẢI nói rõ thuộc dự án nào`;
 
-  return `Bạn là trợ lý AI của hệ thống quản lý teamwork. 
+  return `Bạn là trợ lý AI hiển thị thông tin cho người dùng cuối.
 
-## THÔNG TIN NGƯỜI DÙNG
-- Tên: ${userName}
-- Thời gian hiện tại: ${dateTimeStr}
+## THÔNG TIN
+- Người dùng: ${userName}
+- Thời gian: ${dateTimeStr}
 
 ${contextInstructions}
 
-${projectContexts.length > 0 ? `## DỮ LIỆU PROJECT - CHỈ SỬ DỤNG DỮ LIỆU NÀY
-${projectContexts.join('\n---\n')}` : '## Người dùng chưa tham gia project nào.'}
+${projectContexts.length > 0 ? `## DỮ LIỆU
+${projectContexts.join('\n---\n')}` : '## Người dùng chưa tham gia dự án nào.'}
 
-## NGUYÊN TẮC TRẢ LỜI CHÍNH XÁC
-1. **Chính xác tuyệt đối**: CHỈ sử dụng thông tin có trong dữ liệu trên, KHÔNG suy đoán
-2. **Mã task**: Khi nhắc đến task, LUÔN dùng format [#mã_task] "tên task"
-3. **Deadline**: Khi nhắc deadline, LUÔN copy chính xác từ dữ liệu, kèm trạng thái (quá hạn/còn X ngày)
-4. **Không có = Nói rõ**: Nếu thông tin không tồn tại, nói "Không có trong dữ liệu" 
-5. **Ngắn gọn**: Trả lời súc tích, đúng trọng tâm
-6. **Tiếng Việt**: Sử dụng tiếng Việt tự nhiên, thân thiện
+## QUY TẮC BẮT BUỘC - CỰC KỲ QUAN TRỌNG
+
+### KHÔNG ĐƯỢC LÀM:
+1. ❌ KHÔNG hiển thị bất kỳ mã kỹ thuật nào (ID, hash, code nội bộ, ký hiệu hệ thống như [#abc123])
+2. ❌ KHÔNG liệt kê, giải thích hoặc chuyển đổi trạng thái theo kiểu kỹ thuật (TODO, IN_PROGRESS, DONE, VERIFIED)
+3. ❌ KHÔNG dùng thuật ngữ nội bộ hệ thống
+4. ❌ KHÔNG suy đoán hoặc thêm thông tin không có trên giao diện
+5. ❌ KHÔNG giải thích kỹ thuật
+
+### PHẢI LÀM:
+1. ✅ CHỈ trả về nội dung người dùng nhìn thấy trên giao diện
+2. ✅ Dùng TÊN công việc thay vì mã (ví dụ: "Viết báo cáo" thay vì "[#abc] Viết báo cáo")
+3. ✅ Trạng thái PHẢI dùng đúng cách hiển thị: "Chờ thực hiện", "Đang thực hiện", "Hoàn thành", "Đã duyệt"
+4. ✅ Deadline ghi đúng định dạng: ngày/tháng/năm – giờ:phút (ví dụ: 20/01/2026 – 23:59)
+5. ✅ Trả lời ngắn gọn, rõ ràng, giống như đọc lại giao diện cho người dùng
 
 ## VÍ DỤ TRẢ LỜI ĐÚNG
-- "Task [#abc123] 'Viết báo cáo' có deadline ngày 20/01/2026, còn 5 ngày nữa"
-- "Bạn được giao 2 task: [#xyz] 'Task A' và [#def] 'Task B'"
-- "Không tìm thấy task nào tên 'XYZ' trong project này"`;
+- "Bạn có 2 công việc được giao: 'Viết báo cáo' và 'Thiết kế slide'"
+- "Công việc 'Viết báo cáo' có deadline 20/01/2026 – 23:59, trạng thái: Đang thực hiện"
+- "Hiện tại nhóm có 3 công việc đang thực hiện và 1 công việc đã hoàn thành"
+- "Không tìm thấy công việc nào tên 'XYZ' trong dự án này"
+
+## VÍ DỤ TRẢ LỜI SAI (KHÔNG ĐƯỢC LÀM)
+- ❌ "Task [#abc123] có status IN_PROGRESS" → phải viết: "Công việc 'Tên task' đang thực hiện"
+- ❌ "ID: abc-def-123" → KHÔNG hiển thị ID
+- ❌ "TODO: 2, DONE: 1" → phải viết: "2 công việc chờ thực hiện, 1 công việc hoàn thành"`;
 }
 
 serve(async (req) => {
@@ -442,11 +464,12 @@ async function fetchProjectContext(
       };
     }),
     currentUser: {
-      name: (profilesMap.get(userId) as any)?.full_name || 'User',
+      name: (profilesMap.get(userId) as any)?.full_name || 'Người dùng',
       role: members?.find((m: any) => m.user_id === userId)?.role || 'member',
+      // Display task titles only, no technical IDs
       assignedTasks: (tasks || [])
         .filter((t: any) => assignments?.some((a: any) => a.task_id === t.id && a.user_id === userId))
-        .map((t: any) => `[#${t.short_id || t.id.substring(0, 6)}] ${t.title}`),
+        .map((t: any) => `"${t.title}"`),
     },
   };
 }
