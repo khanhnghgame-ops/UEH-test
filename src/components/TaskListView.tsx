@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +54,7 @@ import {
   GripVertical,
   Users,
   Eye,
+  Award,
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { supabase } from '@/integrations/supabase/client';
@@ -64,6 +65,8 @@ import { formatDeadlineVN, isDeadlineOverdue } from '@/lib/datetime';
 import TaskSubmissionDialog from './TaskSubmissionDialog';
 import SubmissionHistoryPopup from './SubmissionHistoryPopup';
 import SubmissionButton from './SubmissionButton';
+import TaskScoringDialog from './scores/TaskScoringDialog';
+import type { TaskScore } from '@/types/processScores';
 
 // Stage color helper - returns a consistent color for each stage index
 const getStageColor = (index: number) => {
@@ -182,6 +185,7 @@ interface TaskRowProps {
   openSubmissionDialog: (task: Task) => void;
   openDetailDialog: (task: Task) => void;
   setTaskToDelete: (task: Task) => void;
+  onScoreTask?: (task: Task) => void;
   dragHandleProps?: any;
   isDragging?: boolean;
 }
@@ -197,6 +201,7 @@ function TaskRow({
   openSubmissionDialog,
   openDetailDialog,
   setTaskToDelete,
+  onScoreTask,
   dragHandleProps,
   isDragging,
 }: TaskRowProps) {
@@ -407,17 +412,28 @@ function TaskRow({
                 {isLeaderInGroup && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-7 w-7"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <MoreVertical className="w-3.5 h-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
-                      <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
+                    <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEditTask(task); }} className="text-xs">
                         <Edit className="w-3.5 h-3.5 mr-2" />
                         Chỉnh sửa
                       </DropdownMenuItem>
+                      {onScoreTask && (
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onScoreTask(task); }} className="text-xs">
+                          <Award className="w-3.5 h-3.5 mr-2" />
+                          Chấm điểm
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setTaskToDelete(task); }} className="text-destructive text-xs">
                         <Trash2 className="w-3.5 h-3.5 mr-2" />
                         Xóa
                       </DropdownMenuItem>
@@ -506,17 +522,28 @@ function TaskRow({
             {isLeaderInGroup ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-7 w-7 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <MoreVertical className="w-3.5 h-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]">
-                  <DropdownMenuItem onClick={() => onEditTask(task)} className="text-xs">
+                <DropdownMenuContent align="end" className="z-50 bg-popover min-w-[140px]" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEditTask(task); }} className="text-xs">
                     <Edit className="w-3.5 h-3.5 mr-2" />
                     Chỉnh sửa
                   </DropdownMenuItem>
+                  {onScoreTask && (
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onScoreTask(task); }} className="text-xs">
+                      <Award className="w-3.5 h-3.5 mr-2" />
+                      Chấm điểm
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setTaskToDelete(task)} className="text-destructive text-xs">
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setTaskToDelete(task); }} className="text-destructive text-xs">
                     <Trash2 className="w-3.5 h-3.5 mr-2" />
                     Xóa
                   </DropdownMenuItem>
@@ -573,8 +600,37 @@ export default function TaskListView({
   const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   
+  // Scoring dialog state
+  const [scoringTask, setScoringTask] = useState<Task | null>(null);
+  const [isScoringOpen, setIsScoringOpen] = useState(false);
+  const [taskScores, setTaskScores] = useState<TaskScore[]>([]);
+  
   // Local task order for drag & drop (maps stage_id -> ordered task ids)
   const [localTaskOrder, setLocalTaskOrder] = useState<Record<string, string[]>>({});
+
+  // Fetch task scores for the scoring dialog
+  const fetchTaskScores = useCallback(async () => {
+    if (!groupId || tasks.length === 0) return;
+    
+    const taskIds = tasks.map(t => t.id);
+    const { data } = await supabase
+      .from('task_scores')
+      .select('*')
+      .in('task_id', taskIds);
+    
+    setTaskScores((data || []) as unknown as TaskScore[]);
+  }, [groupId, tasks]);
+
+  useEffect(() => {
+    if (isLeaderInGroup) {
+      fetchTaskScores();
+    }
+  }, [isLeaderInGroup, fetchTaskScores]);
+
+  const openScoringDialog = (task: Task) => {
+    setScoringTask(task);
+    setIsScoringOpen(true);
+  };
 
   const getTasksByStage = useCallback((stageId: string | null) => {
     const stageTasks = tasks.filter((task) => task.stage_id === stageId);
@@ -870,6 +926,7 @@ export default function TaskListView({
                                       openSubmissionDialog={openSubmissionDialog}
                                       openDetailDialog={openDetailDialog}
                                       setTaskToDelete={setTaskToDelete}
+                                      onScoreTask={isLeaderInGroup ? openScoringDialog : undefined}
                                       dragHandleProps={provided.dragHandleProps}
                                       isDragging={snapshot.isDragging}
                                     />
@@ -942,6 +999,7 @@ export default function TaskListView({
                                 openSubmissionDialog={openSubmissionDialog}
                                 openDetailDialog={openDetailDialog}
                                 setTaskToDelete={setTaskToDelete}
+                                onScoreTask={isLeaderInGroup ? openScoringDialog : undefined}
                                 dragHandleProps={provided.dragHandleProps}
                                 isDragging={snapshot.isDragging}
                               />
@@ -1016,6 +1074,24 @@ export default function TaskListView({
         isLeaderInGroup={isLeaderInGroup}
         viewOnly={!isDetailAssignee && !isLeaderInGroup}
       />
+
+      {/* Scoring Dialog for Leader */}
+      {isLeaderInGroup && (
+        <TaskScoringDialog
+          isOpen={isScoringOpen}
+          onClose={() => {
+            setIsScoringOpen(false);
+            setScoringTask(null);
+          }}
+          task={scoringTask}
+          members={members}
+          taskScores={taskScores}
+          onScoreUpdated={() => {
+            fetchTaskScores();
+            onRefresh();
+          }}
+        />
+      )}
     </>
   );
 }
