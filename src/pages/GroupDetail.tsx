@@ -270,6 +270,31 @@ export default function GroupDetail() {
     }
   };
 
+  const handleToggleStageHidden = async (stage: Stage) => {
+    try {
+      const newHiddenStatus = !(stage as any).is_hidden;
+      const { error } = await supabase
+        .from('stages')
+        .update({ is_hidden: newHiddenStatus })
+        .eq('id', stage.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: newHiddenStatus ? 'Đã ẩn giai đoạn' : 'Đã hiện giai đoạn',
+        description: `Giai đoạn "${stage.name}" ${newHiddenStatus ? 'đã được ẩn' : 'đã được hiện'}`,
+      });
+      
+      fetchGroupData();
+    } catch (error: any) {
+      toast({
+        title: 'Lỗi',
+        description: error.message || 'Không thể thay đổi trạng thái giai đoạn',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDeleteGroup = async () => {
     if (deleteConfirmText !== group?.name || !group) return;
     setIsDeletingGroup(true);
@@ -564,7 +589,7 @@ export default function GroupDetail() {
             </TabsContent>
 
             <TabsContent value="tasks" className="mt-6">
-              <TaskListView stages={stages} tasks={tasks} members={members} isLeaderInGroup={isLeaderInGroup} groupId={group.id} groupSlug={group.slug} onRefresh={fetchGroupData} onEditTask={setEditingTask} onCreateTask={(stageId) => { setNewTaskStageId(stageId); setIsTaskDialogOpen(true); }} onEditStage={setEditingStage} onDeleteStage={setStageToDelete} />
+              <TaskListView stages={stages} tasks={tasks} members={members} isLeaderInGroup={isLeaderInGroup} groupId={group.id} groupSlug={group.slug} onRefresh={fetchGroupData} onEditTask={setEditingTask} onCreateTask={(stageId) => { setNewTaskStageId(stageId); setIsTaskDialogOpen(true); }} onEditStage={setEditingStage} onDeleteStage={setStageToDelete} onToggleStageHidden={handleToggleStageHidden} />
             </TabsContent>
 
             <TabsContent value="members" className="mt-6">

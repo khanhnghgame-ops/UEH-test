@@ -54,6 +54,7 @@ import {
   GripVertical,
   Users,
   Eye,
+  EyeOff,
   Award,
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -173,9 +174,13 @@ const getTaskCode = (task: Task, allTasks: Task[], stages: Stage[]) => {
 
 const isOverdue = (deadline: string | null) => isDeadlineOverdue(deadline);
 
+// Extended Task type with is_hidden field
+type ExtendedTask = Task & { is_hidden?: boolean };
+type ExtendedStage = Stage & { is_hidden?: boolean };
+
 // Horizontal TaskRow component with CSS Grid layout
 interface TaskRowProps {
-  task: Task;
+  task: ExtendedTask;
   taskCode: string | null;
   stageColor: ReturnType<typeof getStageColor>;
   isLeaderInGroup: boolean;
@@ -186,6 +191,7 @@ interface TaskRowProps {
   openDetailDialog: (task: Task) => void;
   setTaskToDelete: (task: Task) => void;
   onScoreTask?: (task: Task) => void;
+  onToggleHidden?: (task: Task) => void;
   dragHandleProps?: any;
   isDragging?: boolean;
 }
@@ -202,6 +208,7 @@ function TaskRow({
   openDetailDialog,
   setTaskToDelete,
   onScoreTask,
+  onToggleHidden,
   dragHandleProps,
   isDragging,
 }: TaskRowProps) {
@@ -432,6 +439,21 @@ function TaskRow({
                           Chấm điểm
                         </DropdownMenuItem>
                       )}
+                      {onToggleHidden && (
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onToggleHidden(task); }} className="text-xs">
+                          {task.is_hidden ? (
+                            <>
+                              <Eye className="w-3.5 h-3.5 mr-2" />
+                              Hiện task
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff className="w-3.5 h-3.5 mr-2" />
+                              Ẩn task
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setTaskToDelete(task); }} className="text-destructive text-xs">
                         <Trash2 className="w-3.5 h-3.5 mr-2" />
@@ -542,6 +564,21 @@ function TaskRow({
                       Chấm điểm
                     </DropdownMenuItem>
                   )}
+                  {onToggleHidden && (
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onToggleHidden(task); }} className="text-xs">
+                      {task.is_hidden ? (
+                        <>
+                          <Eye className="w-3.5 h-3.5 mr-2" />
+                          Hiện task
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="w-3.5 h-3.5 mr-2" />
+                          Ẩn task
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setTaskToDelete(task); }} className="text-destructive text-xs">
                     <Trash2 className="w-3.5 h-3.5 mr-2" />
@@ -559,8 +596,8 @@ function TaskRow({
   );
 }
 interface TaskListViewProps {
-  stages: Stage[];
-  tasks: Task[];
+  stages: ExtendedStage[];
+  tasks: ExtendedTask[];
   members: GroupMember[];
   isLeaderInGroup: boolean;
   groupId: string;
@@ -570,6 +607,7 @@ interface TaskListViewProps {
   onCreateTask: (stageId: string) => void;
   onEditStage: (stage: Stage) => void;
   onDeleteStage: (stage: Stage) => void;
+  onToggleStageHidden?: (stage: Stage) => void;
 }
 
 export default function TaskListView({
@@ -584,6 +622,7 @@ export default function TaskListView({
   onCreateTask,
   onEditStage,
   onDeleteStage,
+  onToggleStageHidden,
 }: TaskListViewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -591,6 +630,7 @@ export default function TaskListView({
   const [isDeleting, setIsDeleting] = useState(false);
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set(stages.map(s => s.id)));
   const [filterStage, setFilterStage] = useState<string>('all');
+  const [showHidden, setShowHidden] = useState(false);
   
   // Submission dialog state
   const [submissionTask, setSubmissionTask] = useState<Task | null>(null);
@@ -607,6 +647,32 @@ export default function TaskListView({
   
   // Local task order for drag & drop (maps stage_id -> ordered task ids)
   const [localTaskOrder, setLocalTaskOrder] = useState<Record<string, string[]>>({});
+
+  // Toggle task hidden status
+  const handleToggleTaskHidden = async (task: ExtendedTask) => {
+    try {
+      const newHiddenStatus = !task.is_hidden;
+      const { error } = await supabase
+        .from('tasks')
+        .update({ is_hidden: newHiddenStatus })
+        .eq('id', task.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: newHiddenStatus ? 'Đã ẩn task' : 'Đã hiện task',
+        description: `Task "${task.title}" ${newHiddenStatus ? 'đã được ẩn' : 'đã được hiện'}`,
+      });
+      
+      onRefresh();
+    } catch (error: any) {
+      toast({
+        title: 'Lỗi',
+        description: error.message || 'Không thể thay đổi trạng thái task',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Fetch task scores for the scoring dialog
   const fetchTaskScores = useCallback(async () => {
@@ -762,17 +828,33 @@ export default function TaskListView({
   // Check if user is assignee for detail dialog
   const isDetailAssignee = detailTask ? isUserAssignee(detailTask) : false;
 
-  const filteredStages = filterStage === 'all' 
+  // Filter stages and tasks based on visibility settings
+  const visibleStages = showHidden || isLeaderInGroup 
     ? stages 
-    : stages.filter(s => s.id === filterStage);
+    : stages.filter(s => !s.is_hidden);
+    
+  const filteredStages = filterStage === 'all' 
+    ? visibleStages 
+    : visibleStages.filter(s => s.id === filterStage);
 
-  const unstagedTasks = getTasksByStage(null);
+  // Filter tasks based on visibility (non-leaders don't see hidden tasks)
+  const visibleTasks = showHidden || isLeaderInGroup 
+    ? tasks 
+    : tasks.filter(t => !t.is_hidden);
 
-  // Calculate stats
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.status === 'DONE' || t.status === 'VERIFIED').length;
-  const overdueTasks = tasks.filter(t => isOverdue(t.deadline) && t.status !== 'DONE' && t.status !== 'VERIFIED').length;
-  const inProgressTasks = tasks.filter(t => t.status === 'IN_PROGRESS').length;
+  const unstagedTasks = getTasksByStage(null).filter(t => 
+    showHidden || isLeaderInGroup ? true : !t.is_hidden
+  );
+
+  // Count hidden items
+  const hiddenTasksCount = tasks.filter(t => t.is_hidden).length;
+  const hiddenStagesCount = stages.filter(s => s.is_hidden).length;
+
+  // Calculate stats (based on visible tasks only for non-leaders)
+  const totalTasks = visibleTasks.length;
+  const completedTasks = visibleTasks.filter(t => t.status === 'DONE' || t.status === 'VERIFIED').length;
+  const overdueTasks = visibleTasks.filter(t => isOverdue(t.deadline) && t.status !== 'DONE' && t.status !== 'VERIFIED').length;
+  const inProgressTasks = visibleTasks.filter(t => t.status === 'IN_PROGRESS').length;
 
   return (
     <>
@@ -793,40 +875,61 @@ export default function TaskListView({
           </div>
         </div>
         
-        <Select value={filterStage} onValueChange={setFilterStage}>
-          <SelectTrigger className="w-44 h-8 text-xs bg-background">
-            <SelectValue placeholder="Lọc giai đoạn" />
-          </SelectTrigger>
-          <SelectContent className="bg-popover">
-            <SelectItem value="all" className="text-xs">Tất cả giai đoạn</SelectItem>
-            {stages.map((stage, index) => {
-              const color = getStageColor(index);
-              return (
-                <SelectItem key={stage.id} value={stage.id} className="text-xs">
-                  <span className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${color.dot}`} />
-                    {stage.name}
-                  </span>
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          {isLeaderInGroup && (hiddenTasksCount > 0 || hiddenStagesCount > 0) && (
+            <Button
+              variant={showHidden ? "secondary" : "outline"}
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => setShowHidden(!showHidden)}
+            >
+              {showHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              {showHidden ? 'Đang hiện ẩn' : `${hiddenTasksCount + hiddenStagesCount} ẩn`}
+            </Button>
+          )}
+          
+          <Select value={filterStage} onValueChange={setFilterStage}>
+            <SelectTrigger className="w-44 h-8 text-xs bg-background">
+              <SelectValue placeholder="Lọc giai đoạn" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover">
+              <SelectItem value="all" className="text-xs">Tất cả giai đoạn</SelectItem>
+              {visibleStages.map((stage, index) => {
+                const color = getStageColor(index);
+                return (
+                  <SelectItem key={stage.id} value={stage.id} className="text-xs">
+                    <span className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${color.dot}`} />
+                      {stage.name}
+                      {stage.is_hidden && <EyeOff className="w-3 h-3 text-muted-foreground" />}
+                    </span>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Stage Sections with Drag & Drop */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="space-y-4">
           {filteredStages.map((stage, stageIndex) => {
-            const stageTasks = getTasksByStage(stage.id);
+            const stageTasks = getTasksByStage(stage.id).filter(t => 
+              showHidden || isLeaderInGroup ? true : !t.is_hidden
+            );
             const completedCount = stageTasks.filter(t => t.status === 'DONE' || t.status === 'VERIFIED').length;
             const overdueCount = stageTasks.filter(t => isOverdue(t.deadline) && t.status !== 'DONE' && t.status !== 'VERIFIED').length;
             const isExpanded = expandedStages.has(stage.id);
             const stageColor = getStageColor(stageIndex);
             const progressPercent = stageTasks.length > 0 ? (completedCount / stageTasks.length) * 100 : 0;
+            const hiddenTasksInStage = getTasksByStage(stage.id).filter(t => t.is_hidden).length;
 
             return (
-              <Card key={stage.id} className={`overflow-hidden border-l-4 ${stageColor.border} shadow-sm`}>
+              <Card 
+                key={stage.id} 
+                className={`overflow-hidden border-l-4 ${stageColor.border} shadow-sm ${stage.is_hidden ? 'opacity-60 border-dashed' : ''}`}
+              >
                 {/* Stage Header */}
                 <CardHeader 
                   className={`py-2.5 px-4 cursor-pointer transition-colors ${stageColor.bg} hover:opacity-90`}
@@ -871,11 +974,27 @@ export default function TaskListView({
                               <MoreVertical className="w-3.5 h-3.5" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-popover min-w-[120px]">
+                          <DropdownMenuContent align="end" className="bg-popover min-w-[140px]">
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEditStage(stage); }} className="text-xs">
                               <Edit className="w-3.5 h-3.5 mr-2" />
                               Đổi tên
                             </DropdownMenuItem>
+                            {onToggleStageHidden && (
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onToggleStageHidden(stage); }} className="text-xs">
+                                {stage.is_hidden ? (
+                                  <>
+                                    <Eye className="w-3.5 h-3.5 mr-2" />
+                                    Hiện giai đoạn
+                                  </>
+                                ) : (
+                                  <>
+                                    <EyeOff className="w-3.5 h-3.5 mr-2" />
+                                    Ẩn giai đoạn
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeleteStage(stage); }} className="text-destructive text-xs">
                               <Trash2 className="w-3.5 h-3.5 mr-2" />
                               Xóa
@@ -927,6 +1046,7 @@ export default function TaskListView({
                                       openDetailDialog={openDetailDialog}
                                       setTaskToDelete={setTaskToDelete}
                                       onScoreTask={isLeaderInGroup ? openScoringDialog : undefined}
+                                      onToggleHidden={isLeaderInGroup ? handleToggleTaskHidden : undefined}
                                       dragHandleProps={provided.dragHandleProps}
                                       isDragging={snapshot.isDragging}
                                     />
