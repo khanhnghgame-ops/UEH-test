@@ -841,6 +841,9 @@ export default function TaskSubmissionDialog({
                         <div className="px-3 py-2 bg-emerald-500/10 border-b border-emerald-500/20 shrink-0">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
+                              <Badge className="bg-emerald-600 text-white border-0 text-[10px] px-1.5 font-bold">
+                                Cách 1
+                              </Badge>
                               <div className="p-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30">
                                 <HardDrive className="w-3.5 h-3.5 text-emerald-600" />
                               </div>
@@ -874,6 +877,9 @@ export default function TaskSubmissionDialog({
                         <div className="px-3 py-2 bg-blue-500/10 border-b border-blue-500/20 shrink-0">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
+                              <Badge className="bg-blue-600 text-white border-0 text-[10px] px-1.5 font-bold">
+                                Cách 2
+                              </Badge>
                               <div className="p-1.5 rounded-lg bg-blue-500/20 border border-blue-500/30">
                                 <Globe className="w-3.5 h-3.5 text-blue-600" />
                               </div>

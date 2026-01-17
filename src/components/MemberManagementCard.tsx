@@ -56,6 +56,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import UserAvatar from '@/components/UserAvatar';
 import ProfileViewDialog from '@/components/ProfileViewDialog';
+import { useUserPresence } from '@/hooks/useUserPresence';
 import type { GroupMember, Profile } from '@/types/database';
 
 interface MemberManagementCardProps {
@@ -81,6 +82,7 @@ export default function MemberManagementCard({
 }: MemberManagementCardProps) {
   const { toast } = useToast();
   const { user, profile } = useAuth();
+  const { getPresenceStatus } = useUserPresence(groupId);
   const [memberToDelete, setMemberToDelete] = useState<GroupMember | null>(null);
   const [memberToChangeRole, setMemberToChangeRole] = useState<GroupMember | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -431,6 +433,8 @@ export default function MemberManagementCard({
                   name={member.profiles?.full_name}
                   size="lg"
                   className="border-2 border-background"
+                  showPresence={true}
+                  presenceStatus={getPresenceStatus(member.user_id)}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">

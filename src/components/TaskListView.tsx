@@ -251,7 +251,8 @@ function TaskRow({
       className={`group bg-card rounded-lg border transition-all cursor-pointer
         hover:shadow-md hover:border-primary/40 hover:bg-accent/30
         ${taskIsOverdue ? 'border-destructive/40 bg-destructive/5 hover:bg-destructive/10' : 'border-border'}
-        ${isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
+        ${isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}
+        ${task.is_hidden ? 'opacity-50 border-dashed bg-muted/20' : ''}`}
       onClick={handleRowClick}
       role="button"
       tabIndex={0}
