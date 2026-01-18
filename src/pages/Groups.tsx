@@ -75,16 +75,24 @@ export default function Groups() {
         .order('created_at', { ascending: false });
 
       if (groupsData) {
-        // Get member counts
-        const { data: countsData } = await supabase
-          .from('group_members')
-          .select('group_id')
-          .in('group_id', groupIds);
+        // Get member counts (robust, avoids relying on wide SELECTs)
+        const countEntries = await Promise.all(
+          groupIds.map(async (groupId) => {
+            const { count, error } = await supabase
+              .from('group_members')
+              .select('*', { count: 'exact', head: true })
+              .eq('group_id', groupId);
 
-        const countMap = new Map<string, number>();
-        countsData?.forEach((c) => {
-          countMap.set(c.group_id, (countMap.get(c.group_id) || 0) + 1);
-        });
+            if (error) {
+              console.error('Error counting members for group:', groupId, error);
+              return [groupId, 0] as const;
+            }
+
+            return [groupId, count ?? 0] as const;
+          })
+        );
+
+        const countMap = new Map<string, number>(countEntries);
 
         const groupsWithMembers: GroupWithMembers[] = groupsData.map((g) => ({
           ...g,

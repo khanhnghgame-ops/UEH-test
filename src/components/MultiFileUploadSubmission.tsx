@@ -378,7 +378,7 @@ export default function MultiFileUploadSubmission({
   };
 
   return (
-    <div className="space-y-2">
+    <div className={compact ? 'flex flex-col h-full gap-2' : 'space-y-2'}>
       <input
         ref={fileInputRef}
         type="file"
@@ -435,7 +435,13 @@ export default function MultiFileUploadSubmission({
       </div>
 
       {uploadedFiles.length > 0 && (
-        <div className="space-y-1 max-h-[150px] overflow-y-auto">
+        <div
+          className={
+            compact
+              ? 'flex-1 min-h-0 space-y-1 overflow-y-auto'
+              : 'space-y-1 max-h-[150px] overflow-y-auto'
+          }
+        >
           {uploadedFiles.map((file, index) => (
             <div 
               key={file.file_path || index}
