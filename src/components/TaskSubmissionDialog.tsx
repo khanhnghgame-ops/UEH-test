@@ -586,56 +586,60 @@ export default function TaskSubmissionDialog({
                       </div>
 
                       {/* Quick Stats Row */}
-                      <div className="grid grid-cols-3 gap-3">
-                        {/* Deadline */}
-                        <div className={`rounded-xl border p-3 text-center ${isOverdue ? 'border-destructive/30 bg-destructive/5' : 'border-border/50 bg-muted/20'}`}>
-                          <Calendar className={`w-4 h-4 mx-auto mb-1.5 ${isOverdue ? 'text-destructive' : 'text-orange-500'}`} />
-                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Thời hạn</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Deadline with Countdown */}
+                        <div className={`rounded-xl border p-3 ${isOverdue ? 'border-destructive/30 bg-destructive/5' : 'border-border/50 bg-muted/20'}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Calendar className={`w-4 h-4 ${isOverdue ? 'text-destructive' : 'text-orange-500'}`} />
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Thời hạn</p>
+                          </div>
                           {deadlineDate ? (
-                            <>
+                            <div className="space-y-1">
                               <p className={`text-sm font-bold ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>
-                                {format(deadlineDate, "dd/MM/yyyy", { locale: vi })}
+                                {format(deadlineDate, "dd/MM/yyyy – HH:mm", { locale: vi })}
                               </p>
-                              <p className={`text-xs ${isOverdue ? 'text-destructive/70' : 'text-primary'}`}>
-                                {format(deadlineDate, "HH:mm")}
-                              </p>
-                            </>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">Không có</p>
-                          )}
-                        </div>
-
-                        {/* Status */}
-                        <div className="rounded-xl border border-border/50 bg-muted/20 p-3 text-center">
-                          <StatusIcon className={`w-4 h-4 mx-auto mb-1.5 ${task?.status === 'VERIFIED' ? 'text-success' : task?.status === 'DONE' ? 'text-primary' : 'text-warning'}`} />
-                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Trạng thái</p>
-                          <Badge className={`${statusConfig.color} gap-1 border text-xs px-2 py-0.5`}>
-                            {statusConfig.label}
-                          </Badge>
-                        </div>
-
-                        {/* Score from database */}
-                        <div className="rounded-xl border border-border/50 bg-muted/20 p-3 text-center">
-                          <Award className="w-4 h-4 mx-auto mb-1.5 text-amber-500" />
-                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Điểm</p>
-                          {taskScore ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <span className={`text-lg font-bold ${
-                                taskScore.final_score >= 90 ? 'text-green-600' :
-                                taskScore.final_score >= 70 ? 'text-primary' :
-                                taskScore.final_score >= 50 ? 'text-yellow-600' : 'text-destructive'
-                              }`}>
-                                {taskScore.final_score}
-                              </span>
-                              {taskScore.adjustment !== 0 && (
-                                <Badge variant={taskScore.adjustment > 0 ? "default" : "destructive"} className={`text-[10px] px-1 ${taskScore.adjustment > 0 ? 'bg-green-500' : ''}`}>
-                                  {taskScore.adjustment > 0 ? '+' : ''}{taskScore.adjustment}
-                                </Badge>
-                              )}
+                              <div className={`px-2 py-1 rounded-lg ${isOverdue ? 'bg-destructive/10' : 'bg-primary/10'}`}>
+                                <CountdownTimer 
+                                  deadline={task!.deadline!} 
+                                  showIcon={true}
+                                  className="text-xs justify-center"
+                                />
+                              </div>
                             </div>
                           ) : (
-                            <p className="text-xs text-muted-foreground">Chưa chấm</p>
+                            <p className="text-xs text-muted-foreground">Không có deadline</p>
                           )}
+                        </div>
+
+                        {/* Status + Score Combined */}
+                        <div className="grid grid-cols-2 gap-2">
+                          {/* Status */}
+                          <div className="rounded-xl border border-border/50 bg-muted/20 p-3 text-center">
+                            <StatusIcon className={`w-4 h-4 mx-auto mb-1.5 ${task?.status === 'VERIFIED' ? 'text-success' : task?.status === 'DONE' ? 'text-primary' : 'text-warning'}`} />
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Trạng thái</p>
+                            <Badge className={`${statusConfig.color} gap-1 border text-[10px] px-1.5 py-0.5`}>
+                              {statusConfig.label}
+                            </Badge>
+                          </div>
+
+                          {/* Score from database */}
+                          <div className="rounded-xl border border-border/50 bg-muted/20 p-3 text-center">
+                            <Award className="w-4 h-4 mx-auto mb-1.5 text-amber-500" />
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Điểm</p>
+                            {taskScore ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className={`text-lg font-bold ${
+                                  taskScore.final_score >= 90 ? 'text-green-600' :
+                                  taskScore.final_score >= 70 ? 'text-primary' :
+                                  taskScore.final_score >= 50 ? 'text-yellow-600' : 'text-destructive'
+                                }`}>
+                                  {taskScore.final_score}
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">Chưa chấm</p>
+                            )}
+                          </div>
                         </div>
                       </div>
 

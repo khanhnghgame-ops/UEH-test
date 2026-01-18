@@ -1,27 +1,33 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   CheckCircle2,
   Clock,
-  ListTodo,
-  TrendingUp,
   Users,
   AlertCircle,
-  Calendar,
-  ExternalLink,
 } from 'lucide-react';
-import type { Task, GroupMember, Stage } from '@/types/database';
+import type { Task, GroupMember, Stage, Profile } from '@/types/database';
 import { formatDeadlineShortVN, isDeadlineOverdue, parseLocalDateTime } from '@/lib/datetime';
+import UserAvatar from '@/components/UserAvatar';
+import UserPresenceIndicator from '@/components/UserPresenceIndicator';
+import ProfileViewDialog from '@/components/ProfileViewDialog';
+import { useUserPresence } from '@/hooks/useUserPresence';
 
 interface GroupDashboardProps {
   tasks: Task[];
   members: GroupMember[];
   stages: Stage[];
+  groupId?: string;
 }
 
-export default function GroupDashboard({ tasks, members, stages }: GroupDashboardProps) {
+export default function GroupDashboard({ tasks, members, stages, groupId }: GroupDashboardProps) {
+  const { getPresenceStatus } = useUserPresence(groupId);
+  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [profileRole, setProfileRole] = useState<'admin' | 'leader' | 'member'>('member');
+
   // Task statistics
   const totalTasks = tasks.length;
   const todoTasks = tasks.filter(t => t.status === 'TODO').length;
@@ -49,23 +55,15 @@ export default function GroupDashboard({ tasks, members, stages }: GroupDashboar
     return deadline >= now && deadline <= threeDays;
   });
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
+  // Count members by presence status
+  const onlineMembers = members.filter(m => getPresenceStatus(m.user_id) === 'online').length;
+  const idleMembers = members.filter(m => getPresenceStatus(m.user_id) === 'idle').length;
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return <Badge className="bg-destructive/10 text-destructive text-xs">Admin</Badge>;
-      case 'leader':
-        return <Badge className="bg-warning/10 text-warning text-xs">Leader</Badge>;
-      default:
-        return <Badge variant="secondary" className="text-xs">Member</Badge>;
+  const handleMemberClick = (member: GroupMember) => {
+    if (member.profiles) {
+      setSelectedProfile(member.profiles as Profile);
+      setProfileRole(member.role as 'admin' | 'leader' | 'member');
+      setProfileDialogOpen(true);
     }
   };
 
@@ -207,6 +205,78 @@ export default function GroupDashboard({ tasks, members, stages }: GroupDashboar
           </CardContent>
         </Card>
       )}
+
+      {/* Online Members Quick View */}
+      {members.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                Thành viên ({members.length})
+              </div>
+              <div className="flex items-center gap-3 text-sm font-normal">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-muted-foreground">{onlineMembers} online</span>
+                </span>
+                {idleMembers > 0 && (
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                    <span className="text-muted-foreground">{idleMembers} idle</span>
+                  </span>
+                )}
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {members.slice(0, 12).map((member) => {
+                const status = getPresenceStatus(member.user_id);
+                return (
+                  <div 
+                    key={member.id}
+                    onClick={() => handleMemberClick(member)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
+                  >
+                    <div className="relative">
+                      <UserAvatar 
+                        src={member.profiles?.avatar_url}
+                        name={member.profiles?.full_name}
+                        size="sm"
+                      />
+                      <div className="absolute -bottom-0.5 -right-0.5">
+                        <UserPresenceIndicator status={status} size="xs" />
+                      </div>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium truncate max-w-24">
+                        {member.profiles?.full_name}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {member.role === 'leader' ? 'Leader' : 'Member'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+              {members.length > 12 && (
+                <div className="flex items-center justify-center px-3 py-2 rounded-lg bg-muted/20 text-xs text-muted-foreground">
+                  +{members.length - 12} khác
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Profile View Dialog */}
+      <ProfileViewDialog
+        profile={selectedProfile}
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+        role={profileRole}
+      />
     </div>
   );
 }

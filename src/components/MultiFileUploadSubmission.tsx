@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -77,6 +77,26 @@ const generateSafeStorageName = (originalName: string): string => {
 
 const DEFAULT_MAX_SIZE = 10 * 1024 * 1024; // 10MB default
 
+// Calculate expected upload duration based on file size (in ms)
+const getExpectedDuration = (totalBytes: number): number => {
+  const mb = totalBytes / (1024 * 1024);
+  if (mb <= 1) return 1500;       // ≤1MB: ~1.5s
+  if (mb <= 5) return 3000;       // 1-5MB: ~3s
+  if (mb <= 15) return 6000;      // 5-15MB: ~6s
+  if (mb <= 30) return 12000;     // 15-30MB: ~12s
+  if (mb <= 50) return 20000;     // 30-50MB: ~20s
+  if (mb <= 100) return 35000;    // 50-100MB: ~35s
+  return 60000;                   // >100MB: ~60s
+};
+
+// Reassuring messages
+const REASSURING_MESSAGES = [
+  "Đang xử lý, vui lòng không đóng trang...",
+  "Hệ thống đang tải file lên máy chủ...",
+  "Hệ thống đang hoàn tất nộp bài cho bạn...",
+  "Xin vui lòng chờ trong giây lát...",
+];
+
 export default function MultiFileUploadSubmission({
   onFilesChanged,
   uploadedFiles,
@@ -91,14 +111,98 @@ export default function MultiFileUploadSubmission({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadedBytes, setUploadedBytes] = useState(0);
-  const [totalBytesToUpload, setTotalBytesToUpload] = useState(0);
   const [currentFileName, setCurrentFileName] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [reassuringMessage, setReassuringMessage] = useState('');
+  
+  // Virtual progress state
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const uploadCompleteRef = useRef(false);
+  const targetProgressRef = useRef(0);
 
   const currentTotalSize = uploadedFiles.reduce((sum, f) => sum + f.file_size, 0);
   const remainingSize = maxTotalSize - currentTotalSize;
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Start smooth virtual progress
+  const startVirtualProgress = useCallback((totalBytes: number) => {
+    const expectedDuration = getExpectedDuration(totalBytes);
+    const startTime = Date.now();
+    uploadCompleteRef.current = false;
+    targetProgressRef.current = 85; // Target before upload completes
+    
+    // Rotate reassuring messages
+    let messageIndex = 0;
+    setReassuringMessage(REASSURING_MESSAGES[0]);
+    const messageInterval = setInterval(() => {
+      messageIndex = (messageIndex + 1) % REASSURING_MESSAGES.length;
+      setReassuringMessage(REASSURING_MESSAGES[messageIndex]);
+    }, 3000);
+
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+
+    progressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const rawProgress = (elapsed / expectedDuration) * 100;
+      
+      if (uploadCompleteRef.current) {
+        // Upload finished - accelerate to 100%
+        setUploadProgress(prev => {
+          const newProgress = prev + 3; // Fast acceleration to finish
+          if (newProgress >= 100) {
+            clearInterval(progressIntervalRef.current!);
+            clearInterval(messageInterval);
+            progressIntervalRef.current = null;
+            return 100;
+          }
+          return newProgress;
+        });
+      } else {
+        // Upload still in progress
+        let targetProgress: number;
+        
+        if (rawProgress < 70) {
+          // Normal progress
+          targetProgress = Math.min(rawProgress, targetProgressRef.current);
+        } else {
+          // Slow down as we approach target
+          const slowFactor = 1 - ((rawProgress - 70) / 100);
+          targetProgress = Math.min(70 + (rawProgress - 70) * slowFactor * 0.3, targetProgressRef.current);
+        }
+        
+        setUploadProgress(prev => {
+          // Smooth increment, never decrease
+          const increment = Math.max(0.2, (targetProgress - prev) * 0.1);
+          return Math.min(prev + increment, targetProgress);
+        });
+      }
+    }, 50); // Update every 50ms for smooth animation
+
+    return () => {
+      clearInterval(messageInterval);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // Signal upload complete for smooth finish
+  const signalUploadComplete = useCallback(() => {
+    uploadCompleteRef.current = true;
+    targetProgressRef.current = 100;
+  }, []);
 
   const handleFilesSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -123,18 +227,12 @@ export default function MultiFileUploadSubmission({
 
     setIsUploading(true);
     setUploadProgress(0);
-    setUploadedBytes(0);
+    
+    // Start virtual progress animation
+    const cleanup = startVirtualProgress(newFilesTotalSize);
 
     const newUploadedFiles: UploadedFile[] = [];
     const totalFiles = files.length;
-    let totalBytes = 0;
-    let bytesUploaded = 0;
-
-    // Calculate total bytes
-    for (let i = 0; i < files.length; i++) {
-      totalBytes += files[i].size;
-    }
-    setTotalBytesToUpload(totalBytes);
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -144,14 +242,6 @@ export default function MultiFileUploadSubmission({
         const storageName = generateSafeStorageName(file.name);
         const filePath = `${userId}/${taskId}/${storageName}`;
 
-        // Calculate progress for this file
-        const startProgress = Math.round((bytesUploaded / totalBytes) * 100);
-        const endProgress = Math.round(((bytesUploaded + file.size) / totalBytes) * 100);
-        
-        // Set initial progress
-        setUploadProgress(startProgress);
-        setUploadedBytes(bytesUploaded);
-
         // Use standard Supabase upload
         const { data, error } = await supabase.storage
           .from('task-submissions')
@@ -159,11 +249,6 @@ export default function MultiFileUploadSubmission({
             cacheControl: '3600',
             upsert: true
           });
-
-        // Update progress after upload completes for this file
-        bytesUploaded += file.size;
-        setUploadProgress(Math.round((bytesUploaded / totalBytes) * 100));
-        setUploadedBytes(bytesUploaded);
 
         if (error) {
           // Log chi tiết lỗi để debug
@@ -207,8 +292,11 @@ export default function MultiFileUploadSubmission({
         });
       }
 
-      // Hoàn thành 100% với animation
-      setUploadProgress(100);
+      // Signal that real upload is done - let progress catch up smoothly
+      signalUploadComplete();
+      
+      // Wait for progress to finish smoothly
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       const allFiles = [...uploadedFiles, ...newUploadedFiles];
       onFilesChanged(allFiles);
@@ -235,11 +323,11 @@ export default function MultiFileUploadSubmission({
         variant: 'destructive',
       });
     } finally {
+      cleanup();
       setIsUploading(false);
       setUploadProgress(0);
-      setUploadedBytes(0);
-      setTotalBytesToUpload(0);
       setCurrentFileName('');
+      setReassuringMessage('');
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -306,26 +394,28 @@ export default function MultiFileUploadSubmission({
           border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-all
           ${disabled || isUploading 
             ? 'border-muted bg-muted/20 cursor-not-allowed' 
-            : 'border-blue-400/40 bg-blue-50/50 dark:bg-blue-950/20 hover:border-blue-500/60 hover:bg-blue-100/50 dark:hover:bg-blue-900/30'
+            : 'border-emerald-400/40 bg-emerald-50/50 dark:bg-emerald-950/20 hover:border-emerald-500/60 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30'
           }
         `}
       >
         {isUploading ? (
           <div className="space-y-2">
             <div className="flex items-center justify-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-              <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                Đang tải... {formatFileSize(uploadedBytes)} / {formatFileSize(totalBytesToUpload)}
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                Đang tải... {Math.round(uploadProgress)}%
               </span>
             </div>
             <p className="text-[10px] text-muted-foreground truncate px-2">{currentFileName}</p>
             <Progress value={uploadProgress} className="h-2 transition-all duration-150" />
-            <p className="text-[10px] text-center text-muted-foreground">{uploadProgress}%</p>
+            <p className="text-[10px] text-center text-emerald-600/70 dark:text-emerald-400/70 animate-pulse">
+              {reassuringMessage}
+            </p>
           </div>
         ) : (
           <div className="flex items-center justify-center gap-2">
-            <Upload className="w-4 h-4 text-blue-500" />
-            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+            <Upload className="w-4 h-4 text-emerald-500" />
+            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
               {compact ? 'Chọn file' : 'Kéo thả hoặc nhấn để chọn'}
             </span>
           </div>
@@ -345,7 +435,7 @@ export default function MultiFileUploadSubmission({
       </div>
 
       {uploadedFiles.length > 0 && (
-        <div className="space-y-1 max-h-[100px] overflow-y-auto">
+        <div className="space-y-1 max-h-[150px] overflow-y-auto">
           {uploadedFiles.map((file, index) => (
             <div 
               key={file.file_path || index}
@@ -400,7 +490,7 @@ export default function MultiFileUploadSubmission({
                     variant="ghost"
                     size="icon"
                     onClick={() => handlePreviewFile(file)}
-                    className="h-5 w-5 text-muted-foreground hover:text-blue-500"
+                    className="h-5 w-5 text-muted-foreground hover:text-emerald-500"
                     title="Xem"
                   >
                     <Eye className="w-2.5 h-2.5" />

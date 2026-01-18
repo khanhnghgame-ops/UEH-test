@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import UserAvatar from '@/components/UserAvatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import ProfileViewDialog from '@/components/ProfileViewDialog';
+import UserPresenceIndicator from '@/components/UserPresenceIndicator';
+import { useUserPresence, PresenceStatus } from '@/hooks/useUserPresence';
 
 import {
   Loader2,
@@ -55,9 +57,23 @@ interface PendingApprovalRow {
   groupName?: string;
 }
 
+// Simple presence hook for admin page (uses global channel)
+function useGlobalPresence() {
+  const [presenceMap, setPresenceMap] = useState<Map<string, PresenceStatus>>(new Map());
+  
+  // For admin page, we track presence across all groups
+  // This is a simplified version - in production you might want group-specific presence
+  return {
+    getPresenceStatus: (userId: string): PresenceStatus => {
+      return presenceMap.get(userId) || 'offline';
+    }
+  };
+}
+
 export default function AdminUsers() {
   const { user, isAdmin, isLeader } = useAuth();
   const { toast } = useToast();
+  const { getPresenceStatus } = useGlobalPresence();
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(true);
@@ -413,57 +429,69 @@ export default function AdminUsers() {
               ) : (
                 <ScrollArea className="max-h-[480px] pr-3">
                   <div className="space-y-3">
-                    {members.map((m) => (
-                      <div
-                        key={m.id}
-                        className="flex items-center justify-between gap-3 p-3 border rounded-lg bg-card/40"
-                      >
-                        <div className="flex items-center gap-3">
-                          <UserAvatar 
-                            src={m.avatarUrl}
-                            name={m.fullName}
-                            size="md"
-                          />
-                          <div>
-                            <p className="font-medium">
-                              {m.fullName || 'Không rõ tên'}{' '}
-                              <Badge variant="outline" className="ml-2 text-[11px]">
-                                {m.role === 'admin'
-                                  ? 'Admin'
-                                  : m.role === 'leader'
-                                    ? 'Leader'
-                                    : 'Member'}
-                              </Badge>
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {m.studentId && <span>{m.studentId} · </span>}
-                              {m.email}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Nhóm: <span className="font-medium">{m.groupName}</span>
-                            </p>
+                    {members.map((m) => {
+                      const status = getPresenceStatus(m.userId);
+                      return (
+                        <div
+                          key={m.id}
+                          className="flex items-center justify-between gap-3 p-3 border rounded-lg bg-card/40 hover:bg-card/60 cursor-pointer transition-colors"
+                          onClick={() => handleViewProfile(m.userId)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <UserAvatar 
+                                src={m.avatarUrl}
+                                name={m.fullName}
+                                size="md"
+                              />
+                              <div className="absolute -bottom-0.5 -right-0.5">
+                                <UserPresenceIndicator status={status} size="sm" />
+                              </div>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">
+                                  {m.fullName || 'Không rõ tên'}
+                                </p>
+                                <Badge variant="outline" className="text-[11px]">
+                                  {m.role === 'admin'
+                                    ? 'Admin'
+                                    : m.role === 'leader'
+                                      ? 'Leader'
+                                      : 'Member'}
+                                </Badge>
+                                <UserPresenceIndicator status={status} size="xs" showLabel />
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {m.studentId && <span>{m.studentId} · </span>}
+                                {m.email}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Nhóm: <span className="font-medium">{m.groupName}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs"
+                              onClick={(e) => { e.stopPropagation(); handleViewProfile(m.userId); }}
+                            >
+                              <Eye className="w-4 h-4 mr-1" /> Xem hồ sơ
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={(e) => { e.stopPropagation(); handleRemoveMember(m.id); }}
+                            >
+                              <UserMinus className="w-4 h-4 mr-1" /> Xoá khỏi nhóm
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-xs"
-                            onClick={() => handleViewProfile(m.userId)}
-                          >
-                            <Eye className="w-4 h-4 mr-1" /> Xem hồ sơ
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                            onClick={() => handleRemoveMember(m.id)}
-                          >
-                            <UserMinus className="w-4 h-4 mr-1" /> Xoá khỏi nhóm
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </ScrollArea>
               )}
