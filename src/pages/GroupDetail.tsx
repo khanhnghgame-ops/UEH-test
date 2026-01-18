@@ -343,7 +343,7 @@ export default function GroupDetail() {
 
 
   return (
-    <DashboardLayout projectId={group.id} projectName={group.name}>
+    <DashboardLayout projectId={group.id} projectName={group.name} zaloLink={group.zalo_link}>
       <div className="space-y-0 -mx-6 -mt-6">
         {/* Project Navigation Bar - immediately below main nav */}
         <ProjectNavigation

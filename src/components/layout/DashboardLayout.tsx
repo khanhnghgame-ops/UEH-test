@@ -43,6 +43,7 @@ interface DashboardLayoutProps {
   children: ReactNode;
   projectId?: string;
   projectName?: string;
+  zaloLink?: string | null;
 }
 
 interface NavItem {
@@ -62,7 +63,7 @@ const navigation: NavItem[] = [
   { name: 'SAO LƯU', href: '/admin/backup', icon: FolderArchive, requiresAdmin: true },
 ];
 
-export default function DashboardLayout({ children, projectId, projectName }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, projectId, projectName, zaloLink }: DashboardLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, isAdmin, isLeader, signOut } = useAuth();
@@ -251,7 +252,7 @@ export default function DashboardLayout({ children, projectId, projectName }: Da
       </Dialog>
 
       {/* AI Assistant - Available on all pages */}
-      <AIAssistantButton projectId={projectId} projectName={projectName} />
+      <AIAssistantButton projectId={projectId} projectName={projectName} zaloLink={zaloLink} />
     </div>
   );
 }

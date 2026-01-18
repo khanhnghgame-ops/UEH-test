@@ -20,7 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -56,11 +56,9 @@ import {
   FileText,
   MessagesSquare,
   ChevronDown,
-  Star,
   Award,
   HardDrive,
-  Globe,
-  Sparkles
+  Globe
 } from 'lucide-react';
 import type { Task, TaskStatus } from '@/types/database';
 import type { TaskScore } from '@/types/processScores';
@@ -594,18 +592,9 @@ export default function TaskSubmissionDialog({
                             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Thời hạn</p>
                           </div>
                           {deadlineDate ? (
-                            <div className="space-y-1">
-                              <p className={`text-sm font-bold ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>
-                                {format(deadlineDate, "dd/MM/yyyy – HH:mm", { locale: vi })}
-                              </p>
-                              <div className={`px-2 py-1 rounded-lg ${isOverdue ? 'bg-destructive/10' : 'bg-primary/10'}`}>
-                                <CountdownTimer 
-                                  deadline={task!.deadline!} 
-                                  showIcon={true}
-                                  className="text-xs justify-center"
-                                />
-                              </div>
-                            </div>
+                            <p className={`text-sm font-bold ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>
+                              {format(deadlineDate, "dd/MM/yyyy – HH:mm", { locale: vi })}
+                            </p>
                           ) : (
                             <p className="text-xs text-muted-foreground">Không có deadline</p>
                           )}
@@ -748,21 +737,12 @@ export default function TaskSubmissionDialog({
                       {canSubmit && (
                         <Button 
                           onClick={() => setActiveTab('submit')}
-                          className="w-full h-11 gap-2 shadow-lg"
+                          className="w-full h-14 gap-3 shadow-lg text-base font-semibold"
+                          size="lg"
                         >
-                          <Send className="w-4 h-4" />
+                          <Send className="w-5 h-5" />
                           Đi đến Nộp bài
                         </Button>
-                      )}
-
-                      {/* Time remaining visual */}
-                      {timeStatus && (
-                        <div className={`rounded-xl p-3 text-center ${timeStatus.isOverdue ? 'bg-destructive/10 border border-destructive/30' : 'bg-muted/30 border border-border/50'}`}>
-                          <Clock className={`w-5 h-5 mx-auto mb-1 ${timeStatus.isOverdue ? 'text-destructive' : 'text-primary'}`} />
-                          <p className={`text-sm font-bold ${timeStatus.isOverdue ? 'text-destructive' : 'text-primary'}`}>
-                            {timeStatus.text}
-                          </p>
-                        </div>
                       )}
                     </div>
                   </div>
