@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import UserAvatar from '@/components/UserAvatar';
-import ProfileViewDialog from '@/components/ProfileViewDialog';
 import DashboardProjectCard from '@/components/dashboard/DashboardProjectCard';
 import { supabase } from '@/integrations/supabase/client';
 import FirstTimeOnboarding from '@/components/FirstTimeOnboarding';
@@ -16,18 +15,12 @@ import {
   Loader2,
   Sparkles,
 } from 'lucide-react';
-import type { Group, Profile, GroupMember } from '@/types/database';
+import type { Group } from '@/types/database';
 
 export default function Dashboard() {
   const { user, profile, mustChangePassword, refreshProfile, isLeader, isAdmin } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
-  const [groupMembers, setGroupMembers] = useState<Map<string, GroupMember[]>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
-
-  // Profile view dialog state
-  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
-  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [selectedProfileRole, setSelectedProfileRole] = useState<'admin' | 'leader' | 'member'>('member');
 
   useEffect(() => {
     if (user) {
@@ -52,61 +45,22 @@ export default function Dashboard() {
 
       if (groupIds.length === 0) {
         setGroups([]);
-        setGroupMembers(new Map());
         return;
       }
 
-      const [{ data: groupsData, error: groupsError }, { data: membersData, error: membersError }] =
-        await Promise.all([
-          supabase
-            .from('groups')
-            .select('*')
-            .in('id', groupIds)
-            .order('created_at', { ascending: false }),
-          // NOTE: avoid relational join here to keep fetching reliable (no FK required)
-          supabase
-            .from('group_members')
-            .select('id, user_id, group_id, role, joined_at')
-            .in('group_id', groupIds),
-        ]);
+      const { data: groupsData, error: groupsError } = await supabase
+        .from('groups')
+        .select('*')
+        .in('id', groupIds)
+        .order('created_at', { ascending: false });
 
       if (groupsError) throw groupsError;
-      if (membersError) throw membersError;
 
       setGroups(groupsData || []);
-
-      const userIds = Array.from(new Set((membersData || []).map((m) => m.user_id)));
-      const { data: profilesData, error: profilesError } = userIds.length
-        ? await supabase
-            .from('profiles')
-            .select('id, full_name, student_id, email, avatar_url, year_batch, major, phone, skills, bio')
-            .in('id', userIds)
-        : { data: [], error: null };
-
-      if (profilesError) throw profilesError;
-
-      const profilesMap = new Map((profilesData || []).map((p) => [p.id, p] as const));
-
-      const membersMap = new Map<string, GroupMember[]>();
-      (membersData || []).forEach((m: any) => {
-        const existing = membersMap.get(m.group_id) || [];
-        existing.push({ ...m, profiles: profilesMap.get(m.user_id) || null } as GroupMember);
-        membersMap.set(m.group_id, existing);
-      });
-
-      setGroupMembers(membersMap);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleMemberClick = (member: GroupMember) => {
-    if (member.profiles) {
-      setSelectedProfile(member.profiles as Profile);
-      setSelectedProfileRole(member.role as 'admin' | 'leader' | 'member');
-      setProfileDialogOpen(true);
     }
   };
 
@@ -184,7 +138,7 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* My Projects with Members */}
+        {/* My Projects - Simplified without members */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <div>
@@ -206,32 +160,18 @@ export default function Dashboard() {
                 <p className="text-sm">Liên hệ Leader để được thêm vào project</p>
               </div>
             ) : (
-              <div className="space-y-6">
-                {groups.map((group) => {
-                  const members = groupMembers.get(group.id) || [];
-                  return (
-                    <DashboardProjectCard
-                      key={group.id}
-                      group={group}
-                      members={members}
-                      canViewMembers={isLeader || isAdmin}
-                      onMemberClick={handleMemberClick}
-                    />
-                  );
-                })}
+              <div className="space-y-4">
+                {groups.map((group) => (
+                  <DashboardProjectCard
+                    key={group.id}
+                    group={group}
+                  />
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Profile View Dialog */}
-      <ProfileViewDialog
-        profile={selectedProfile}
-        open={profileDialogOpen}
-        onOpenChange={setProfileDialogOpen}
-        role={selectedProfileRole}
-      />
     </DashboardLayout>
   );
 }
