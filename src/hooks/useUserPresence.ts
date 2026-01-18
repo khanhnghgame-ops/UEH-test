@@ -10,29 +10,16 @@ export interface UserPresence {
   userId: string;
 }
 
-// Global presence map - shared across all hook instances
-const globalPresenceMap = new Map<string, UserPresence>();
-const listeners = new Set<() => void>();
-
-const notifyListeners = () => {
-  listeners.forEach((listener) => listener());
-};
-
 export function useUserPresence(groupId?: string) {
   const { user } = useAuth();
   const [presenceMap, setPresenceMap] = useState<Map<string, UserPresence>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
 
-  // Force re-render when global presence changes
-  const forceUpdate = useCallback(() => {
-    setPresenceMap(new Map(globalPresenceMap));
-  }, []);
-
   useEffect(() => {
     if (!user || !groupId) return;
 
-    // Register this component as a listener
-    listeners.add(forceUpdate);
+    setIsConnected(false);
+    setPresenceMap(new Map());
 
     const channelName = `presence:${groupId}`;
     const channel = supabase.channel(channelName, {
@@ -41,7 +28,7 @@ export function useUserPresence(groupId?: string) {
       },
     });
 
-    let idleTimeout: NodeJS.Timeout | null = null;
+    let idleTimeout: ReturnType<typeof setTimeout> | null = null;
     let isIdle = false;
 
     const updatePresence = async (status: PresenceStatus) => {
@@ -61,7 +48,7 @@ export function useUserPresence(groupId?: string) {
         isIdle = false;
         updatePresence('online');
       }
-      
+
       if (idleTimeout) clearTimeout(idleTimeout);
       idleTimeout = setTimeout(() => {
         isIdle = true;
@@ -72,43 +59,48 @@ export function useUserPresence(groupId?: string) {
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<UserPresence>();
-        
-        // Update global presence map
-        globalPresenceMap.clear();
+
+        const next = new Map<string, UserPresence>();
         Object.entries(state).forEach(([key, presences]) => {
           if (presences && presences.length > 0) {
             const latestPresence = presences[presences.length - 1];
-            globalPresenceMap.set(latestPresence.userId || key, {
+            const id = latestPresence.userId || key;
+            next.set(id, {
               status: latestPresence.status || 'online',
               lastSeen: latestPresence.lastSeen || new Date().toISOString(),
-              userId: latestPresence.userId || key,
+              userId: id,
             });
           }
         });
-        
-        notifyListeners();
+
+        setPresenceMap(next);
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        if (newPresences && newPresences.length > 0) {
-          const presence = newPresences[0];
-          globalPresenceMap.set(presence.userId || key, {
+        if (!newPresences || newPresences.length === 0) return;
+        const presence = newPresences[newPresences.length - 1];
+        const id = presence.userId || key;
+
+        setPresenceMap((prev) => {
+          const next = new Map(prev);
+          next.set(id, {
             status: presence.status || 'online',
             lastSeen: presence.lastSeen || new Date().toISOString(),
-            userId: presence.userId || key,
+            userId: id,
           });
-          notifyListeners();
-        }
+          return next;
+        });
       })
       .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        if (leftPresences && leftPresences.length > 0) {
-          const presence = leftPresences[0];
-          globalPresenceMap.set(presence.userId || key, {
+        const id = leftPresences?.[0]?.userId || key;
+        setPresenceMap((prev) => {
+          const next = new Map(prev);
+          next.set(id, {
             status: 'offline',
             lastSeen: new Date().toISOString(),
-            userId: presence.userId || key,
+            userId: id,
           });
-          notifyListeners();
-        }
+          return next;
+        });
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -119,7 +111,7 @@ export function useUserPresence(groupId?: string) {
       });
 
     // Activity listeners
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'] as const;
     events.forEach((event) => {
       window.addEventListener(event, handleActivity, { passive: true });
     });
@@ -137,22 +129,23 @@ export function useUserPresence(groupId?: string) {
 
     // Cleanup
     return () => {
-      listeners.delete(forceUpdate);
       if (idleTimeout) clearTimeout(idleTimeout);
       events.forEach((event) => {
         window.removeEventListener(event, handleActivity);
       });
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      
-      updatePresence('offline');
+
       supabase.removeChannel(channel);
     };
-  }, [user, groupId, forceUpdate]);
+  }, [user, groupId]);
 
-  const getPresenceStatus = useCallback((userId: string): PresenceStatus => {
-    const presence = presenceMap.get(userId);
-    return presence?.status || 'offline';
-  }, [presenceMap]);
+  const getPresenceStatus = useCallback(
+    (userId: string): PresenceStatus => {
+      const presence = presenceMap.get(userId);
+      return presence?.status || 'offline';
+    },
+    [presenceMap]
+  );
 
   const isUserOnline = useCallback((userId: string): boolean => {
     return getPresenceStatus(userId) === 'online';
@@ -165,3 +158,4 @@ export function useUserPresence(groupId?: string) {
     isConnected,
   };
 }
+
