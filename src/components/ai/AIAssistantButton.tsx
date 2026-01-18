@@ -3,15 +3,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import AIAssistantPanel from './AIAssistantPanel';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, MessageCircle } from 'lucide-react';
 import aiLogo from '@/assets/ai-assistant-logo.png';
-import zaloIcon from '@/assets/zalo-icon.png';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 interface AIAssistantButtonProps {
   projectId?: string;
@@ -106,33 +99,21 @@ export default function AIAssistantButton({ projectId, projectName, zaloLink }: 
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-center gap-3">
         {/* Zalo Contact Button - Above AI Button, smaller */}
         {zaloLink && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={handleZaloClick}
-                  size="sm"
-                  className={cn(
-                    "relative rounded-full h-12 w-12 shadow-xl p-0",
-                    "bg-[#0068FF] hover:bg-[#0054CC]",
-                    "transition-all duration-300 hover:scale-110",
-                    "group overflow-hidden",
-                    "ring-2 ring-[#0068FF]/30"
-                  )}
-                >
-                  <img 
-                    src={zaloIcon} 
-                    alt="Zalo" 
-                    className="h-7 w-7 object-contain rounded-sm"
-                  />
-                  <span className="sr-only">Liên hệ Zalo</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left" className="bg-[#0068FF] text-white border-0">
-                <p>Liên hệ nhóm qua Zalo</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            onClick={handleZaloClick}
+            size="sm"
+            className={cn(
+              "relative rounded-full h-12 w-12 shadow-xl p-0",
+              "bg-[#0068FF] hover:bg-[#0054CC]",
+              "transition-all duration-300 hover:scale-110",
+              "group overflow-hidden",
+              "ring-2 ring-[#0068FF]/30"
+            )}
+            title="Liên hệ qua Zalo"
+          >
+            <MessageCircle className="h-5 w-5 text-white" />
+            <span className="sr-only">Liên hệ Zalo</span>
+          </Button>
         )}
 
         {/* AI Button - With continuous subtle animations */}
