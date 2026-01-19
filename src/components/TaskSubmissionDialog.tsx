@@ -130,7 +130,30 @@ export default function TaskSubmissionDialog({
   const taskWithSize = task as (Task & { max_file_size?: number }) | null;
   const maxFileSize = taskWithSize?.max_file_size || DEFAULT_MAX_FILE_SIZE;
 
-  const deadlineDate = task?.deadline ? parseLocalDateTime(task.deadline) : null;
+  // Handle extended deadline
+  const taskWithExtended = task as (Task & { extended_deadline?: string; extended_at?: string }) | null;
+  const originalDeadlineDate = task?.deadline ? parseLocalDateTime(task.deadline) : null;
+  const extendedDeadlineDate = taskWithExtended?.extended_deadline ? parseLocalDateTime(taskWithExtended.extended_deadline) : null;
+  const deadlineDate = extendedDeadlineDate || originalDeadlineDate;
+  const hasExtension = !!taskWithExtended?.extended_deadline;
+
+  // Calculate extension hours
+  const getExtensionHours = () => {
+    if (!originalDeadlineDate || !extendedDeadlineDate) return 0;
+    const diffMs = extendedDeadlineDate.getTime() - originalDeadlineDate.getTime();
+    return Math.round(diffMs / (1000 * 60 * 60));
+  };
+
+  const getExtensionText = (hours: number) => {
+    if (hours <= 0) return '';
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    let text = '+';
+    if (days > 0) text += `${days} ngày`;
+    if (days > 0 && remainingHours > 0) text += ' ';
+    if (remainingHours > 0) text += `${remainingHours} giờ`;
+    return text;
+  };
 
   // Check if task is overdue
   const isOverdue = !!deadlineDate && deadlineDate.getTime() < Date.now();
@@ -584,51 +607,62 @@ export default function TaskSubmissionDialog({
                       </div>
 
                       {/* Quick Stats Row */}
-                      <div className="grid grid-cols-2 gap-3">
-                        {/* Deadline with Countdown */}
-                        <div className={`rounded-xl border p-3 ${isOverdue ? 'border-destructive/30 bg-destructive/5' : 'border-border/50 bg-muted/20'}`}>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Calendar className={`w-4 h-4 ${isOverdue ? 'text-destructive' : 'text-orange-500'}`} />
-                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Thời hạn</p>
-                          </div>
-                          {deadlineDate ? (
-                            <p className={`text-sm font-bold ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>
-                              {format(deadlineDate, "dd/MM/yyyy – HH:mm", { locale: vi })}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">Không có deadline</p>
+                      {/* Deadline Info - Show extension clearly */}
+                      <div className={`rounded-xl border p-3 ${hasExtension ? 'border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20' : isOverdue ? 'border-destructive/30 bg-destructive/5' : 'border-border/50 bg-muted/20'}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Calendar className={`w-4 h-4 ${hasExtension ? 'text-blue-600' : isOverdue ? 'text-destructive' : 'text-orange-500'}`} />
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                            {hasExtension ? 'Deadline (đã gia hạn)' : 'Thời hạn'}
+                          </p>
+                          {hasExtension && (
+                            <Badge className="ml-auto text-[9px] px-1.5 bg-blue-500/10 text-blue-600 border-blue-500/30">
+                              {getExtensionText(getExtensionHours())}
+                            </Badge>
                           )}
                         </div>
-
-                        {/* Status + Score Combined */}
-                        <div className="grid grid-cols-2 gap-2">
-                          {/* Status */}
-                          <div className="rounded-xl border border-border/50 bg-muted/20 p-3 text-center">
-                            <StatusIcon className={`w-4 h-4 mx-auto mb-1.5 ${task?.status === 'VERIFIED' ? 'text-success' : task?.status === 'DONE' ? 'text-primary' : 'text-warning'}`} />
-                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Trạng thái</p>
-                            <Badge className={`${statusConfig.color} gap-1 border text-[10px] px-1.5 py-0.5`}>
-                              {statusConfig.label}
-                            </Badge>
+                        
+                        {hasExtension && originalDeadlineDate && extendedDeadlineDate ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-muted-foreground line-through">
+                                {format(originalDeadlineDate, "dd/MM – HH:mm", { locale: vi })}
+                              </span>
+                              <span className="text-blue-600 font-medium">→</span>
+                              <span className={`font-bold ${isOverdue ? 'text-destructive' : 'text-blue-700'}`}>
+                                {format(extendedDeadlineDate, "dd/MM/yyyy – HH:mm", { locale: vi })}
+                              </span>
+                            </div>
                           </div>
+                        ) : deadlineDate ? (
+                          <p className={`text-sm font-bold ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>
+                            {format(deadlineDate, "dd/MM/yyyy – HH:mm", { locale: vi })}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Không có deadline</p>
+                        )}
+                      </div>
 
-                          {/* Score from database */}
-                          <div className="rounded-xl border border-border/50 bg-muted/20 p-3 text-center">
-                            <Award className="w-4 h-4 mx-auto mb-1.5 text-amber-500" />
-                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Điểm</p>
-                            {taskScore ? (
-                              <div className="flex items-center justify-center gap-1">
-                                <span className={`text-lg font-bold ${
-                                  taskScore.final_score >= 90 ? 'text-green-600' :
-                                  taskScore.final_score >= 70 ? 'text-primary' :
-                                  taskScore.final_score >= 50 ? 'text-yellow-600' : 'text-destructive'
-                                }`}>
-                                  {taskScore.final_score}
-                                </span>
-                              </div>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">Chưa chấm</p>
-                            )}
-                          </div>
+                      {/* Status + Score Row */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl border border-border/50 bg-muted/20 p-2.5 text-center">
+                          <StatusIcon className={`w-3.5 h-3.5 mx-auto mb-1 ${task?.status === 'VERIFIED' ? 'text-success' : task?.status === 'DONE' ? 'text-primary' : 'text-warning'}`} />
+                          <p className="text-[9px] uppercase text-muted-foreground mb-0.5">Trạng thái</p>
+                          <Badge className={`${statusConfig.color} gap-1 border text-[9px] px-1 py-0`}>
+                            {statusConfig.label}
+                          </Badge>
+                        </div>
+                        <div className="rounded-xl border border-border/50 bg-muted/20 p-2.5 text-center">
+                          <Award className="w-3.5 h-3.5 mx-auto mb-1 text-amber-500" />
+                          <p className="text-[9px] uppercase text-muted-foreground mb-0.5">Điểm</p>
+                          {taskScore ? (
+                            <span className={`text-base font-bold ${
+                              taskScore.final_score >= 90 ? 'text-green-600' :
+                              taskScore.final_score >= 70 ? 'text-primary' :
+                              taskScore.final_score >= 50 ? 'text-yellow-600' : 'text-destructive'
+                            }`}>{taskScore.final_score}</span>
+                          ) : (
+                            <p className="text-[10px] text-muted-foreground">Chưa chấm</p>
+                          )}
                         </div>
                       </div>
 
