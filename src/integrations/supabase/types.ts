@@ -1114,6 +1114,9 @@ export type Database = {
           created_by: string
           deadline: string | null
           description: string | null
+          extended_at: string | null
+          extended_by: string | null
+          extended_deadline: string | null
           group_id: string
           id: string
           is_hidden: boolean
@@ -1133,6 +1136,9 @@ export type Database = {
           created_by: string
           deadline?: string | null
           description?: string | null
+          extended_at?: string | null
+          extended_by?: string | null
+          extended_deadline?: string | null
           group_id: string
           id?: string
           is_hidden?: boolean
@@ -1152,6 +1158,9 @@ export type Database = {
           created_by?: string
           deadline?: string | null
           description?: string | null
+          extended_at?: string | null
+          extended_by?: string | null
+          extended_deadline?: string | null
           group_id?: string
           id?: string
           is_hidden?: boolean
