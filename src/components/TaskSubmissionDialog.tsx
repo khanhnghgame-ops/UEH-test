@@ -580,70 +580,98 @@ export default function TaskSubmissionDialog({
 
           {/* Tab Content - Scrollable per page */}
           <div className="flex-1 overflow-hidden">
-            {/* Tab 1: Yêu cầu Task - Full-width optimized layout */}
+            {/* Tab 1: Yêu cầu Task - Optimized compact layout */}
             <TabsContent value="requirements" className="h-full m-0 data-[state=inactive]:hidden">
               <ScrollArea className="h-full">
-                <div className="p-6">
-                  <div className="grid grid-cols-12 gap-6">
+                <div className="p-5">
+                  {/* Compact Two Column Layout */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                     {/* Left Column - Main Content (8 cols) */}
-                    <div className="col-span-8 space-y-5">
-                      {/* Task Requirements Card */}
+                    <div className="lg:col-span-8 space-y-4">
+                      {/* Task Title & Description - Combined for compactness */}
                       <div className="rounded-xl border border-border/50 bg-gradient-to-br from-muted/30 to-background overflow-hidden">
-                        <div className="px-5 py-3 border-b border-border/30 bg-primary/5">
+                        <div className="px-4 py-2.5 border-b border-border/30 bg-primary/5">
                           <div className="flex items-center gap-2">
-                            <Target className="w-5 h-5 text-primary" />
-                            <span className="text-base font-bold text-primary">Yêu cầu Task</span>
+                            <Target className="w-4 h-4 text-primary" />
+                            <span className="text-sm font-bold text-primary">Yêu cầu Task</span>
                           </div>
                         </div>
-                        <div className="p-5 space-y-4">
-                          <h2 className="text-xl font-bold text-foreground leading-tight">{task?.title}</h2>
+                        <div className="p-4 space-y-3">
+                          <h2 className="text-lg font-bold text-foreground leading-tight">{task?.title}</h2>
                           {task?.description && (
-                            <div className="pt-4 border-t border-border/30">
-                              <p className="text-base text-foreground/90 whitespace-pre-wrap leading-relaxed">{task.description}</p>
+                            <div className="pt-2 border-t border-border/30">
+                              <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{task.description}</p>
                             </div>
                           )}
                         </div>
                       </div>
 
+                      {/* Quick Stats Row */}
                       {/* Deadline Info - Show extension clearly */}
-                      <div className={`rounded-xl border-2 p-4 ${hasExtension ? 'border-blue-500/40 bg-blue-50/50 dark:bg-blue-950/20' : isOverdue ? 'border-destructive/40 bg-destructive/5' : 'border-border/50 bg-muted/20'}`}>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <Calendar className={`w-5 h-5 ${hasExtension ? 'text-blue-600' : isOverdue ? 'text-destructive' : 'text-orange-500'}`} />
-                            <span className="text-sm font-bold">{hasExtension ? 'Deadline (đã gia hạn)' : 'Thời hạn'}</span>
-                          </div>
+                      <div className={`rounded-xl border p-3 ${hasExtension ? 'border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20' : isOverdue ? 'border-destructive/30 bg-destructive/5' : 'border-border/50 bg-muted/20'}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Calendar className={`w-4 h-4 ${hasExtension ? 'text-blue-600' : isOverdue ? 'text-destructive' : 'text-orange-500'}`} />
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                            {hasExtension ? 'Deadline (đã gia hạn)' : 'Thời hạn'}
+                          </p>
                           {hasExtension && (
-                            <Badge className="text-xs px-2 bg-blue-500/10 text-blue-600 border-blue-500/30">
+                            <Badge className="ml-auto text-[9px] px-1.5 bg-blue-500/10 text-blue-600 border-blue-500/30">
                               {getExtensionText(getExtensionHours())}
                             </Badge>
                           )}
                         </div>
                         
                         {hasExtension && originalDeadlineDate && extendedDeadlineDate ? (
-                          <div className="flex items-center gap-3 text-sm">
-                            <span className="text-muted-foreground line-through">
-                              {format(originalDeadlineDate, "dd/MM/yyyy – HH:mm", { locale: vi })}
-                            </span>
-                            <span className="text-blue-600 font-bold">→</span>
-                            <span className={`text-lg font-bold ${isOverdue ? 'text-destructive' : 'text-blue-700'}`}>
-                              {format(extendedDeadlineDate, "dd/MM/yyyy – HH:mm", { locale: vi })}
-                            </span>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-muted-foreground line-through">
+                                {format(originalDeadlineDate, "dd/MM – HH:mm", { locale: vi })}
+                              </span>
+                              <span className="text-blue-600 font-medium">→</span>
+                              <span className={`font-bold ${isOverdue ? 'text-destructive' : 'text-blue-700'}`}>
+                                {format(extendedDeadlineDate, "dd/MM/yyyy – HH:mm", { locale: vi })}
+                              </span>
+                            </div>
                           </div>
                         ) : deadlineDate ? (
-                          <p className={`text-lg font-bold ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>
+                          <p className={`text-sm font-bold ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>
                             {format(deadlineDate, "dd/MM/yyyy – HH:mm", { locale: vi })}
                           </p>
                         ) : (
-                          <p className="text-sm text-muted-foreground">Không có deadline</p>
+                          <p className="text-xs text-muted-foreground">Không có deadline</p>
                         )}
                       </div>
 
-                      {/* Assignees */}
-                      <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Users className="w-5 h-5 text-emerald-500" />
-                          <span className="text-sm font-bold text-foreground">Người thực hiện</span>
-                          <Badge variant="secondary" className="ml-2">{taskAssignees.length}</Badge>
+                      {/* Status + Score Row */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl border border-border/50 bg-muted/20 p-2.5 text-center">
+                          <StatusIcon className={`w-3.5 h-3.5 mx-auto mb-1 ${task?.status === 'VERIFIED' ? 'text-success' : task?.status === 'DONE' ? 'text-primary' : 'text-warning'}`} />
+                          <p className="text-[9px] uppercase text-muted-foreground mb-0.5">Trạng thái</p>
+                          <Badge className={`${statusConfig.color} gap-1 border text-[9px] px-1 py-0`}>
+                            {statusConfig.label}
+                          </Badge>
+                        </div>
+                        <div className="rounded-xl border border-border/50 bg-muted/20 p-2.5 text-center">
+                          <Award className="w-3.5 h-3.5 mx-auto mb-1 text-amber-500" />
+                          <p className="text-[9px] uppercase text-muted-foreground mb-0.5">Điểm</p>
+                          {taskScore ? (
+                            <span className={`text-base font-bold ${
+                              taskScore.final_score >= 90 ? 'text-green-600' :
+                              taskScore.final_score >= 70 ? 'text-primary' :
+                              taskScore.final_score >= 50 ? 'text-yellow-600' : 'text-destructive'
+                            }`}>{taskScore.final_score}</span>
+                          ) : (
+                            <p className="text-[10px] text-muted-foreground">Chưa chấm</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Assignees - Horizontal compact */}
+                      <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Users className="w-4 h-4 text-emerald-500" />
+                          <span className="text-xs font-semibold text-foreground">Người thực hiện</span>
+                          <Badge variant="secondary" className="text-[10px] ml-auto">{taskAssignees.length}</Badge>
                         </div>
                         {taskAssignees.length > 0 ? (
                           <TooltipProvider delayDuration={200}>
@@ -651,38 +679,50 @@ export default function TaskSubmissionDialog({
                               {taskAssignees.map((assignee, idx) => (
                                 <Tooltip key={idx}>
                                   <TooltipTrigger asChild>
-                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background/60 border border-border/30 hover:border-primary/30 cursor-pointer transition-all">
-                                      <UserAvatar src={assignee.avatar_url} name={assignee.full_name} size="sm" />
-                                      <span className="text-sm font-medium text-foreground">{assignee.full_name}</span>
+                                    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-background/60 border border-border/30 hover:border-primary/30 cursor-pointer transition-all">
+                                      <UserAvatar 
+                                        src={assignee.avatar_url} 
+                                        name={assignee.full_name} 
+                                        size="xs"
+                                      />
+                                      <span className="text-xs font-medium text-foreground truncate max-w-24">
+                                        {assignee.full_name}
+                                      </span>
                                     </div>
                                   </TooltipTrigger>
-                                  <TooltipContent side="top">
+                                  <TooltipContent side="top" className="text-xs">
                                     <div className="font-medium">{assignee.full_name}</div>
-                                    {assignee.student_id && <div className="text-muted-foreground">MSSV: {assignee.student_id}</div>}
+                                    {assignee.student_id && (
+                                      <div className="text-muted-foreground">MSSV: {assignee.student_id}</div>
+                                    )}
                                   </TooltipContent>
                                 </Tooltip>
                               ))}
                             </div>
                           </TooltipProvider>
                         ) : (
-                          <p className="text-sm text-muted-foreground">Chưa phân công</p>
+                          <p className="text-xs text-muted-foreground">Chưa phân công</p>
                         )}
                       </div>
 
-                      {/* Notes - Collapsible */}
+                      {/* Notes - Collapsible for compactness */}
                       {task && (
                         <Collapsible open={isNotesOpen} onOpenChange={setIsNotesOpen}>
                           <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
-                            <CollapsibleTrigger className="w-full px-5 py-3 flex items-center justify-between hover:bg-amber-500/10 transition-colors">
+                            <CollapsibleTrigger className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-amber-500/10 transition-colors">
                               <div className="flex items-center gap-2">
-                                <FileText className="w-5 h-5 text-amber-500" />
-                                <span className="text-sm font-bold text-foreground">Ghi chú Task</span>
+                                <FileText className="w-4 h-4 text-amber-500" />
+                                <span className="text-xs font-semibold text-foreground">Ghi chú Task</span>
+                                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/30">Thông tin phụ</Badge>
                               </div>
-                              <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isNotesOpen ? 'rotate-180' : ''}`} />
+                              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isNotesOpen ? 'rotate-180' : ''}`} />
                             </CollapsibleTrigger>
                             <CollapsibleContent>
-                              <div className="h-[180px] border-t border-amber-500/20">
-                                <CompactTaskNotes taskId={task.id} className="h-full" />
+                              <div className="h-[150px] border-t border-amber-500/20">
+                                <CompactTaskNotes 
+                                  taskId={task.id}
+                                  className="h-full"
+                                />
                               </div>
                             </CollapsibleContent>
                           </div>
@@ -690,56 +730,40 @@ export default function TaskSubmissionDialog({
                       )}
                     </div>
 
-                    {/* Right Column - Status & Summary (4 cols) */}
-                    <div className="col-span-4 space-y-5">
-                      {/* Status + Score Cards */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-xl border border-border/50 bg-muted/20 p-4 text-center">
-                          <StatusIcon className={`w-6 h-6 mx-auto mb-2 ${task?.status === 'VERIFIED' ? 'text-success' : task?.status === 'DONE' ? 'text-primary' : 'text-warning'}`} />
-                          <p className="text-xs uppercase text-muted-foreground mb-1">Trạng thái</p>
-                          <Badge className={`${statusConfig.color} gap-1 border text-xs`}>{statusConfig.label}</Badge>
-                        </div>
-                        <div className="rounded-xl border border-border/50 bg-muted/20 p-4 text-center">
-                          <Award className="w-6 h-6 mx-auto mb-2 text-amber-500" />
-                          <p className="text-xs uppercase text-muted-foreground mb-1">Điểm</p>
-                          {taskScore ? (
-                            <span className={`text-2xl font-bold ${
-                              taskScore.final_score >= 90 ? 'text-green-600' :
-                              taskScore.final_score >= 70 ? 'text-primary' :
-                              taskScore.final_score >= 50 ? 'text-yellow-600' : 'text-destructive'
-                            }`}>{taskScore.final_score}</span>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">Chưa chấm</p>
-                          )}
-                        </div>
-                      </div>
-
+                    {/* Right Column - Submission Summary (4 cols) */}
+                    <div className="lg:col-span-4 space-y-4">
                       {/* Submission Summary Card */}
-                      <div className="rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 p-5">
-                        <div className="flex items-center gap-2 mb-4">
-                          <div className="p-2 rounded-lg bg-primary/20">
-                            <Upload className="w-5 h-5 text-primary" />
+                      <div className="rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="p-1.5 rounded-lg bg-primary/20">
+                            <Upload className="w-4 h-4 text-primary" />
                           </div>
-                          <span className="text-base font-bold text-foreground">Bài đã nộp</span>
+                          <span className="text-sm font-bold text-foreground">Bài đã nộp</span>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div className="text-center p-3 rounded-lg bg-background/60">
-                            <HardDrive className="w-5 h-5 mx-auto mb-1 text-emerald-500" />
-                            <p className="text-2xl font-bold text-foreground">{filesCount}</p>
-                            <p className="text-xs text-muted-foreground">File</p>
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div className="text-center p-2 rounded-lg bg-background/60">
+                            <HardDrive className="w-4 h-4 mx-auto mb-1 text-emerald-500" />
+                            <p className="text-xl font-bold text-foreground">{filesCount}</p>
+                            <p className="text-[10px] text-muted-foreground">File</p>
                           </div>
-                          <div className="text-center p-3 rounded-lg bg-background/60">
-                            <Globe className="w-5 h-5 mx-auto mb-1 text-blue-500" />
-                            <p className="text-2xl font-bold text-foreground">{validLinksCount}</p>
-                            <p className="text-xs text-muted-foreground">Link</p>
+                          <div className="text-center p-2 rounded-lg bg-background/60">
+                            <Globe className="w-4 h-4 mx-auto mb-1 text-blue-500" />
+                            <p className="text-xl font-bold text-foreground">{validLinksCount}</p>
+                            <p className="text-[10px] text-muted-foreground">Link</p>
                           </div>
                         </div>
 
                         {totalFileSize > 0 && (
-                          <p className="text-sm text-muted-foreground text-center pt-3 border-t border-primary/20">
+                          <p className="text-xs text-muted-foreground text-center pt-2 border-t border-primary/20">
                             Dung lượng: {formatFileSize(totalFileSize)}
                           </p>
+                        )}
+
+                        {!hasContent && (
+                          <div className="text-center pt-2 border-t border-primary/20 mt-3">
+                            <p className="text-xs text-muted-foreground">Chưa có bài nộp</p>
+                          </div>
                         )}
                       </div>
 
@@ -747,7 +771,7 @@ export default function TaskSubmissionDialog({
                       {canSubmit && (
                         <Button 
                           onClick={() => setActiveTab('submit')}
-                          className="w-full h-14 gap-3 shadow-lg text-base font-bold"
+                          className="w-full h-14 gap-3 shadow-lg text-base font-semibold"
                           size="lg"
                         >
                           <Send className="w-5 h-5" />
