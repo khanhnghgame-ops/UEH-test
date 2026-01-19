@@ -20,16 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Loader2, AlertTriangle, Eye, Calendar, Users, FileText, 
-  Layers, Edit, Clock, HardDrive, CalendarPlus, History,
-  ChevronRight
+  Layers, Edit, Clock, HardDrive, CalendarPlus, ArrowRight,
+  ChevronRight, CheckCircle2, X, Plus
 } from 'lucide-react';
 import type { Task, Stage, GroupMember, TaskStatus } from '@/types/database';
-import { formatDeadlineVN, isDeadlineOverdue, parseLocalDateTime } from '@/lib/datetime';
+import { formatDeadlineVN, formatDeadlineShortVN, isDeadlineOverdue, parseLocalDateTime } from '@/lib/datetime';
 import { DeadlineHourPicker } from './DeadlineHourPicker';
 import FileSizeLimitSelector, { formatFileSizeMB } from './FileSizeLimitSelector';
 import { notifyTaskUpdated, notifyTaskAssigneesChanged } from '@/lib/notifications';
@@ -68,7 +69,7 @@ export default function TaskEditDialog({
   const [extendedDeadline, setExtendedDeadline] = useState('');
   const [showExtendSection, setShowExtendSection] = useState(false);
 
-  // Check if task is overdue
+  // Type for extended task
   const taskWithExtended = task as Task & { extended_deadline?: string; extended_at?: string; extended_by?: string };
   const originalDeadlineOverdue = isDeadlineOverdue(task?.deadline);
   const effectiveDeadline = taskWithExtended?.extended_deadline || task?.deadline;
@@ -138,7 +139,6 @@ export default function TaskEditDialog({
       if (showExtendSection && extendedDeadline) {
         updateData.extended_deadline = extendedDeadline;
         if (!taskWithSize.extended_deadline) {
-          // First time extending
           updateData.extended_at = new Date().toISOString();
           updateData.extended_by = user!.id;
         }
@@ -238,21 +238,21 @@ export default function TaskEditDialog({
   const getStatusConfig = (s: TaskStatus) => {
     switch (s) {
       case 'TODO':
-        return { label: 'Chờ làm', color: 'bg-muted text-muted-foreground' };
+        return { label: 'Chờ làm', color: 'bg-muted text-muted-foreground', icon: Clock };
       case 'IN_PROGRESS':
-        return { label: 'Đang làm', color: 'bg-warning/10 text-warning border-warning/50' };
+        return { label: 'Đang làm', color: 'bg-warning/10 text-warning border-warning/50', icon: Clock };
       case 'DONE':
-        return { label: 'Hoàn thành', color: 'bg-primary/10 text-primary border-primary/50' };
+        return { label: 'Hoàn thành', color: 'bg-primary/10 text-primary border-primary/50', icon: CheckCircle2 };
       case 'VERIFIED':
-        return { label: 'Đã duyệt', color: 'bg-success/10 text-success border-success/50' };
+        return { label: 'Đã duyệt', color: 'bg-success/10 text-success border-success/50', icon: CheckCircle2 };
       default:
-        return { label: s, color: 'bg-muted' };
+        return { label: s, color: 'bg-muted', icon: Clock };
     }
   };
 
   const statusConfig = task ? getStatusConfig(task.status) : getStatusConfig('TODO');
 
-  // Calculate extended time difference
+  // Calculate extension info
   const getExtensionInfo = () => {
     if (!deadline || !extendedDeadline) return null;
     const original = parseLocalDateTime(deadline);
@@ -264,352 +264,460 @@ export default function TaskEditDialog({
     const diffDays = Math.floor(diffHours / 24);
     const remainingHours = diffHours % 24;
     
-    if (diffMs <= 0) return { text: 'Không hợp lệ (phải sau deadline gốc)', valid: false };
+    if (diffMs <= 0) return { text: 'Phải sau deadline gốc', valid: false, days: 0, hours: 0 };
     
-    let text = '';
-    if (diffDays > 0) text += `${diffDays} ngày `;
-    if (remainingHours > 0) text += `${remainingHours} giờ`;
-    
-    return { text: text.trim() || 'Vài phút', valid: true };
+    return { 
+      text: `+${diffDays > 0 ? `${diffDays} ngày` : ''}${diffDays > 0 && remainingHours > 0 ? ' ' : ''}${remainingHours > 0 ? `${remainingHours} giờ` : ''}`.trim() || '+vài phút',
+      valid: true,
+      days: diffDays,
+      hours: remainingHours
+    };
   };
 
   const extensionInfo = getExtensionInfo();
 
+  // Get extension info for existing task
+  const getExistingExtensionInfo = () => {
+    if (!task?.deadline || !taskWithExtended?.extended_deadline) return null;
+    const original = parseLocalDateTime(task.deadline);
+    const extended = parseLocalDateTime(taskWithExtended.extended_deadline);
+    if (!original || !extended) return null;
+    
+    const diffMs = extended.getTime() - original.getTime();
+    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    const remainingHours = diffHours % 24;
+    
+    let text = '+';
+    if (diffDays > 0) text += `${diffDays} ngày`;
+    if (diffDays > 0 && remainingHours > 0) text += ' ';
+    if (remainingHours > 0) text += `${remainingHours} giờ`;
+    
+    return text || '+vài phút';
+  };
+
+  const existingExtensionText = getExistingExtensionInfo();
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] w-[1400px] h-[85vh] max-h-[800px] p-0 overflow-hidden flex flex-col">
-        {/* Header */}
-        <DialogHeader className="px-6 py-3 border-b bg-gradient-to-r from-primary/10 to-transparent shrink-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/20 border border-primary/30">
+        {/* Header - Compact and informative */}
+        <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-primary/5 via-transparent to-transparent shrink-0">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-2xl ${canEditDetails ? 'bg-primary/10 border border-primary/20' : 'bg-muted border border-border'}`}>
                 {canEditDetails ? (
-                  <Edit className="w-5 h-5 text-primary" />
+                  <Edit className="w-6 h-6 text-primary" />
                 ) : (
-                  <Eye className="w-5 h-5 text-primary" />
+                  <Eye className="w-6 h-6 text-muted-foreground" />
                 )}
               </div>
               <div>
-                <DialogTitle className="text-lg font-bold">
-                  {canEditDetails ? 'Chỉnh sửa task' : 'Chi tiết task'}
+                <DialogTitle className="text-xl font-bold tracking-tight">
+                  {canEditDetails ? 'Chỉnh sửa Task' : 'Chi tiết Task'}
                 </DialogTitle>
-                <DialogDescription className="text-xs mt-0.5">
-                  {canEditDetails ? 'Cập nhật thông tin task' : 'Xem thông tin chi tiết task'}
+                <DialogDescription className="text-sm mt-1">
+                  {task?.title && <span className="font-medium text-foreground">{task.title}</span>}
                 </DialogDescription>
               </div>
             </div>
+            
+            {/* Status badges */}
             <div className="flex items-center gap-2">
               {!isLeaderOrAdmin && (
-                <Badge variant="secondary" className="gap-1 text-xs">
-                  <Eye className="w-3 h-3" />
+                <Badge variant="secondary" className="gap-1.5 px-3 py-1">
+                  <Eye className="w-3.5 h-3.5" />
                   Chế độ xem
                 </Badge>
               )}
               {hasExtension && (
-                <Badge variant="outline" className="gap-1 text-xs border-blue-500/50 text-blue-600 bg-blue-500/10">
-                  <CalendarPlus className="w-3 h-3" />
+                <Badge className="gap-1.5 px-3 py-1 bg-blue-500/10 text-blue-600 border border-blue-500/30 hover:bg-blue-500/20">
+                  <CalendarPlus className="w-3.5 h-3.5" />
                   Đã gia hạn
                 </Badge>
               )}
               {isOverdue && (
-                <Badge variant="destructive" className="gap-1 text-xs">
-                  <AlertTriangle className="w-3 h-3" />
-                  Quá deadline
+                <Badge variant="destructive" className="gap-1.5 px-3 py-1">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Quá hạn
                 </Badge>
               )}
-              <Badge className={`${statusConfig.color} border text-xs`}>
+              <Badge className={`${statusConfig.color} border px-3 py-1 gap-1.5`}>
+                <statusConfig.icon className="w-3.5 h-3.5" />
                 {statusConfig.label}
               </Badge>
             </div>
           </div>
         </DialogHeader>
         
-        {/* Content */}
-        <div className="flex-1 p-5 overflow-hidden">
-          <div className="grid grid-cols-3 gap-5 h-full">
-            {/* Left Column - Basic Info (2/3 width) */}
-            <div className="col-span-2 flex flex-col gap-4">
-              {/* Task Title & Description Card */}
-              <div className="p-4 rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent flex-1 flex flex-col">
-                <h3 className="text-sm font-bold text-primary flex items-center gap-2 mb-3 uppercase tracking-wide">
-                  <FileText className="w-4 h-4" />
-                  Thông tin cơ bản
-                </h3>
-                <div className="space-y-3 flex-1 flex flex-col">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">Tên task {canEditDetails && <span className="text-destructive">*</span>}</Label>
-                    {canEditDetails ? (
-                      <Input
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder="VD: Hoàn thành báo cáo chương 1"
-                        className="h-9"
-                      />
-                    ) : (
-                      <div className="p-2 rounded-lg bg-background/50 border">
-                        <p className="font-medium">{task?.title}</p>
-                      </div>
-                    )}
+        {/* Content - Two column layout */}
+        <div className="flex-1 overflow-hidden">
+          <div className="grid grid-cols-3 h-full">
+            {/* Left Column - Main content (2/3) */}
+            <div className="col-span-2 p-6 overflow-y-auto border-r">
+              <div className="space-y-6 max-w-3xl">
+                {/* Section 1: Basic Info */}
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-1.5 rounded-lg bg-primary/10">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </div>
+                    <h3 className="font-semibold text-sm uppercase tracking-wide text-primary">Thông tin cơ bản</h3>
                   </div>
-                  <div className="space-y-1.5 flex-1 flex flex-col">
-                    <Label className="text-sm font-medium">Mô tả chi tiết</Label>
-                    {canEditDetails ? (
-                      <Textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Mô tả công việc cần thực hiện, yêu cầu cụ thể..."
-                        className="resize-none flex-1 min-h-[100px]"
-                      />
-                    ) : (
-                      <div className="p-2 rounded-lg bg-background/50 border flex-1 min-h-[100px]">
-                        <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-                          {task?.description || 'Không có mô tả'}
-                        </p>
-                      </div>
-                    )}
+                  
+                  <div className="space-y-4 pl-8">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Tên task {canEditDetails && <span className="text-destructive">*</span>}
+                      </Label>
+                      {canEditDetails ? (
+                        <Input
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          placeholder="Nhập tên task..."
+                          className="h-11 text-base"
+                        />
+                      ) : (
+                        <div className="p-3 rounded-lg bg-muted/50 border text-base font-medium">
+                          {task?.title}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Mô tả chi tiết</Label>
+                      {canEditDetails ? (
+                        <Textarea
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          placeholder="Mô tả công việc cần thực hiện..."
+                          className="min-h-[120px] resize-none"
+                        />
+                      ) : (
+                        <div className="p-3 rounded-lg bg-muted/50 border min-h-[80px]">
+                          <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+                            {task?.description || 'Không có mô tả'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
-              
-              {/* Time & Stage Section */}
-              <div className="p-4 rounded-xl border-2 border-warning/20 bg-gradient-to-br from-warning/5 to-transparent">
-                <h3 className="text-sm font-bold text-warning flex items-center gap-2 mb-3 uppercase tracking-wide">
-                  <Clock className="w-4 h-4" />
-                  Thời gian & Cấu hình
-                </h3>
-                
-                {/* Row 1: Stage, Deadline, Upload Limit */}
-                <div className="grid grid-cols-3 gap-3 mb-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-muted-foreground" />
-                      Giai đoạn
-                    </Label>
-                    {canEditDetails ? (
-                      <Select value={stageId} onValueChange={setStageId}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Chọn giai đoạn" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {stages.map((stage) => (
-                            <SelectItem key={stage.id} value={stage.id}>
-                              {stage.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="p-2 rounded-lg bg-background/50 border text-sm">
-                        {stages.find(s => s.id === task?.stage_id)?.name || 'Chưa phân'}
-                      </div>
-                    )}
-                  </div>
+                </section>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                      Deadline gốc
-                    </Label>
-                    {canEditDetails ? (
-                      <DeadlineHourPicker
-                        value={deadline}
-                        onChange={setDeadline}
-                        placeholder="Chọn ngày..."
-                      />
-                    ) : (
-                      <div className={`p-2 rounded-lg border text-sm ${originalDeadlineOverdue && !hasExtension ? 'bg-destructive/10 border-destructive/30' : 'bg-background/50'}`}>
-                        {task?.deadline ? (
-                          <span className={originalDeadlineOverdue && !hasExtension ? 'text-destructive font-medium' : ''}>
-                            {formatDeadlineVN(task.deadline)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">Không có</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                <Separator />
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium flex items-center gap-1.5">
-                      <HardDrive className="w-3.5 h-3.5 text-muted-foreground" />
-                      Giới hạn upload
-                    </Label>
-                    {canEditDetails ? (
-                      <FileSizeLimitSelector
-                        value={maxFileSize}
-                        onChange={setMaxFileSize}
-                      />
-                    ) : (
-                      <div className="p-2 rounded-lg bg-background/50 border text-sm">
-                        {formatFileSizeMB(maxFileSize)}
-                      </div>
-                    )}
+                {/* Section 2: Stage & Config */}
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-1.5 rounded-lg bg-warning/10">
+                      <Layers className="w-4 h-4 text-warning" />
+                    </div>
+                    <h3 className="font-semibold text-sm uppercase tracking-wide text-warning">Giai đoạn & Cấu hình</h3>
                   </div>
-                </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 pl-8">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+                        Giai đoạn
+                      </Label>
+                      {canEditDetails ? (
+                        <Select value={stageId} onValueChange={setStageId}>
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Chọn giai đoạn" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {stages.map((stage) => (
+                              <SelectItem key={stage.id} value={stage.id}>
+                                {stage.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="p-2.5 rounded-lg bg-muted/50 border text-sm">
+                          {stages.find(s => s.id === task?.stage_id)?.name || 'Chưa phân giai đoạn'}
+                        </div>
+                      )}
+                    </div>
 
-                {/* Row 2: Deadline Extension (Edit mode only) */}
-                {canEditDetails && deadline && (
-                  <div className="border-t border-warning/20 pt-3 mt-2">
-                    {!showExtendSection ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowExtendSection(true)}
-                        className="gap-2 text-xs border-blue-500/30 text-blue-600 hover:bg-blue-500/10 hover:text-blue-700"
-                      >
-                        <CalendarPlus className="w-3.5 h-3.5" />
-                        Gia hạn deadline
-                        <ChevronRight className="w-3 h-3" />
-                      </Button>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs font-medium flex items-center gap-1.5 text-blue-600">
-                            <CalendarPlus className="w-3.5 h-3.5" />
-                            Gia hạn deadline
-                          </Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium flex items-center gap-1.5">
+                        <HardDrive className="w-3.5 h-3.5 text-muted-foreground" />
+                        Giới hạn upload
+                      </Label>
+                      {canEditDetails ? (
+                        <div className="h-10 flex items-center">
+                          <FileSizeLimitSelector
+                            value={maxFileSize}
+                            onChange={setMaxFileSize}
+                          />
+                        </div>
+                      ) : (
+                        <div className="p-2.5 rounded-lg bg-muted/50 border text-sm">
+                          {formatFileSizeMB(maxFileSize)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                <Separator />
+
+                {/* Section 3: Deadline & Extension - THE MAIN FEATURE */}
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-1.5 rounded-lg bg-blue-500/10">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <h3 className="font-semibold text-sm uppercase tracking-wide text-blue-600">Thời hạn hoàn thành</h3>
+                  </div>
+                  
+                  <div className="pl-8 space-y-4">
+                    {/* Original Deadline */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                        Deadline ban đầu
+                      </Label>
+                      {canEditDetails ? (
+                        <DeadlineHourPicker
+                          value={deadline}
+                          onChange={setDeadline}
+                          placeholder="Chọn ngày deadline..."
+                        />
+                      ) : (
+                        <div className={`p-2.5 rounded-lg border text-sm ${
+                          originalDeadlineOverdue && !hasExtension 
+                            ? 'bg-destructive/10 border-destructive/30 text-destructive font-medium' 
+                            : 'bg-muted/50'
+                        }`}>
+                          {task?.deadline ? formatDeadlineVN(task.deadline) : 'Không có deadline'}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Deadline Extension Section */}
+                    {canEditDetails && deadline && (
+                      <div className="rounded-xl border-2 border-dashed border-blue-300/50 bg-blue-50/30 dark:bg-blue-950/20 p-4">
+                        {!showExtendSection ? (
                           <Button
                             type="button"
                             variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setShowExtendSection(false);
-                              setExtendedDeadline('');
-                            }}
-                            className="h-6 text-xs text-muted-foreground hover:text-destructive"
+                            onClick={() => setShowExtendSection(true)}
+                            className="w-full h-auto py-4 gap-3 text-blue-600 hover:text-blue-700 hover:bg-blue-100/50"
                           >
-                            Hủy gia hạn
-                          </Button>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1">
-                            <DeadlineHourPicker
-                              value={extendedDeadline}
-                              onChange={setExtendedDeadline}
-                              placeholder="Chọn deadline mới..."
-                            />
-                          </div>
-                          {extensionInfo && (
-                            <div className={`text-xs px-2 py-1 rounded ${extensionInfo.valid ? 'bg-blue-500/10 text-blue-600' : 'bg-destructive/10 text-destructive'}`}>
-                              {extensionInfo.valid ? `+${extensionInfo.text}` : extensionInfo.text}
+                            <div className="p-2 rounded-full bg-blue-500/10">
+                              <Plus className="w-4 h-4" />
                             </div>
-                          )}
+                            <div className="text-left">
+                              <p className="font-medium">Gia hạn deadline</p>
+                              <p className="text-xs text-muted-foreground font-normal">Thêm thời gian cho task mà không thay đổi deadline gốc</p>
+                            </div>
+                            <ChevronRight className="w-5 h-5 ml-auto" />
+                          </Button>
+                        ) : (
+                          <div className="space-y-4">
+                            {/* Header with cancel */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <CalendarPlus className="w-5 h-5 text-blue-600" />
+                                <span className="font-semibold text-blue-600">Gia hạn deadline</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setShowExtendSection(false);
+                                  setExtendedDeadline('');
+                                }}
+                                className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                              >
+                                <X className="w-4 h-4 mr-1" />
+                                Hủy
+                              </Button>
+                            </div>
+
+                            {/* New deadline picker */}
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Deadline sau gia hạn</Label>
+                              <DeadlineHourPicker
+                                value={extendedDeadline}
+                                onChange={setExtendedDeadline}
+                                placeholder="Chọn ngày mới..."
+                              />
+                            </div>
+
+                            {/* Summary visualization */}
+                            {extendedDeadline && extensionInfo && (
+                              <div className={`rounded-lg p-4 ${extensionInfo.valid ? 'bg-white dark:bg-background border-2 border-blue-200' : 'bg-destructive/10 border border-destructive/30'}`}>
+                                {extensionInfo.valid ? (
+                                  <div className="space-y-3">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tóm tắt thay đổi</p>
+                                    
+                                    <div className="flex items-center gap-3">
+                                      {/* Original */}
+                                      <div className="flex-1 p-3 rounded-lg bg-muted/50 text-center">
+                                        <p className="text-[10px] text-muted-foreground uppercase mb-1">Deadline gốc</p>
+                                        <p className="text-sm font-semibold">{formatDeadlineShortVN(deadline)}</p>
+                                      </div>
+                                      
+                                      {/* Arrow with extension time */}
+                                      <div className="flex flex-col items-center">
+                                        <div className="px-3 py-1.5 rounded-full bg-blue-500 text-white text-xs font-bold shadow-sm">
+                                          {extensionInfo.text}
+                                        </div>
+                                        <ArrowRight className="w-5 h-5 text-blue-500 mt-1" />
+                                      </div>
+                                      
+                                      {/* Extended */}
+                                      <div className="flex-1 p-3 rounded-lg bg-blue-500/10 border-2 border-blue-500/30 text-center">
+                                        <p className="text-[10px] text-blue-600 uppercase mb-1 font-medium">Deadline mới</p>
+                                        <p className="text-sm font-bold text-blue-700">{formatDeadlineShortVN(extendedDeadline)}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-destructive text-center">
+                                    ⚠️ Deadline gia hạn phải sau deadline gốc
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Show existing extension (View mode or when already extended) */}
+                    {!canEditDetails && hasExtension && (
+                      <div className="rounded-xl bg-gradient-to-r from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border border-blue-200 p-5">
+                        <div className="flex items-center gap-2 mb-4">
+                          <CalendarPlus className="w-5 h-5 text-blue-600" />
+                          <span className="font-semibold text-blue-700">Task đã được gia hạn</span>
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
-                          Deadline gốc: {formatDeadlineVN(deadline)} → Gia hạn cho thêm thời gian, không thay thế deadline gốc
+                        
+                        <div className="flex items-center gap-3">
+                          {/* Original */}
+                          <div className="flex-1 p-3 rounded-lg bg-white/80 dark:bg-background/50 text-center border">
+                            <p className="text-[10px] text-muted-foreground uppercase mb-1">Deadline ban đầu</p>
+                            <p className="text-sm font-semibold">{formatDeadlineShortVN(task?.deadline)}</p>
+                          </div>
+                          
+                          {/* Extension badge */}
+                          <div className="flex flex-col items-center shrink-0">
+                            <div className="px-3 py-1.5 rounded-full bg-blue-500 text-white text-xs font-bold shadow-md">
+                              {existingExtensionText}
+                            </div>
+                            <ArrowRight className="w-5 h-5 text-blue-500 mt-1" />
+                          </div>
+                          
+                          {/* New deadline */}
+                          <div className="flex-1 p-3 rounded-lg bg-blue-500/10 border-2 border-blue-500/40 text-center">
+                            <p className="text-[10px] text-blue-600 uppercase mb-1 font-medium">Deadline hiện tại</p>
+                            <p className="text-sm font-bold text-blue-700">{formatDeadlineShortVN(taskWithExtended.extended_deadline)}</p>
+                          </div>
+                        </div>
+                        
+                        {taskWithExtended.extended_at && (
+                          <p className="text-xs text-muted-foreground mt-3 text-center">
+                            Gia hạn lúc {format(new Date(taskWithExtended.extended_at), "HH:mm 'ngày' dd/MM/yyyy", { locale: vi })}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Show existing extension in EDIT mode */}
+                    {canEditDetails && hasExtension && showExtendSection && extendedDeadline && extensionInfo?.valid && (
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-success/10 border border-success/30">
+                        <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                        <p className="text-sm text-success">
+                          Gia hạn sẽ được lưu: {extensionInfo.text} từ deadline gốc
                         </p>
                       </div>
                     )}
                   </div>
-                )}
-
-                {/* Show extension info (View mode or when has extension) */}
-                {!canEditDetails && hasExtension && (
-                  <div className="border-t border-warning/20 pt-3 mt-2">
-                    <div className="flex items-center gap-3 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                      <CalendarPlus className="w-4 h-4 text-blue-600 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-blue-600">Đã gia hạn</p>
-                        <p className="text-sm font-semibold truncate">
-                          {formatDeadlineVN(taskWithExtended.extended_deadline)}
-                        </p>
-                      </div>
-                      {taskWithExtended.extended_at && (
-                        <div className="text-right text-[10px] text-muted-foreground">
-                          <p>Gia hạn lúc</p>
-                          <p>{format(new Date(taskWithExtended.extended_at), 'dd/MM HH:mm', { locale: vi })}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                </section>
               </div>
             </div>
             
-            {/* Right Column - Assignees (1/3 width) */}
-            <div className="col-span-1 flex flex-col min-h-0">
-              <div className="p-4 rounded-xl border-2 border-success/20 bg-gradient-to-br from-success/5 to-transparent flex flex-col min-h-0 max-h-full">
-                <h3 className="text-sm font-bold text-success flex items-center gap-2 mb-3 uppercase tracking-wide shrink-0">
-                  <Users className="w-4 h-4" />
-                  Người phụ trách
-                </h3>
-                
+            {/* Right Column - Assignees (1/3) */}
+            <div className="col-span-1 flex flex-col bg-muted/20">
+              <div className="p-4 border-b bg-success/5">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-success/10">
+                    <Users className="w-4 h-4 text-success" />
+                  </div>
+                  <h3 className="font-semibold text-sm uppercase tracking-wide text-success">Người phụ trách</h3>
+                  {assignees.length > 0 && (
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      {assignees.length} người
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-4">
                 {canEditDetails ? (
-                  <>
-                    <div className="border rounded-xl bg-background/50 p-2 flex-1 overflow-y-auto min-h-0 max-h-[calc(85vh-320px)]">
-                      {members.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground text-sm">
-                          Chưa có thành viên trong project
-                        </div>
-                      ) : (
-                        <div className="space-y-1">
-                          {members.map((member) => (
-                            <div 
-                              key={member.id} 
-                              className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all ${
-                                assignees.includes(member.user_id) 
-                                  ? 'bg-success/10 border-2 border-success/40 shadow-sm' 
-                                  : 'hover:bg-muted/50 border-2 border-transparent'
-                              }`}
-                              onClick={() => {
-                                if (assignees.includes(member.user_id)) {
-                                  setAssignees(assignees.filter(id => id !== member.user_id));
-                                } else {
-                                  setAssignees([...assignees, member.user_id]);
-                                }
-                              }}
-                            >
-                              <Checkbox
-                                id={`assignee-${member.user_id}`}
-                                checked={assignees.includes(member.user_id)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setAssignees([...assignees, member.user_id]);
-                                  } else {
-                                    setAssignees(assignees.filter((id) => id !== member.user_id));
-                                  }
-                                }}
-                                className="h-4 w-4"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <label htmlFor={`assignee-${member.user_id}`} className="text-sm font-medium cursor-pointer block truncate">
-                                  {member.profiles?.full_name}
-                                </label>
-                                <p className="text-xs text-muted-foreground">{member.profiles?.student_id}</p>
-                              </div>
-                              {member.role === 'leader' && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-medium shrink-0">
-                                  Leader
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {assignees.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-2 text-center">
-                        Đã chọn <span className="font-bold text-success">{assignees.length}</span> thành viên
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <div className="border rounded-xl bg-background/50 p-2 flex-1 overflow-y-auto">
-                    {task?.task_assignments && task.task_assignments.length > 0 ? (
-                      <div className="space-y-1.5">
-                        {task.task_assignments.map((assignment) => (
-                          <div key={assignment.id} className="flex items-center gap-2 p-2 rounded-lg bg-success/5 border border-success/20">
-                            <div className="w-7 h-7 rounded-full bg-success/20 flex items-center justify-center text-xs font-bold text-success">
-                              {assignment.profiles?.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                            </div>
-                            <span className="text-sm font-medium truncate">{assignment.profiles?.full_name}</span>
-                          </div>
-                        ))}
+                  <div className="space-y-2">
+                    {members.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm">Chưa có thành viên</p>
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-muted-foreground text-sm">
-                        Chưa có người được giao
+                      members.map((member) => (
+                        <div 
+                          key={member.id} 
+                          className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
+                            assignees.includes(member.user_id) 
+                              ? 'bg-success/10 ring-2 ring-success/40 shadow-sm' 
+                              : 'hover:bg-background border border-transparent hover:border-border'
+                          }`}
+                          onClick={() => {
+                            if (assignees.includes(member.user_id)) {
+                              setAssignees(assignees.filter(id => id !== member.user_id));
+                            } else {
+                              setAssignees([...assignees, member.user_id]);
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={assignees.includes(member.user_id)}
+                            className="h-5 w-5"
+                          />
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                            {member.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{member.profiles?.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{member.profiles?.student_id}</p>
+                          </div>
+                          {member.role === 'leader' && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-warning/10 text-warning border-warning/30 shrink-0">
+                              Leader
+                            </Badge>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {task?.task_assignments && task.task_assignments.length > 0 ? (
+                      task.task_assignments.map((assignment) => (
+                        <div key={assignment.id} className="flex items-center gap-3 p-3 rounded-xl bg-success/5 border border-success/20">
+                          <div className="w-9 h-9 rounded-full bg-success/20 flex items-center justify-center text-sm font-bold text-success">
+                            {assignment.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
+                          <span className="text-sm font-medium truncate">{assignment.profiles?.full_name}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm">Chưa có người được giao</p>
                       </div>
                     )}
                   </div>
@@ -620,12 +728,12 @@ export default function TaskEditDialog({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="px-5 py-3 border-t bg-muted/30 gap-2 shrink-0">
-          <Button variant="outline" onClick={onClose} className="h-9 min-w-20">
+        <DialogFooter className="px-6 py-4 border-t bg-muted/30 gap-3 shrink-0">
+          <Button variant="outline" onClick={onClose} className="min-w-24">
             {canEditDetails ? 'Hủy' : 'Đóng'}
           </Button>
           {canEditDetails && (
-            <Button onClick={handleSave} disabled={isLoading} className="h-9 min-w-28 gap-2">
+            <Button onClick={handleSave} disabled={isLoading} className="min-w-32 gap-2">
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -633,7 +741,7 @@ export default function TaskEditDialog({
                 </>
               ) : (
                 <>
-                  <Edit className="w-4 h-4" />
+                  <CheckCircle2 className="w-4 h-4" />
                   Lưu thay đổi
                 </>
               )}
