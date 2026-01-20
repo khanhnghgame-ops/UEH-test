@@ -543,9 +543,9 @@ export default function TaskEditDialog({
               </div>
             </div>
             
-            {/* Right Column - Assignees (4 cols) */}
+            {/* Right Column - Assignees (4 cols) - Compact */}
             <div className="col-span-4 flex flex-col bg-muted/20">
-              <div className="p-3 border-b bg-success/5">
+              <div className="px-3 py-2 border-b bg-success/5">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-success" />
                   <span className="text-xs font-semibold uppercase text-success">Người phụ trách</span>
@@ -555,32 +555,32 @@ export default function TaskEditDialog({
                 </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-3">
+              <div className="flex-1 overflow-y-auto p-2">
                 {canEditDetails ? (
                   <>
                     {/* Summary View (Default - Collapsed) */}
                     {!showAssigneesExpanded ? (
-                      <div className="space-y-2">
-                        {/* Summary of selected assignees */}
-                        <div className="p-2 rounded-lg bg-background border">
+                      <div className="space-y-1.5">
+                        {/* Summary of selected assignees - compact chips */}
+                        <div className="p-1.5 rounded-lg bg-background border min-h-[50px]">
                           {assignees.length === 0 ? (
-                            <p className="text-xs text-muted-foreground text-center py-1">Chưa chọn người phụ trách</p>
+                            <p className="text-[10px] text-muted-foreground text-center py-1.5">Chưa chọn người phụ trách</p>
                           ) : (
-                            <div className="flex flex-wrap gap-1.5">
-                              {assignees.slice(0, 4).map(userId => {
+                            <div className="flex flex-wrap gap-1">
+                              {assignees.slice(0, 6).map(userId => {
                                 const member = members.find(m => m.user_id === userId);
                                 return member ? (
-                                  <div key={userId} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-success/10 border border-success/30">
-                                    <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center text-[9px] font-bold text-success shrink-0">
+                                  <div key={userId} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-success/10 border border-success/30">
+                                    <div className="w-4 h-4 rounded-full bg-success/20 flex items-center justify-center text-[7px] font-bold text-success shrink-0">
                                       {member.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                     </div>
-                                    <span className="text-[10px] font-medium truncate max-w-[80px]">{member.profiles?.full_name?.split(' ').pop()}</span>
+                                    <span className="text-[9px] font-medium truncate max-w-[50px]">{member.profiles?.full_name?.split(' ').pop()}</span>
                                   </div>
                                 ) : null;
                               })}
-                              {assignees.length > 4 && (
-                                <div className="flex items-center px-2 py-1 rounded-full bg-muted border text-[10px] text-muted-foreground">
-                                  +{assignees.length - 4} khác
+                              {assignees.length > 6 && (
+                                <div className="flex items-center px-1.5 py-0.5 rounded-full bg-muted border text-[8px] text-muted-foreground">
+                                  +{assignees.length - 6}
                                 </div>
                               )}
                             </div>
@@ -593,38 +593,38 @@ export default function TaskEditDialog({
                           variant="outline"
                           size="sm"
                           onClick={() => setShowAssigneesExpanded(true)}
-                          className="w-full h-8 gap-2 text-xs"
+                          className="w-full h-6 gap-1 text-[10px]"
                         >
                           <Edit className="w-3 h-3" />
-                          Chỉnh sửa người phụ trách
+                          Chỉnh sửa
                         </Button>
                       </div>
                     ) : (
-                      /* Expanded View (Full List) */
-                      <div className="space-y-2">
+                      /* Expanded View (Full List) - Compact */
+                      <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground">Chọn thành viên:</span>
+                          <span className="text-[9px] text-muted-foreground">Chọn thành viên:</span>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => setShowAssigneesExpanded(false)}
-                            className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                            className="h-5 px-1 text-[9px] text-muted-foreground hover:text-foreground"
                           >
-                            <X className="w-3 h-3 mr-1" />Thu gọn
+                            <X className="w-2.5 h-2.5 mr-0.5" />Gọn
                           </Button>
                         </div>
-                        <div className="space-y-1 max-h-[calc(100%-40px)] overflow-y-auto">
+                        <div className="space-y-0.5 max-h-[260px] overflow-y-auto">
                           {members.length === 0 ? (
-                            <div className="text-center py-6 text-muted-foreground">
-                              <Users className="w-6 h-6 mx-auto mb-1 opacity-30" />
-                              <p className="text-xs">Chưa có thành viên</p>
+                            <div className="text-center py-3 text-muted-foreground">
+                              <Users className="w-5 h-5 mx-auto mb-1 opacity-30" />
+                              <p className="text-[9px]">Chưa có thành viên</p>
                             </div>
                           ) : (
                             members.map((member) => (
                               <div 
                                 key={member.id} 
-                                className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-all ${
+                                className={`flex items-center gap-1 p-1 rounded-md cursor-pointer transition-all ${
                                   assignees.includes(member.user_id) 
                                     ? 'bg-success/10 ring-1 ring-success/40' 
                                     : 'hover:bg-background border border-transparent hover:border-border'
@@ -637,17 +637,17 @@ export default function TaskEditDialog({
                                   }
                                 }}
                               >
-                                <Checkbox checked={assignees.includes(member.user_id)} className="h-3.5 w-3.5" />
-                                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
+                                <Checkbox checked={assignees.includes(member.user_id)} className="h-3 w-3" />
+                                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[7px] font-bold text-primary shrink-0">
                                   {member.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-[11px] font-medium truncate">{member.profiles?.full_name}</p>
-                                  <p className="text-[9px] text-muted-foreground">{member.profiles?.student_id}</p>
+                                  <p className="text-[10px] font-medium truncate">{member.profiles?.full_name}</p>
+                                  <p className="text-[8px] text-muted-foreground">{member.profiles?.student_id}</p>
                                 </div>
                                 {member.role === 'leader' && (
-                                  <Badge variant="outline" className="text-[8px] px-1 py-0 bg-warning/10 text-warning border-warning/30 shrink-0">
-                                    Leader
+                                  <Badge variant="outline" className="text-[7px] px-0.5 py-0 bg-warning/10 text-warning border-warning/30 shrink-0">
+                                    L
                                   </Badge>
                                 )}
                               </div>
@@ -658,21 +658,21 @@ export default function TaskEditDialog({
                     )}
                   </>
                 ) : (
-                  /* View-only mode */
-                  <div className="space-y-1.5">
+                  /* View-only mode - Compact */
+                  <div className="space-y-0.5">
                     {task?.task_assignments && task.task_assignments.length > 0 ? (
                       task.task_assignments.map((assignment) => (
-                        <div key={assignment.id} className="flex items-center gap-2 p-2 rounded-lg bg-success/5 border border-success/20">
-                          <div className="w-6 h-6 rounded-full bg-success/20 flex items-center justify-center text-[10px] font-bold text-success">
+                        <div key={assignment.id} className="flex items-center gap-1.5 p-1 rounded-md bg-success/5 border border-success/20">
+                          <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center text-[8px] font-bold text-success">
                             {assignment.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                           </div>
-                          <span className="text-xs font-medium truncate">{assignment.profiles?.full_name}</span>
+                          <span className="text-[10px] font-medium truncate">{assignment.profiles?.full_name}</span>
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <Users className="w-6 h-6 mx-auto mb-1 opacity-30" />
-                        <p className="text-xs">Chưa có người được giao</p>
+                      <div className="text-center py-3 text-muted-foreground">
+                        <Users className="w-5 h-5 mx-auto mb-1 opacity-30" />
+                        <p className="text-[9px]">Chưa có người được giao</p>
                       </div>
                     )}
                   </div>
