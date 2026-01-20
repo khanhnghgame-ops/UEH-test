@@ -67,6 +67,7 @@ export default function TaskEditDialog({
   const [maxFileSize, setMaxFileSize] = useState<number>(10 * 1024 * 1024);
   const [extensionHours, setExtensionHours] = useState<number>(0);
   const [showExtendSection, setShowExtendSection] = useState(false);
+  const [showAssigneesExpanded, setShowAssigneesExpanded] = useState(false);
 
   // Type for extended task
   const taskWithExtended = task as Task & { extended_deadline?: string; extended_at?: string; extended_by?: string };
@@ -556,60 +557,121 @@ export default function TaskEditDialog({
               
               <div className="flex-1 overflow-y-auto p-3">
                 {canEditDetails ? (
-                  <div className="space-y-1.5">
-                    {members.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                        <p className="text-xs">Chưa có thành viên</p>
-                      </div>
-                    ) : (
-                      members.map((member) => (
-                        <div 
-                          key={member.id} 
-                          className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all ${
-                            assignees.includes(member.user_id) 
-                              ? 'bg-success/10 ring-1 ring-success/40' 
-                              : 'hover:bg-background border border-transparent hover:border-border'
-                          }`}
-                          onClick={() => {
-                            if (assignees.includes(member.user_id)) {
-                              setAssignees(assignees.filter(id => id !== member.user_id));
-                            } else {
-                              setAssignees([...assignees, member.user_id]);
-                            }
-                          }}
-                        >
-                          <Checkbox checked={assignees.includes(member.user_id)} className="h-4 w-4" />
-                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                            {member.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium truncate">{member.profiles?.full_name}</p>
-                            <p className="text-[10px] text-muted-foreground">{member.profiles?.student_id}</p>
-                          </div>
-                          {member.role === 'leader' && (
-                            <Badge variant="outline" className="text-[9px] px-1 py-0 bg-warning/10 text-warning border-warning/30 shrink-0">
-                              Leader
-                            </Badge>
+                  <>
+                    {/* Summary View (Default - Collapsed) */}
+                    {!showAssigneesExpanded ? (
+                      <div className="space-y-2">
+                        {/* Summary of selected assignees */}
+                        <div className="p-2 rounded-lg bg-background border">
+                          {assignees.length === 0 ? (
+                            <p className="text-xs text-muted-foreground text-center py-1">Chưa chọn người phụ trách</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              {assignees.slice(0, 4).map(userId => {
+                                const member = members.find(m => m.user_id === userId);
+                                return member ? (
+                                  <div key={userId} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-success/10 border border-success/30">
+                                    <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center text-[9px] font-bold text-success shrink-0">
+                                      {member.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <span className="text-[10px] font-medium truncate max-w-[80px]">{member.profiles?.full_name?.split(' ').pop()}</span>
+                                  </div>
+                                ) : null;
+                              })}
+                              {assignees.length > 4 && (
+                                <div className="flex items-center px-2 py-1 rounded-full bg-muted border text-[10px] text-muted-foreground">
+                                  +{assignees.length - 4} khác
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
-                      ))
+                        
+                        {/* Expand Button */}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAssigneesExpanded(true)}
+                          className="w-full h-8 gap-2 text-xs"
+                        >
+                          <Edit className="w-3 h-3" />
+                          Chỉnh sửa người phụ trách
+                        </Button>
+                      </div>
+                    ) : (
+                      /* Expanded View (Full List) */
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground">Chọn thành viên:</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowAssigneesExpanded(false)}
+                            className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="w-3 h-3 mr-1" />Thu gọn
+                          </Button>
+                        </div>
+                        <div className="space-y-1 max-h-[calc(100%-40px)] overflow-y-auto">
+                          {members.length === 0 ? (
+                            <div className="text-center py-6 text-muted-foreground">
+                              <Users className="w-6 h-6 mx-auto mb-1 opacity-30" />
+                              <p className="text-xs">Chưa có thành viên</p>
+                            </div>
+                          ) : (
+                            members.map((member) => (
+                              <div 
+                                key={member.id} 
+                                className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-all ${
+                                  assignees.includes(member.user_id) 
+                                    ? 'bg-success/10 ring-1 ring-success/40' 
+                                    : 'hover:bg-background border border-transparent hover:border-border'
+                                }`}
+                                onClick={() => {
+                                  if (assignees.includes(member.user_id)) {
+                                    setAssignees(assignees.filter(id => id !== member.user_id));
+                                  } else {
+                                    setAssignees([...assignees, member.user_id]);
+                                  }
+                                }}
+                              >
+                                <Checkbox checked={assignees.includes(member.user_id)} className="h-3.5 w-3.5" />
+                                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
+                                  {member.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[11px] font-medium truncate">{member.profiles?.full_name}</p>
+                                  <p className="text-[9px] text-muted-foreground">{member.profiles?.student_id}</p>
+                                </div>
+                                {member.role === 'leader' && (
+                                  <Badge variant="outline" className="text-[8px] px-1 py-0 bg-warning/10 text-warning border-warning/30 shrink-0">
+                                    Leader
+                                  </Badge>
+                                )}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
                     )}
-                  </div>
+                  </>
                 ) : (
+                  /* View-only mode */
                   <div className="space-y-1.5">
                     {task?.task_assignments && task.task_assignments.length > 0 ? (
                       task.task_assignments.map((assignment) => (
                         <div key={assignment.id} className="flex items-center gap-2 p-2 rounded-lg bg-success/5 border border-success/20">
-                          <div className="w-7 h-7 rounded-full bg-success/20 flex items-center justify-center text-xs font-bold text-success">
+                          <div className="w-6 h-6 rounded-full bg-success/20 flex items-center justify-center text-[10px] font-bold text-success">
                             {assignment.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                           </div>
                           <span className="text-xs font-medium truncate">{assignment.profiles?.full_name}</span>
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <div className="text-center py-6 text-muted-foreground">
+                        <Users className="w-6 h-6 mx-auto mb-1 opacity-30" />
                         <p className="text-xs">Chưa có người được giao</p>
                       </div>
                     )}
